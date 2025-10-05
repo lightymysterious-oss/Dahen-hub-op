@@ -1,0 +1,111 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "DAHEN HUB",
+   Icon = 0, -- Use 0 for no icon
+   LoadingTitle = "Rayfield Interface Suite",
+   LoadingSubtitle = "by Sirius",
+   ShowText = "Rayfield", -- for mobile users to unhide rayfield, change if you'd like
+   Theme = "Default",
+
+   ToggleUIKeybind = "K",
+
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false,
+
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = nil,
+      FileName = "Big Hub"
+   },
+
+   Discord = {
+      Enabled = false,
+      Invite = "noinvitelink",
+      RememberJoins = true
+   },
+
+   KeySystem = false
+   KeySettings = {
+      Title = "Example Key",
+      Subtitle = "Key System",
+      Note = "This is to showcase the Rayfield Key System! Type 1 to continue",
+      FileName = "Key",
+      SaveKey = false,
+      GrabKeyFromSite = false,
+      Key = {"1"}
+   }
+})
+
+local Tab = Window:CreateTab("PLAYER", 4483362458) -- Title, Image
+
+local noClipEnabled = false
+
+local function setNoClip(state)
+    noClipEnabled = state
+    if state then
+        game:GetService("RunService").Stepped:Connect(function()
+            if noClipEnabled and Character then
+                for _, part in pairs(Character:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    else
+        if Character then
+            for _, part in pairs(Character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
+    end
+end
+
+Window:CreateToggle({
+    Name = "NoClip",
+    Flag = "NoClipToggle",
+    Callback = function(state)
+        setNoClip(state)
+    end
+})
+
+local Player = game.Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+
+local SpeedSlider = Window:CreateSlider({
+    Name = "Player Speed",
+    Range = {16, 250}, -- Default Roblox walk speed is 16
+    Increment = 1,
+    Suffix = "Speed",
+    CurrentValue = Humanoid.WalkSpeed,
+    Flag = "SpeedSlider",
+    Callback = function(value)
+        Humanoid.WalkSpeed = value
+    end
+})
+
+local MainTab = Window:CreateTab("Main")
+
+local MiscSection = MainTab:CreateSection("Misc")
+
+-- Slider to expand player hitbox size
+MiscSection:CreateSlider({
+    Name = "Hitbox Size",
+    Range = {1, 10}, -- range from normal 1 up to 10 times the size
+    Increment = 0.1,
+    CurrentValue = 1,
+    Flag = "HitboxSizeSlider",
+    Callback = function(value)
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        if rootPart then
+            -- Expanding the hitbox by resizing HumanoidRootPart size
+            rootPart.Size = Vector3.new(value, value, value)
+        end
+    end
+})
