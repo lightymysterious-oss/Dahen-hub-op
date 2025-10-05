@@ -1,52 +1,27 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- Load Rayfield library (make sure Rayfield is properly loaded in your exploit environment)
+local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/UI-Library/Rayfield/main/source"))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "DAHEN HUB",
-   Icon = 0, -- Use 0 for no icon
-   LoadingTitle = "Rayfield Interface Suite",
-   LoadingSubtitle = "by Sirius",
-   ShowText = "Rayfield", -- for mobile users to unhide rayfield, change if you'd like
-   Theme = "Default",
-
-   ToggleUIKeybind = "K",
-
-   DisableRayfieldPrompts = false,
-   DisableBuildWarnings = false,
-
-   ConfigurationSaving = {
-      Enabled = true,
-      FolderName = nil,
-      FileName = "Big Hub"
-   },
-
-   Discord = {
-      Enabled = false,
-      Invite = "noinvitelink",
-      RememberJoins = true
-   },
-
-   KeySystem = false
-   KeySettings = {
-      Title = "Example Key",
-      Subtitle = "Key System",
-      Note = "This is to showcase the Rayfield Key System! Type 1 to continue",
-      FileName = "Key",
-      SaveKey = false,
-      GrabKeyFromSite = false,
-      Key = {"1"}
-   }
+    Name = "Dahen Hub",
+    LoadingTitle = "Loading Dahen Hub",
+    LoadingSubtitle = "by User",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "ExploitConfigs",
+        FileName = "ExploitSettings"
+    }
 })
 
-local Tab = Window:CreateTab("PLAYER", 4483362458) -- Title, Image
+local Tab = Window:CreateTab("PLAYER")
 
-local noClipEnabled = false
-
-local function setNoClip(state)
-    noClipEnabled = state
+-- Noclip function
+local noclipEnabled = false
+local function noclipToggle(state)
+    noclipEnabled = state
     if state then
         game:GetService("RunService").Stepped:Connect(function()
-            if noClipEnabled and Character then
-                for _, part in pairs(Character:GetChildren()) do
+            if noclipEnabled and game.Players.LocalPlayer.Character then
+                for _, part in pairs(game.Players.LocalPlayer.Character:GetChildren()) do
                     if part:IsA("BasePart") then
                         part.CanCollide = false
                     end
@@ -54,8 +29,8 @@ local function setNoClip(state)
             end
         end)
     else
-        if Character then
-            for _, part in pairs(Character:GetChildren()) do
+        if game.Players.LocalPlayer.Character then
+            for _, part in pairs(game.Players.LocalPlayer.Character:GetChildren()) do
                 if part:IsA("BasePart") then
                     part.CanCollide = true
                 end
@@ -64,48 +39,52 @@ local function setNoClip(state)
     end
 end
 
-Window:CreateToggle({
-    Name = "NoClip",
-    Flag = "NoClipToggle",
-    Callback = function(state)
-        setNoClip(state)
-    end
+Tab:CreateToggle({
+    Name = "Noclip",
+    CurrentValue = false,
+    Flag = "NoclipToggle",
+    Callback = function(value)
+        noclipToggle(value)
+    end,
 })
 
-local Player = game.Players.LocalPlayer
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
+-- Speed boost slider
+local player = game.Players.LocalPlayer
+local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 
-local SpeedSlider = Window:CreateSlider({
-    Name = "Player Speed",
-    Range = {16, 250}, -- Default Roblox walk speed is 16
+Tab:CreateSlider({
+    Name = "Speed Boost",
+    Range = {16, 100}, -- Default WalkSpeed is 16
     Increment = 1,
-    Suffix = "Speed",
-    CurrentValue = Humanoid.WalkSpeed,
-    Flag = "SpeedSlider",
+    Suffix = "speed",
+    CurrentValue = 16,
+    Flag = "SpeedBoost",
     Callback = function(value)
-        Humanoid.WalkSpeed = value
-    end
+        if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+            player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = value
+        end
+    end,
 })
 
-local MainTab = Window:CreateTab("Main")
-
-local MiscSection = MainTab:CreateSection("Misc")
-
--- Slider to expand player hitbox size
-MiscSection:CreateSlider({
+-- Expand player hitbox slider
+Tab:CreateSlider({
     Name = "Hitbox Size",
-    Range = {1, 10}, -- range from normal 1 up to 10 times the size
+    Range = {1, 10},
     Increment = 0.1,
+    Suffix = "size",
     CurrentValue = 1,
-    Flag = "HitboxSizeSlider",
-    Callback = function(value)
-        local player = game.Players.LocalPlayer
-        local character = player.Character or player.CharacterAdded:Wait()
-        local rootPart = character:FindFirstChild("HumanoidRootPart")
-        if rootPart then
-            -- Expanding the hitbox by resizing HumanoidRootPart size
-            rootPart.Size = Vector3.new(value, value, value)
+    Flag = "HitboxSize",
+    Callback = function(size)
+        for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+            if otherPlayer ~= player and otherPlayer.Character then
+                local hrp = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    hrp.Size = Vector3.new(size, size, size)
+                    hrp.Transparency = 0.5
+                    hrp.CanCollide = false
+                    hrp.BrickColor = BrickColor.new("Bright red") -- Visual indicator (optional)
+                end
+            end
         end
-    end
+    end,
 })
