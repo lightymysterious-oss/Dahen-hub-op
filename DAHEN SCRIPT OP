@@ -1,4 +1,4 @@
--- Rayfield Improved
+-- rayfield improved --
 local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/zmwtf1/Rayfield-Improved/refs/heads/main/UI.lua'))()
 
 
