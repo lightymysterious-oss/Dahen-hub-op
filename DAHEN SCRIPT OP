@@ -1,10 +1,21 @@
--- Rayfield Improved
+-   Name = "JumpPower Input",
+   CurrentValue = 50,
+   PlaceholderText = 50,
+   RemoveTextAfterFocusLost = true,
+   Flag = "Input1",
+   Callback = function(num)
+       game.Players.LocalPlayer.Character.Humanoid.JumpPower = num
+   end,
+})
+
+-- Label Section
+local LabelSection = Testing:CreateSection("Example Label")-- Rayfield Improved
 local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/zmwtf1/Rayfield-Improved/refs/heads/main/UI.lua'))()
 
 
 -- Rayfield Improved window example
 local Window = Rayfield:CreateWindow({
-   Name = "DAHEN HUB UPDATED",
+   Name = "DAHEN HUB",
    Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
    LoadingTitle = "Rayfield Improved Interface Suite",
    LoadingSubtitle = "by [Your Name]",
@@ -42,8 +53,21 @@ local Window = Rayfield:CreateWindow({
 
 
 -- Example Tab
-local Testing = Window:CreateTab("PLAYER", "cloud"
+local Testing = Window:CreateTab("PLAYER", "cloud")
 
+
+-- EXAMPLE TAB --
+-- Test Section
+local SitSection = Testing:CreateSection("Sit")
+
+
+-- Sit button
+local Button = Testing:CreateButton({
+   Name = "Sit",
+   Callback = function()
+       game.Players.LocalPlayer.Character.Humanoid.Sit = true
+   end,
+})
 
 -- Speed Section
 local SpeedSection = Testing:CreateSection("Speed Section")
@@ -137,33 +161,8 @@ local GetGithubLol = Testing:CreateButton({
    end,
 })
 
+-- EXAMPLE TAB --
 
-local Hitbox expander = Testing:CreateSlider({
-   Name = "Hitbox expander",
-   Range = {1, 10},
-   Increment = 1,
-   Suffix = "hitbox",
-   CurrentValue = 16,
-   Flag = "Slider1",
-   Callback = function(Value)
-_G.HeadSize = 50
-_G.Disabled = true
- 
-game:GetService('RunService').RenderStepped:connect(function()
-if _G.Disabled then
-for i,v in next, game:GetService('Players'):GetPlayers() do
-if v.Name ~= game:GetService('Players').LocalPlayer.Name then
-pcall(function()
-v.Character.HumanoidRootPart.Size = Vector3.new(_G.HeadSize,_G.HeadSize,_G.HeadSize)
-v.Character.HumanoidRootPart.Transparency = 0.7
-v.Character.HumanoidRootPart.BrickColor = BrickColor.new("Really blue")
-v.Character.HumanoidRootPart.Material = "Neon"
-v.Character.HumanoidRootPart.CanCollide = false
-end)
-end
-end
-end
-end) 
 
 
 -- LOAD CONFIG
