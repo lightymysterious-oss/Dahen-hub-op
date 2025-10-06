@@ -1,165 +1,1887 @@
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/GoldDoomOwner/GoldField/refs/heads/main/SpazamX%20ui"))() -- loadstring(game:HttpGet("https://raw.githubusercontent.com/GoldDoomOwner/GoldField/refs/heads/main/GoldField%20Loader"))()
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+local TextChatService = game:GetService("TextChatService")
+local ToolModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/GoldDoomOwner/Gold-Doom-Script/refs/heads/main/Tool%20Giver"))()
+local UserInputService = game:GetService("UserInputService")
+
+local Custom_PowerTools = {"Awaken", "Oblivious","Titanium", "Drug Abused", "Soul Monarch", "Creation", "AkazaDash", "ESPER RAGE", "GOLDEN MONARCH", "VOID WALKER", "STORM BREAKER", "CRIMSON REAPER", "CELESTIAL WRATH", "SHADOW ASSASSIN", "INFERNO KING", "FROZEN DOMAIN", "GRAVITY TITAN", "PLASMA SURGE", "TOXIC VENOM", "TIME WARP", "CRYSTAL FORTRESS", "BLOOD MOON", "DRAGON SPIRIT", "NEBULA VOID", "EARTH SHAKER", "WIND DANCER", "CHAOS BREAKER"}
+-- game.Workspace.GlassBridge.GlassHuolder:GetChildren()
+if localPlayer then
+	-- Wait for TextChatService to be ready
+	local textChannel = TextChatService:WaitForChild("TextChannels"):WaitForChild("RBXGeneral")
+
+	textChannel:DisplaySystemMessage("[SpamX]: LOADING SCRIPT...")
+	task.wait()
+	textChannel:DisplaySystemMessage("[SpamX]: GOLD DOOM | INK GAMES")
+	task.wait()
+	textChannel:DisplaySystemMessage("[SpamX]: LOADED")
+end
+
+-- Create main window
+local Window = Library:LoadWindow(
+	"DAHEN HUB INK GAME: https://discord.gg/golddoom, https://discord.gg/ringta",  
+	"DAHEN HUB TESTING | INK GAMES", 
+	"1.2.0", 
+	nil, 
+	"DAHEN HUB | Ink Games", 
+	"Disabled"
+)
+
+Library:Notify("Test", "Loading", 4, "Info")
+
+-- Create tabs
+local MainTab = Window:NewTab("Main")
+local PlayerTab = Window:NewTab("Player")
+local GameTab = Window:NewTab("Game")
+local MiscTab = Window:NewTab("Misc")
+
+-- Player Teleport System Variables
+local selectedPlayer = nil
+
+-- Function to get all players except local player
+local function CreateGlassBridgeCover()
+	local glassHolder = game.Workspace:FindFirstChild("GlassBridge")
+	if not glassHolder then
+		warn("GlassBridge not found in Workspace")
+		return
+	end
+
+	glassHolder = glassHolder:FindFirstChild("GlassHolder")
+	if not glassHolder then
+		warn("GlassHolder not found in GlassBridge")
+		return
+	end
+
+	local models = glassHolder:GetChildren()
+
+	if #models == 0 then
+		warn("No models found in GlassHolder")
+		return
+	end
+
+	-- Calculate the bounding box that encompasses all models
+	local minX, minY, minZ = math.huge, math.huge, math.huge
+	local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
+
+	for _, model in ipairs(models) do
+		if model:IsA("Model") or model:IsA("BasePart") then
+			local cframe, size
+
+			if model:IsA("Model") then
+				cframe, size = model:GetBoundingBox()
+			else
+				cframe = model.CFrame
+				size = model.Size
+			end
+
+			-- Calculate the corners of this model's bounding box
+			local halfSize = size / 2
+			local corners = {
+				cframe * CFrame.new(-halfSize.X, -halfSize.Y, -halfSize.Z),
+				cframe * CFrame.new(halfSize.X, -halfSize.Y, -halfSize.Z),
+				cframe * CFrame.new(-halfSize.X, halfSize.Y, -halfSize.Z),
+				cframe * CFrame.new(halfSize.X, halfSize.Y, -halfSize.Z),
+				cframe * CFrame.new(-halfSize.X, -halfSize.Y, halfSize.Z),
+				cframe * CFrame.new(halfSize.X, -halfSize.Y, halfSize.Z),
+				cframe * CFrame.new(-halfSize.X, halfSize.Y, halfSize.Z),
+				cframe * CFrame.new(halfSize.X, halfSize.Y, halfSize.Z),
+			}
+
+			-- Find min and max positions
+			for _, corner in ipairs(corners) do
+				local pos = corner.Position
+				minX = math.min(minX, pos.X)
+				minY = math.min(minY, pos.Y)
+				minZ = math.min(minZ, pos.Z)
+				maxX = math.max(maxX, pos.X)
+				maxY = math.max(maxY, pos.Y)
+				maxZ = math.max(maxZ, pos.Z)
+			end
+		end
+	end
+
+	-- Create the covering part
+	local coverPart = Instance.new("Part")
+	coverPart.Name = "GlassBridgeCover"
+	coverPart.Anchored = true
+	coverPart.CanCollide = true
+	coverPart.Material = Enum.Material.SmoothPlastic
+	coverPart.Color = Color3.fromRGB(100, 100, 255)
+	coverPart.Transparency = 0.3
+
+	-- Calculate size and position
+	local sizeX = maxX - minX + 2 -- Add 2 studs padding
+	local sizeY = maxY - minY + 2
+	local sizeZ = maxZ - minZ + 2
+
+	local centerX = (minX + maxX) / 2
+	local centerY = (minY + maxY) / 2
+	local centerZ = (minZ + maxZ) / 2
+
+	coverPart.Size = Vector3.new(sizeX, sizeY, sizeZ)
+	coverPart.CFrame = CFrame.new(centerX, centerY, centerZ)
+	coverPart.Parent = workspace
+
+	print("Glass Bridge Cover created!")
+	print("Size:", coverPart.Size)
+	print("Position:", coverPart.Position)
+
+	return coverPart
+end
+
+local function getPlayerList()
+	local playerList = {}
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= localPlayer then
+			table.insert(playerList, player.DisplayName)
+		end
+	end
+	return #playerList > 0 and playerList or {"No Players"}
+end
+
+-- Function to get player by display name
+local function getPlayerByDisplayName(displayName)
+	for _, player in pairs(Players:GetPlayers()) do
+		if player.DisplayName == displayName then
+			return player
+		end
+	end
+	return nil
+end
+
+-- Function to teleport to selected player
+local function teleportToPlayer(targetPlayer)
+	if not targetPlayer or not targetPlayer.Character then
+		return
+	end
+
+	local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+	local localRoot = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+	if targetRoot and localRoot then
+		localRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 3)
+	end
+end
+
+-- Function to teleport to random player
+local function teleportToRandomPlayer()
+	local players = {}
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= localPlayer and player.Character then
+			table.insert(players, player)
+		end
+	end
+
+	if #players > 0 then
+		local randomPlayer = players[math.random(1, #players)]
+		teleportToPlayer(randomPlayer)
+	end
+end
+
+MainTab:NewButton("Custom Emotes", function()
+	loadstring(game:HttpGet("https://pastebin.com/raw/1p6xnBNf"))()
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/GoldDoomOwner/Gold-Doom-Script/refs/heads/main/jerk"))()
+end)
+
+MainTab:NewButton("Custom Emotes 2", function()
+	-- Feel free to modify, contact pystyt on discord if u want to show me the modifications you did to the script, thanks alot
+	-- Detect R6 or R15
+	local player = game.Players.LocalPlayer
+	local character = player.Character or player.CharacterAdded:Wait()
+	local isR6 = character:FindFirstChild("Torso") ~= nil
+
+	-- Notification Function
+	local function showNotification(message)
+		local notificationGui = Instance.new("ScreenGui")
+		notificationGui.Name = "NotificationGui"
+		notificationGui.Parent = game.CoreGui
+
+		local notificationFrame = Instance.new("Frame")
+		notificationFrame.Size = UDim2.new(0, 300, 0, 50)
+		notificationFrame.Position = UDim2.new(0.5, -150, 1, -60)
+		notificationFrame.AnchorPoint = Vector2.new(0.5, 1)
+		notificationFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+		notificationFrame.BorderSizePixel = 0
+		notificationFrame.Parent = notificationGui
+
+		local uicorner = Instance.new("UICorner")
+		uicorner.CornerRadius = UDim.new(0, 10)
+		uicorner.Parent = notificationFrame
+
+		local textLabel = Instance.new("TextLabel")
+		textLabel.Size = UDim2.new(1, -20, 1, 0)
+		textLabel.Position = UDim2.new(0, 10, 0, 0)
+		textLabel.BackgroundTransparency = 1
+		textLabel.Text = message .. " | by nikos_YT7"
+		textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+		textLabel.Font = Enum.Font.SourceSansSemibold
+		textLabel.TextSize = 18
+		textLabel.TextXAlignment = Enum.TextXAlignment.Left
+		textLabel.Parent = notificationFrame
+
+		notificationFrame.BackgroundTransparency = 1
+		textLabel.TextTransparency = 1
+
+		game:GetService("TweenService"):Create(
+			notificationFrame,
+			TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+			{BackgroundTransparency = 0}
+		):Play()
+
+		game:GetService("TweenService"):Create(
+			textLabel,
+			TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+			{TextTransparency = 0}
+		):Play()
+
+		task.delay(5, function()
+			game:GetService("TweenService"):Create(
+				notificationFrame,
+				TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
+				{BackgroundTransparency = 1}
+			):Play()
+
+			game:GetService("TweenService"):Create(
+				textLabel,
+				TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
+				{TextTransparency = 1}
+			):Play()
+
+			task.delay(0.5, function()
+				notificationGui:Destroy()
+			end)
+		end)
+	end
+
+	-- Show notification based on rig type
+	if isR6 then
+		showNotification("R6 detected")
+	else
+		showNotification("R15 detected")
+	end
+
+	-- Create Screen GUI
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "BangGui"
+	gui.Parent = game.CoreGui
+
+	-- Main Frame
+	local mainFrame = Instance.new("Frame")
+	mainFrame.Size = UDim2.new(0, 300, 0, 300)
+	mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+	mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	mainFrame.BorderSizePixel = 0
+	mainFrame.Parent = gui
+
+	local uicorner = Instance.new("UICorner")
+	uicorner.CornerRadius = UDim.new(0, 20)
+	uicorner.Parent = mainFrame
+
+	-- Title
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, -60, 0, 30)
+	title.Position = UDim2.new(0, 10, 0, 0)
+	title.BackgroundTransparency = 1
+	title.Text = "Choose"
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.Font = Enum.Font.SourceSansSemibold
+	title.TextSize = 24
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.Parent = mainFrame
+
+	-- Close Button
+	local closeButton = Instance.new("TextButton")
+	closeButton.Size = UDim2.new(0, 30, 0, 30)
+	closeButton.Position = UDim2.new(1, -40, 0, 0)
+	closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+	closeButton.Text = "X"
+	closeButton.Font = Enum.Font.SourceSansBold
+	closeButton.TextSize = 20
+	closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	closeButton.Parent = mainFrame
+
+	local closeCorner = Instance.new("UICorner")
+	closeCorner.CornerRadius = UDim.new(0, 10)
+	closeCorner.Parent = closeButton
+
+	closeButton.MouseButton1Click:Connect(function()
+		gui:Destroy()
+	end)
+
+	-- Minimize Button
+	local minimizeButton = Instance.new("TextButton")
+	minimizeButton.Size = UDim2.new(0, 30, 0, 30)
+	minimizeButton.Position = UDim2.new(1, -80, 0, 0)
+	minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+	minimizeButton.Text = "-"
+	minimizeButton.Font = Enum.Font.SourceSansBold
+	minimizeButton.TextSize = 20
+	minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	minimizeButton.Parent = mainFrame
+
+	local minimizeCorner = Instance.new("UICorner")
+	minimizeCorner.CornerRadius = UDim.new(0, 10)
+	minimizeCorner.Parent = minimizeButton
+
+	local minimized = false
+	minimizeButton.MouseButton1Click:Connect(function()
+		minimized = not minimized
+		if minimized then
+			mainFrame:TweenSize(UDim2.new(0, 300, 0, 30), Enum.EasingDirection.In, Enum.EasingStyle.Quint, 0.5)
+		else
+			mainFrame:TweenSize(UDim2.new(0, 300, 0, 300), Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.5)
+		end
+	end)
+
+	-- Dragging Functionality
+	local dragging, dragStart, startPos
+	mainFrame.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = mainFrame.Position
+		end
+	end)
+
+	mainFrame.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local delta = input.Position - dragStart
+			mainFrame.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+
+	mainFrame.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+
+	-- Scrolling Frame
+	local scrollingFrame = Instance.new("ScrollingFrame")
+	scrollingFrame.Size = UDim2.new(1, -20, 1, -50)
+	scrollingFrame.Position = UDim2.new(0, 10, 0, 40)
+	scrollingFrame.BackgroundTransparency = 1
+	scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 300)
+	scrollingFrame.ScrollBarThickness = 6
+	scrollingFrame.Parent = mainFrame
+
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 10)
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layout.Parent = scrollingFrame
+
+	-- Buttons Data
+	local buttons = {
+		{name = "Bang V2", r6 = "https://pastebin.com/raw/aPSHMV6K", r15 = "https://pastebin.com/raw/1ePMTt9n"},
+		{name = "Get Banged", r6 = "https://pastebin.com/raw/zHbw7ND1", r15 = "https://pastebin.com/raw/7hvcjDnW"},
+		{name = "Suck", r6 = "https://pastebin.com/raw/SymCfnAW", r15 = "https://pastebin.com/raw/p8yxRfr4"},
+		{name = "Get Suc", r6 = "https://pastebin.com/raw/FPu4e2Qh", r15 = "https://pastebin.com/raw/DyPP2tAF"},
+	}
+
+	for _, buttonData in pairs(buttons) do
+		local button = Instance.new("TextButton")
+		button.Size = UDim2.new(0.8, 0, 0, 40)
+		button.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
+		button.Text = buttonData.name
+		button.Font = Enum.Font.SourceSansBold
+		button.TextSize = 20
+		button.TextColor3 = Color3.fromRGB(255, 255, 255)
+		button.Parent = scrollingFrame
+
+		local uicorner = Instance.new("UICorner")
+		uicorner.CornerRadius = UDim.new(0, 10)
+		uicorner.Parent = button
+
+		button.MouseButton1Click:Connect(function()
+			if isR6 then
+				loadstring(game:HttpGet(buttonData.r6))()
+			else
+				loadstring(game:HttpGet(buttonData.r15))()
+			end
+		end)
+	end
+end)
+
+GameTab:NewDivider()
+
+
+-- Create first dropdown for tool selection
+local selectedTool1 = "Awaken"
+local toolDropdown1 = MainTab:NewDropdown(
+	"Select Tool 1",
+	Custom_PowerTools,
+	"Awaken",
+	function(selected)
+		selectedTool1 = selected
+		print("Selected tool 1:", selectedTool1)
+	end
+)
+
+-- Create second dropdown for tool selection
+local selectedTool2 = "Oblivious"
+local toolDropdown2 = MainTab:NewDropdown(
+	"Select Tool 2",
+	Custom_PowerTools,
+	"Oblivious",
+	function(selected)
+		selectedTool2 = selected
+		print("Selected tool 2:", selectedTool2)
+	end
+)
+
+-- Create text input for custom name
+local customNameInput = MainTab:NewTextInput(
+	"Custom Powers Name",
+	"Enter custom name...",
+	function(text)
+		print("Custom name entered:", text)
+	end
+)
+
+-- Create button to get tools and change shop UI text
+local getToolButton = MainTab:NewButton(
+	"Equip Custom Power",
+	function()
+		-- Get both tools using ToolModule
+		ToolModule:GetTools(selectedTool1, selectedTool2)
+
+		-- Get the custom name from the text input
+		local customName = customNameInput.GetText()
+
+		-- Change the shop UI text
+		local ui = localPlayer.PlayerGui.ShopGui.StoreHolder.Store.PAGES.Powers
+		spawn(function()
+			while true do
+				ui.CurrentlyEquipped.Text = "Currently Equipped: " .. (customName or "")
+				task.wait()
+			end
+		end)
+	end)
+
+MainTab:NewDivider()
+
+MainTab:NewButton("Enable Dash", function()
+	localPlayer.Boosts["Faster Sprint"].Value = 5
+	local ui = localPlayer.PlayerGui.ShopGui.StoreHolder.Store.PAGES.Boosts
+	local Speed = ui["Faster Sprint"]
+
+	spawn(function()
+		while true do
+			task.wait()
+			Speed.BuyButtonRobux.Visible = false
+			Speed.BuyButtonCoin.Visible = false
+			Speed.ItemLevel.Text = "Current Level (5)"
+		end
+	end)
+end)
+
+MainTab:NewButton("Won Boost", function()
+	localPlayer.Boosts["Won Boost"].Value = 5
+	local ui = localPlayer.PlayerGui.ShopGui.StoreHolder.Store.PAGES.Boosts
+	local Speed = ui["Won Boost"]
+
+	spawn(function()
+		while true do
+			task.wait()
+			Speed.BuyButtonRobux.Visible = false
+			Speed.BuyButtonCoin.Visible = false
+			Speed.ItemLevel.Text = "Current Level (5)"
+		end
+	end)
+end)
+
+MainTab:NewButton("Strength Boost", function()
+	localPlayer.Boosts["Damage Boost"].Value = 5
+	local ui = localPlayer.PlayerGui.ShopGui.StoreHolder.Store.PAGES.Boosts
+	local Speed = ui["Damage Boost"]
+
+	spawn(function()
+		while true do
+			task.wait()
+			Speed.BuyButtonRobux.Visible = false
+			Speed.BuyButtonCoin.Visible = false
+			Speed.ItemLevel.Text = "Current Level (5)"
+		end
+	end)
+end)
+
+MainTab:NewButton("Equip Phantom Step", function()
+	localPlayer:SetAttribute("_EquippedPower", "PHANTOM STEP")
+end)
+
+MainTab:NewButton("Remove Power", function()
+	localPlayer:SetAttribute("_EquippedPower", "")
+end)
+
+MainTab:NewButton("Enable Powers", function()
+	game.Workspace.Values.PowersDisabled.Value = false
+end)
+
+MainTab:NewDivider()
+
+MainTab:NewButton("Enable All Gamepasses", function()
+	Library:Notify("Enabling All Gamepasses", "Loading Script", 4, "Info")
+	localPlayer:SetAttribute("HasLighter", true)
+	localPlayer:SetAttribute("HasPush", true)
+	game.Workspace.Values.CanPush.Value = true
+	local ui = localPlayer.PlayerGui.ShopGui.StoreHolder.Store.PAGES.Gamepass
+	game.Workspace.Values.CanPush.Value = true
+
+	for i, v in pairs(ui:GetChildren()) do
+		if v:IsA("TextButton") then
+			spawn(function()
+				if v.ItemName.Text == "Revive All" or v.ItemName.Text == "One Time Playable Guard" then
+					print("["..v.ItemName.Text.."] Has Been Blocked")
+					Library:Notify(v.ItemName.Text, "Blocked To Look Legit", 4, "Info")
+				else
+					v.BuyButton.Content.TextLabel.Text = "OWNED"
+					Library:Notify(v.ItemName.Text, "Giving Gamepass", 4, "Info")
+					print("Done ["..v.ItemName.Text.."]")
+				end
+			end)
+		end
+	end
+end)
+
+MainTab:NewButton("Select Fork", function()
+	localPlayer:SetAttribute("WeaponSelected", "Fork")
+end)
+
+MainTab:NewButton("Show All Buttons", function()
+	local ui = localPlayer.PlayerGui.Buttons.LeftButtons
+
+	for i, v in pairs(ui:GetChildren()) do
+		if v:IsA("ImageButton") then
+			v.Visible = true
+		end
+	end
+end)
+
+-- PLAYER TAB CONTENT
+PlayerTab:NewText("=== PLAYER TELEPORTS ===")
+
+-- Create player dropdown
+local playerOptions = getPlayerList()
+local playerDropdown = PlayerTab:NewDropdown("Player Selector", playerOptions, playerOptions[1], function(selectedName)
+	selectedPlayer = getPlayerByDisplayName(selectedName)
+end)
+
+PlayerTab:NewButton("Refresh Players", function()
+	-- Note: GoldField dropdown refresh would need to be implemented in the library
+	print("Player list refreshed")
+end)
+
+PlayerTab:NewButton("Teleport To Selected Player", function()
+	if selectedPlayer then
+		teleportToPlayer(selectedPlayer)
+	else
+		print("No player selected!")
+	end
+end)
+
+local goatersa = false
+
+PlayerTab:NewToggle("Attach to player", false, function(state)
+	if selectedPlayer then
+		goatersa = state
+		spawn(function()
+			while true do
+				if goatersa == true then
+					teleportToPlayer(selectedPlayer)
+				else
+					-- ignore
+				end
+				task.wait(0.1) -- for preformance without there will be lag
+			end
+		end)
+	else
+		print("No player selected!")
+	end
+end)
+
+
+PlayerTab:NewButton("Teleport To Random Player", function()
+	teleportToRandomPlayer()
+end)
+
+PlayerTab:NewDivider()
+
+PlayerTab:NewButton("Hitbox multiplier", function()
+	if game.Workspace.Values.HitboxMultiplier.Value == 10 then
+		Library:Notify("[HITBOX]", "Changed To 1x", 4, "Info")
+		game.Workspace.Values.HitboxMultiplier.Value = 1
+	else
+		Library:Notify("[HITBOX]", "Changed To 10x", 4, "Info")
+		game.Workspace.Values.HitboxMultiplier.Value = 10
+	end
+end)
+
+-- Fixed Speed Boost (no infinite loops)
+local speedBoostEnabled = false
+local speedConnection = nil
+
+local currentv = 32
+
+PlayerTab:NewTextInput("Speed Boost", "Put Speed Here", function(value)
+	local char = localPlayer.Character
+
+	print(value)
+	while true do
+		task.wait()
+		localPlayer.Character.Humanoid.WalkSpeed = value
+	end
+end)
+
+PlayerTab:NewToggle("Infinite Jump", false, function(value)
+	infiniteJumpEnabled = value
+
+	if infiniteJumpEnabled then
+		-- Connect to UserInputService to detect jump input
+		local UserInputService = game:GetService("UserInputService")
+
+		jumpConnection = game:GetService("UserInputService").JumpRequest:Connect(function()
+			local character = localPlayer.Character
+			if character then
+				local humanoid = character:FindFirstChildOfClass("Humanoid")
+				if humanoid then
+					humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+				end
+			end
+		end)
+	else
+		-- Disable infinite jump
+		if jumpConnection then
+			jumpConnection:Disconnect()
+			jumpConnection = nil
+		end
+	end
+end)
+
+-- Noclip Toggle
+local noclipEnabled = false
+local noclipConnection = nil
+
+PlayerTab:NewToggle("Noclip", false, function(state)
+	noclipEnabled = state
+
+	if noclipEnabled then
+		noclipConnection = RunService.Stepped:Connect(function()
+			if localPlayer.Character then
+				for _, part in pairs(localPlayer.Character:GetDescendants()) do
+					if part:IsA("BasePart") then
+						-- Only disable collision on main body parts, not accessories
+						if part.Name == "Head" or part.Name == "Torso" or part.Name == "HumanoidRootPart" or 
+							part.Name == "Left Arm" or part.Name == "Right Arm" or 
+							part.Name == "Left Leg" or part.Name == "Right Leg" or
+							part.Name == "UpperTorso" or part.Name == "LowerTorso" or
+							part.Name == "LeftUpperArm" or part.Name == "LeftLowerArm" or part.Name == "LeftHand" or
+							part.Name == "RightUpperArm" or part.Name == "RightLowerArm" or part.Name == "RightHand" or
+							part.Name == "LeftUpperLeg" or part.Name == "LeftLowerLeg" or part.Name == "LeftFoot" or
+							part.Name == "RightUpperLeg" or part.Name == "RightLowerLeg" or part.Name == "RightFoot" then
+							part.CanCollide = false
+						end
+					end
+				end
+			end
+		end)
+	else
+		if noclipConnection then
+			noclipConnection:Disconnect()
+			noclipConnection = nil
+		end
+
+		-- Re-enable collision only on parts we disabled
+		if localPlayer.Character then
+			for _, part in pairs(localPlayer.Character:GetDescendants()) do
+				if part:IsA("BasePart") then
+					if part.Name == "Head" or part.Name == "Torso" or 
+						part.Name == "Left Arm" or part.Name == "Right Arm" or 
+						part.Name == "Left Leg" or part.Name == "Right Leg" or
+						part.Name == "UpperTorso" or part.Name == "LowerTorso" or
+						part.Name == "LeftUpperArm" or part.Name == "LeftLowerArm" or part.Name == "LeftHand" or
+						part.Name == "RightUpperArm" or part.Name == "RightLowerArm" or part.Name == "RightHand" or
+						part.Name == "LeftUpperLeg" or part.Name == "LeftLowerLeg" or part.Name == "LeftFoot" or
+						part.Name == "RightUpperLeg" or part.Name == "RightLowerLeg" or part.Name == "RightFoot" then
+						part.CanCollide = true
+					end
+				end
+			end
+		end
+	end
+end)
+
+-- GAME TAB CONTENT
+GameTab:NewText("=== GAME TELEPORTS ===")
+
+GameTab:NewText("Red Light Green Light")
+
+GameTab:NewButton("RLGL - Teleport To End", function()
+	local char = localPlayer.Character
+	char.HumanoidRootPart.CFrame = CFrame.new(-46.0587921, 1025.23352, 108.6353122)
+end)
+
+GameTab:NewButton("RLGL - Teleport To Start", function()
+	local char = localPlayer.Character
+	char.HumanoidRootPart.CFrame = CFrame.new(-48.5137215, 1024.521, -492.023163)
+end)
+
+-- Get all player usernames
+local function getPlayerList()
+	local playerList = {}
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= localPlayer then
+			table.insert(playerList, player.Name)
+		end
+	end
+	return playerList
+end
+
+-- Find player by username
+local function getPlayerByName(name)
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player.Name == name then
+			return player
+		end
+	end
+	return nil
+end
+-- Auto help function
+local function autoHelp()
+	local playerList = getPlayerList()
+	local targetPlayer = nil
+	local targetPlayerName = nil
+	local to = Players:GetAttribute("InjuredPlayer")
+end
+
+local NEVERAURA = false
+local MAYBEAURA = false
+
+GameTab:NewToggle("ANTI SHOT!!", false, function()
+	MAYBEAURA = not MAYBEAURA
+	local char = localPlayer.Character
+	while true do
+		if MAYBEAURA == true then
+			char.Parent = workspace.Live.GreenPlayers
+			if char:FindFirstChild("MovedRecentlyRedLight") then
+				char.SafeRedLightGreenLight:Destroy()
+			end
+			if char:FindFirstChild("SafeRedLightGreenLight") then
+				char.SafeRedLightGreenLight:Destroy()
+			end
+
+			local folder = Instance.new("Folder")
+			folder.Parent = char
+			folder.Name = "SafeRedLightGreenLight"
+		end
+		task.wait()
+	end
+end)
+
+GameTab:NewToggle("RLGL - Auto Help", false, function()
+	NEVERAURA = not NEVERAURA
+end)
+
+GameTab:NewDivider()
+
+GameTab:NewText("Dalgona")
+
+local NOTDELETEABLE = {"Lighting", "Won", "PickModelCacheFix"}
+
+local shapes = {"Star", "Circle", "Umbrella", "MonaLisa", "Triangle", "SackBoy"}
+local outlineParts = {}
+local connection = nil
+local clickConnections = {}
+
+local function createOutline(shape)
+	-- Clear existing outline
+	for _, part in pairs(outlineParts) do
+		part:Destroy()
+	end
+	outlineParts = {}
+
+	if not shape then return end
+
+	local cf, size = shape:GetBoundingBox()
+	local thickness = 0.3
+	local padding = 0.5
+	local outlineSize = size + Vector3.new(padding * 2, padding * 2, padding * 2)
+
+	local edges = {
+		{pos = Vector3.new(outlineSize.X/2, -outlineSize.Y/2, 0), size = Vector3.new(thickness, thickness, outlineSize.Z)},
+		{pos = Vector3.new(-outlineSize.X/2, -outlineSize.Y/2, 0), size = Vector3.new(thickness, thickness, outlineSize.Z)},
+		{pos = Vector3.new(0, -outlineSize.Y/2, outlineSize.Z/2), size = Vector3.new(outlineSize.X, thickness, thickness)},
+		{pos = Vector3.new(0, -outlineSize.Y/2, -outlineSize.Z/2), size = Vector3.new(outlineSize.X, thickness, thickness)},
+		{pos = Vector3.new(outlineSize.X/2, outlineSize.Y/2, 0), size = Vector3.new(thickness, thickness, outlineSize.Z)},
+		{pos = Vector3.new(-outlineSize.X/2, outlineSize.Y/2, 0), size = Vector3.new(thickness, thickness, outlineSize.Z)},
+		{pos = Vector3.new(0, outlineSize.Y/2, outlineSize.Z/2), size = Vector3.new(outlineSize.X, thickness, thickness)},
+		{pos = Vector3.new(0, outlineSize.Y/2, -outlineSize.Z/2), size = Vector3.new(outlineSize.X, thickness, thickness)},
+		{pos = Vector3.new(outlineSize.X/2, 0, outlineSize.Z/2), size = Vector3.new(thickness, outlineSize.Y, thickness)},
+		{pos = Vector3.new(-outlineSize.X/2, 0, outlineSize.Z/2), size = Vector3.new(thickness, outlineSize.Y, thickness)},
+		{pos = Vector3.new(outlineSize.X/2, 0, -outlineSize.Z/2), size = Vector3.new(thickness, outlineSize.Y, thickness)},
+		{pos = Vector3.new(-outlineSize.X/2, 0, -outlineSize.Z/2), size = Vector3.new(thickness, outlineSize.Y, thickness)},
+	}
+
+	for _, edge in pairs(edges) do
+		local part = Instance.new("Part")
+		part.Size = edge.size
+		part.Anchored = true
+		part.CanCollide = false
+		part.Material = Enum.Material.Neon
+		part.Color = Color3.fromRGB(0, 255, 0)
+		part.Transparency = 0
+		part.Parent = workspace
+		table.insert(outlineParts, part)
+	end
+
+	if connection then connection:Disconnect() end
+	connection = RunService.RenderStepped:Connect(function()
+		if not shape or not shape.Parent then
+			for _, part in pairs(outlineParts) do
+				part:Destroy()
+			end
+			outlineParts = {}
+			if connection then connection:Disconnect() end
+			return
+		end
+
+		local newCf = shape:GetBoundingBox()
+		for i, part in pairs(outlineParts) do
+			part.CFrame = newCf * CFrame.new(edges[i].pos)
+		end
+	end)
+
+	print("Outline created!")
+end
+
+GameTab:NewButton("Auto Cookie", function()
+	local Module = game.ReplicatedStorage.Modules.Games.DalgonaClient
+	for _, f in ipairs(getreg()) do
+		if typeof(f) == "function" and islclosure(f) then
+			if getfenv(f).script == Module then
+				if getinfo(f).nups == 76 then
+					setupvalue(f, 33, 9e9)
+					setupvalue(f, 34, 9e9)
+					break
+				end
+			end
+		end
+	end
+end)
+
+-- ESP Configuration
+local espSeekersEnabled = false
+local espHidersEnabled = false
+
+-- Function to check if player has a knife (is a seeker)
+local function isSeeker(player)
+	if not player then return false end
+
+	-- Check character for knife
+	if player.Character and player.Character:FindFirstChild("Knife") then
+		return true
+	end
+
+	-- Check backpack for knife
+	local backpack = player:FindFirstChild("Backpack")
+	if backpack and backpack:FindFirstChild("Knife") then
+		return true
+	end
+
+	return false
+end
+
+-- Create simple box ESP
+local function createBox(character, color)
+	if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+
+	-- Remove existing box
+	local existingBox = character:FindFirstChild("ESPBox")
+	if existingBox then
+		existingBox:Destroy()
+	end
+
+	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character:FindFirstChild("Humanoid")
+
+	-- Determine target part based on rig type
+	local targetPart = humanoidRootPart
+	if humanoid then
+		if humanoid.RigType == Enum.HumanoidRigType.R6 then
+			targetPart = character:FindFirstChild("Torso") or humanoidRootPart
+		else
+			targetPart = character:FindFirstChild("LowerTorso") or humanoidRootPart
+		end
+	end
+
+	-- Create BillboardGui for box
+	local boxGui = Instance.new("BillboardGui")
+	boxGui.Name = "ESPBox"
+	boxGui.Parent = character
+	boxGui.Size = UDim2.new(4, 0, 6, 0)
+	boxGui.StudsOffset = Vector3.new(0, 0, 0)
+	boxGui.Adornee = targetPart
+	boxGui.AlwaysOnTop = true
+	boxGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+
+	-- Container frame
+	local containerFrame = Instance.new("Frame")
+	containerFrame.Parent = boxGui
+	containerFrame.Size = UDim2.new(1, 0, 1, 0)
+	containerFrame.BackgroundTransparency = 1
+
+	-- Create box edges (Top, Bottom, Left, Right)
+	local edges = {
+		{UDim2.new(1, 0, 0, 2), UDim2.new(0, 0, 0, 0)}, -- Top
+		{UDim2.new(1, 0, 0, 2), UDim2.new(0, 0, 1, -2)}, -- Bottom
+		{UDim2.new(0, 2, 1, 0), UDim2.new(0, 0, 0, 0)}, -- Left
+		{UDim2.new(0, 2, 1, 0), UDim2.new(1, -2, 0, 0)} -- Right
+	}
+
+	for _, data in ipairs(edges) do
+		local edge = Instance.new("Frame")
+		edge.Parent = containerFrame
+		edge.Size = data[1]
+		edge.Position = data[2]
+		edge.BackgroundColor3 = color
+		edge.BorderSizePixel = 0
+	end
+end
+
+-- Remove box from character
+local function removeBox(character)
+	if not character then return end
+	local box = character:FindFirstChild("ESPBox")
+	if box then
+		box:Destroy()
+	end
+end
+
+-- Update ESP for a single player
+local function updatePlayerESP(player)
+	if not player or player == localPlayer then return end
+	if not player.Character then return end
+
+	local isSeekerRole = isSeeker(player)
+
+	-- Check if we should show ESP
+	if (isSeekerRole and espSeekersEnabled) then
+		createBox(player.Character, Color3.new(1, 0, 0)) -- Red for seeker
+	elseif (not isSeekerRole and espHidersEnabled) then
+		createBox(player.Character, Color3.new(0, 0, 1)) -- Blue for hider
+	else
+		removeBox(player.Character)
+	end
+end
+
+-- Update all players ESP
+local function updateAllESP()
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= localPlayer then
+			updatePlayerESP(player)
+		end
+	end
+end
+
+-- Remove all ESP boxes
+local function removeAllESP()
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player.Character then
+			removeBox(player.Character)
+		end
+	end
+end
+
+-- Setup player monitoring
+local function setupPlayer(player)
+	if player == localPlayer then return end
+
+	-- Monitor character added
+	player.CharacterAdded:Connect(function(character)
+		task.wait(0.5) -- Wait for character to fully load
+		updatePlayerESP(player)
+	end)
+
+	-- Monitor existing character
+	if player.Character then
+		-- Monitor for knife changes
+		player.Character.ChildAdded:Connect(function(child)
+			if child.Name == "Knife" then
+				task.wait(0.1)
+				updatePlayerESP(player)
+			end
+		end)
+
+		player.Character.ChildRemoved:Connect(function(child)
+			if child.Name == "Knife" then
+				task.wait(0.1)
+				updatePlayerESP(player)
+			end
+		end)
+	end
+
+	-- Monitor backpack
+	local backpack = player:FindFirstChild("Backpack")
+	if backpack then
+		backpack.ChildAdded:Connect(function(child)
+			if child.Name == "Knife" then
+				task.wait(0.1)
+				updatePlayerESP(player)
+			end
+		end)
+
+		backpack.ChildRemoved:Connect(function(child)
+			if child.Name == "Knife" then
+				task.wait(0.1)
+				updatePlayerESP(player)
+			end
+		end)
+	end
+end
+
+-- Initialize ESP system
+local function initializeESP()
+	-- Setup existing players
+	for _, player in ipairs(Players:GetPlayers()) do
+		setupPlayer(player)
+	end
+
+	-- Setup new players
+	Players.PlayerAdded:Connect(setupPlayer)
+
+	-- Cleanup when players leave
+	Players.PlayerRemoving:Connect(function(player)
+		if player.Character then
+			removeBox(player.Character)
+		end
+	end)
+end
+
+-- Start the ESP system
+initializeESP()
+
+GameTab:NewDivider()
+
+GameTab:NewText("Final Dinner / HNS")
+
+GameTab:NewButton("Final Dinner - Teleport To Safe Spot", function()
+	local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+	if char and char:FindFirstChild("HumanoidRootPart") then
+		char.HumanoidRootPart.CFrame = CFrame.new(182.413818, 121.033997, -93.8286514)
+	end
+end)
+
+GameTab:NewToggle("ESP Seekers", false, function(state)
+	espSeekersEnabled = state
+	updateAllESP()
+	print("ESP Seekers:", state and "Enabled" or "Disabled")
+end)
+
+GameTab:NewToggle("ESP Hiders", false, function(state)
+	espHidersEnabled = state
+	updateAllESP()
+	print("ESP Hiders:", state and "Enabled" or "Disabled")
+end)
+
+GameTab:NewButton("HNS - ESP Exit", function()
+	for i, floor1doors in pairs(game.Workspace.HideAndSeekMap.NEWFIXEDDOORS.Floor1.EXITDOORS:GetChildren()) do
+		Instance.new("Highlight", floor1doors)
+	end
+	for i, floor2doors in pairs(game.Workspace.HideAndSeekMap.NEWFIXEDDOORS.Floor2.EXITDOORS:GetChildren()) do
+		Instance.new("Highlight", floor2doors)
+	end
+	for i, floor3doors in pairs(game.Workspace.HideAndSeekMap.NEWFIXEDDOORS.Floor3.EXITDOORS:GetChildren()) do
+		Instance.new("Highlight", floor3doors)
+	end
+end)
+
+GameTab:NewButton("HNS - Delete The Spikes", function()
+	game.Workspace.HideAndSeekMap.KillingParts:Destroy()
+end)
+
+-- Loopkill Variables
+local selectedTarget = nil
+local loopkillEnabled = false
+local loopkillConnection = nil
+local lastAttackTime = 0
+local attackCooldown = 0.3
+
+-- Get all player usernames
+local function getPlayerList()
+	local playerList = {}
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= localPlayer then
+			table.insert(playerList, player.Name)
+		end
+	end
+	return playerList
+end
+
+-- Find player by username
+local function getPlayerByName(name)
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player.Name == name then
+			return player
+		end
+	end
+	return nil
+end
+
+-- Get damage tool (Knife, Fork, or Bottle)
+local function getDamageTool()
+	local character = localPlayer.Character
+	if not character then return nil end
+
+	-- Check if tool is equipped in character
+	local knife = character:FindFirstChild("Knife")
+	if knife and knife:IsA("Tool") then return knife end
+
+	local fork = character:FindFirstChild("Fork")
+	if fork and fork:IsA("Tool") then return fork end
+
+	local bottle = character:FindFirstChild("Bottle")
+	if bottle and bottle:IsA("Tool") then return bottle end
+
+	-- Check backpack
+	local backpack = localPlayer:FindFirstChild("Backpack")
+	if backpack then
+		knife = backpack:FindFirstChild("Knife")
+		if knife and knife:IsA("Tool") then return knife end
+
+		fork = backpack:FindFirstChild("Fork")
+		if fork and fork:IsA("Tool") then return fork end
+
+		bottle = backpack:FindFirstChild("Bottle")
+		if bottle and bottle:IsA("Tool") then return bottle end
+	end
+
+	return nil
+end
+
+-- Equip the damage tool
+local function equipDamageTool()
+	local tool = getDamageTool()
+	if not tool then return false end
+
+	-- If tool is in backpack, equip it
+	if tool.Parent == localPlayer.Backpack then
+		localPlayer.Character.Humanoid:EquipTool(tool)
+		task.wait(0.1)
+	end
+
+	return true
+end
+
+-- Calculate orbit position around target
+local function getOrbitPosition(targetPosition, angle, radius)
+	local x = targetPosition.X + math.cos(angle) * radius
+	local z = targetPosition.Z + math.sin(angle) * radius
+	return Vector3.new(x, targetPosition.Y, z)
+end
+
+local function performLoopkill()
+	if not loopkillEnabled or not selectedTarget then return end
+	local targetPlayer = getPlayerByName(selectedTarget)
+	if not targetPlayer or not targetPlayer.Character then return end
+	local targetChar = targetPlayer.Character
+	local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+	local targetHumanoid = targetChar:FindFirstChild("Humanoid")
+	if not targetRoot or not targetHumanoid or targetHumanoid.Health <= 0 then return end
+	local character = localPlayer.Character
+	if not character then return end
+	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+	if not humanoidRootPart then return end
+	-- Equip damage tool
+	if not equipDamageTool() then
+		warn("No damage tool found (Knife, Fork, or Bottle)")
+		return
+	end
+	local tool = getDamageTool()
+	if not tool or tool.Parent ~= character then return end
+	-- Calculate orbit angle based on time
+	local currentTime = tick()
+	local angle = (currentTime * 3) % (math.pi * 2) -- Rotate around target
+	local radius = 1 -- Distance from target (closer)
+	-- Get orbit position
+	local orbitPos = getOrbitPosition(targetRoot.Position, angle, radius)
+	-- Teleport to orbit position
+	humanoidRootPart.CFrame = CFrame.new(orbitPos, targetRoot.Position)
+	-- Attack every 0.1 seconds
+	if currentTime - lastAttackTime >= 0.1 then
+		-- Activate the tool to damage
+		if tool:FindFirstChild("Handle") then
+			-- Fire remote or activate tool
+			local remoteEvent = tool:FindFirstChildWhichIsA("RemoteEvent")
+			local remoteFunction = tool:FindFirstChildWhichIsA("RemoteFunction")
+			if remoteEvent then
+				pcall(function()
+					remoteEvent:FireServer()
+				end)
+			end
+			if remoteFunction then
+				pcall(function()
+					remoteFunction:InvokeServer()
+				end)
+			end
+			-- Try to activate tool
+			pcall(function()
+				tool:Activate()
+			end)
+		end
+		lastAttackTime = currentTime
+	end
+end
+
+GameTab:NewDivider()
+GameTab:NewText("Tug of War")
+
+local tugOfWarAutoEnabled = false
+local tugOfWarAutoThread = nil
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Remote = ReplicatedStorage.Remotes:WaitForChild("TemporaryReachedBindable")
+local VALID_PULL_DATA = { { IHateYou = true } }
+
+GameTab:NewToggle("Tug of War Auto", false, function(Value)
+	tugOfWarAutoEnabled = Value
+	if Value then
+		if tugOfWarAutoThread then return end
+		tugOfWarAutoThread = task.spawn(function()
+			while tugOfWarAutoEnabled do
+				Remote:FireServer(unpack(VALID_PULL_DATA))
+				task.wait(0.025)
+			end
+			tugOfWarAutoThread = nil
+		end)
+	else
+		tugOfWarAutoEnabled = false
+		if tugOfWarAutoThread then
+			task.cancel(tugOfWarAutoThread)
+			tugOfWarAutoThread = nil
+		end
+	end
+end)
 --[[
-	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+REBEL:
+THE GUARDS CONTAIN: "RebelGuard"
+Folder: game.Workspace.Live
 ]]
--- Load Rayfield
-local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
--- Create Window
-local Window = Rayfield:CreateWindow({
-    Name = "DAHEN HUB (TESTING)",
-    LoadingTitle = "bac0nGUI",
-    LoadingSubtitle = "by bac0n",
-    ConfigurationSaving = {
-        Enabled = true,
-        FolderName = nil,
-        FileName = "DAHEN HUB INK GAME"
-    },
-    KeySystem = false
-})
+-- Start loopkill
+local function startLoopkill()
+	if loopkillConnection then
+		loopkillConnection:Disconnect()
+	end
 
--------------------------
--- ESP Tab
--------------------------
-local ESPTab = Window:CreateTab("HIDE AND SEEK", 4483362458)
-local espEnabled = false
-local players = game.Players
-local ESPObjects = {}
+	loopkillConnection = RunService.Heartbeat:Connect(function()
+		if loopkillEnabled and selectedTarget then
+			pcall(performLoopkill)
+		end
+	end)
 
-local function addRedHighlight(plr)
-    if not plr.Character then return end
-    if plr.Character:FindFirstChild("ESP_Highlight") then return end
-
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "ESP_Highlight"
-    highlight.Adornee = plr.Character
-    highlight.FillColor = Color3.fromRGB(255,0,0)
-    highlight.FillTransparency = 0.5
-    highlight.OutlineColor = Color3.fromRGB(255,0,0)
-    highlight.OutlineTransparency = 0
-    highlight.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+	print("Loopkill started on:", selectedTarget)
 end
 
-local function removeRedHighlight(plr)
-    if plr.Character and plr.Character:FindFirstChild("ESP_Highlight") then
-        plr.Character.ESP_Highlight:Destroy()
-    end
+-- Stop loopkill
+local function stopLoopkill()
+	if loopkillConnection then
+		loopkillConnection:Disconnect()
+		loopkillConnection = nil
+	end
+
+	print("Loopkill stopped")
 end
 
-local function createESP(plr)
-    local char = plr.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local root = char.HumanoidRootPart
-    local hum = char:FindFirstChild("Humanoid")
+-- Player dropdown
+local playerDropdown = GameTab:NewDropdown("Select Target", getPlayerList(), nil, function(selected)
+	selectedTarget = selected
+	print("Target selected:", selectedTarget)
 
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "ESPBillboard"
-    billboard.Adornee = root
-    billboard.Size = UDim2.new(0,150,0,50)
-    billboard.StudsOffset = Vector3.new(0,3,0)
-    billboard.AlwaysOnTop = true
-
-    local nameLabel = Instance.new("TextLabel")
-    nameLabel.Size = UDim2.new(1,0,0.3,0)
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.TextColor3 = Color3.new(1,0,0)
-    nameLabel.TextStrokeTransparency = 0
-    nameLabel.Font = Enum.Font.SourceSansBold
-    nameLabel.TextScaled = true
-    nameLabel.Text = plr.Name
-    nameLabel.Parent = billboard
-
-    local healthLabel = Instance.new("TextLabel")
-    healthLabel.Size = UDim2.new(1,0,0.3,0)
-    healthLabel.Position = UDim2.new(0,0,0.3,0)
-    healthLabel.BackgroundTransparency = 1
-    healthLabel.TextColor3 = Color3.new(0,1,0)
-    healthLabel.TextStrokeTransparency = 0
-    healthLabel.Font = Enum.Font.SourceSansBold
-    healthLabel.TextScaled = true
-    healthLabel.Text = "HP: " .. math.floor(hum.Health)
-    healthLabel.Parent = billboard
-
-    local distLabel = Instance.new("TextLabel")
-    distLabel.Size = UDim2.new(1,0,0.3,0)
-    distLabel.Position = UDim2.new(0,0,0.6,0)
-    distLabel.BackgroundTransparency = 1
-    distLabel.TextColor3 = Color3.new(1,1,0)
-    distLabel.TextStrokeTransparency = 0
-    distLabel.Font = Enum.Font.SourceSansBold
-    distLabel.TextScaled = true
-    distLabel.Text = "Distance: 0"
-    distLabel.Parent = billboard
-
-    billboard.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-    ESPObjects[plr] = {Billboard = billboard, HealthLabel = healthLabel, DistLabel = distLabel, Humanoid = hum}
-
-    addRedHighlight(plr)
-end
-
-local function removeESP(plr)
-    if ESPObjects[plr] then
-        ESPObjects[plr].Billboard:Destroy()
-        ESPObjects[plr] = nil
-    end
-    removeRedHighlight(plr)
-end
-
-local function updateESP()
-    for plr, obj in pairs(ESPObjects) do
-        if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-            obj.HealthLabel.Text = "HP: " .. math.floor(obj.Humanoid.Health)
-            local dist = (plr.Character.HumanoidRootPart.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
-            obj.DistLabel.Text = "Distance: " .. math.floor(dist)
-        end
-    end
-end
-
-ESPTab:CreateToggle({
-    Name = "ESP Mode",
-    CurrentValue = false,
-    Callback = function(value)
-        espEnabled = value
-        if espEnabled then
-            for _, plr in pairs(players:GetPlayers()) do
-                if plr ~= game.Players.LocalPlayer then
-                    createESP(plr)
-                end
-            end
-        else
-            for plr, _ in pairs(ESPObjects) do
-                removeESP(plr)
-            end
-        end
-    end
-})
-
-players.PlayerAdded:Connect(function(plr)
-    plr.CharacterAdded:Connect(function()
-        if espEnabled then
-            createESP(plr)
-        end
-    end)
+	-- If loopkill is already enabled, restart with new target
+	if loopkillEnabled then
+		stopLoopkill()
+		startLoopkill()
+	end
 end)
 
-game:GetService("RunService").RenderStepped:Connect(function()
-    if espEnabled then
-        updateESP()
-    end
+-- Loopkill toggle
+local aura = GameTab:NewToggle("Kill aura", false, function(state)
+	loopkillEnabled = state
+
+	if state then
+		if not selectedTarget then
+			warn("Please select a target first!")
+			loopkillEnabled = false
+			return
+		end
+
+		if not getDamageTool() then
+			warn("You need a Knife, Fork, or Bottle to use loopkill!")
+			loopkillEnabled = false
+			return
+		end
+
+		startLoopkill()
+	else
+		stopLoopkill()
+	end
 end)
 
--------------------------
+-- Update player list when players join/leave
+Players.PlayerAdded:Connect(function()
+	task.wait(0.5)
+	-- Note: You'd need to manually refresh the dropdown or add an update function
+	print("Player joined - consider refreshing target list")
+end)
 
--------------------------
--- Bug Fixes and Updates Tab
--------------------------
-local UpdatesTab = Window:CreateTab("TESTING INK GAME SCRIPT", 4483362458)
+Players.PlayerRemoving:Connect(function(player)
+	if selectedTarget == player.Name then
+		selectedTarget = nil
+		loopkillEnabled = false
+		stopLoopkill()
+		print("Target left the game - loopkill disabled")
+	end
+end)
 
-local announcements = {
-    "DAHEN HUB",
-    "INK GAME SCRIPT",
-    "USE A NEW ACCOUNT FOR TESTING THE INK GAME SCRIPT MIGHT GET DETECTED",
-}
+-- Clean up on death
+localPlayer.CharacterAdded:Connect(function()
+	task.wait(1)
+	if loopkillEnabled then
+		print("Respawned - restarting loopkill")
+	end
+end)
 
-for _, text in ipairs(announcements) do
-    UpdatesTab:CreateLabel(text)
+GameTab:NewDivider()
+
+GameTab:NewText("Jump Rope")
+GameTab:NewButton("Jump Rope - Teleport To End", function()
+	local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+	if char and char:FindFirstChild("HumanoidRootPart") then
+		char.HumanoidRootPart.CFrame = CFrame.new(720.896057, 198.628311, 921.170654)
+	end
+end)
+
+GameTab:NewButton("Jump Rope - Delete The Rope", function()
+	game.Workspace.Effects.rope:Destroy()
+end)
+
+GameTab:NewDivider()
+
+GameTab:NewText("Glass Bridge")
+GameTab:NewButton("Glass Bridge - Teleport To End", function()
+	local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+	if char and char:FindFirstChild("HumanoidRootPart") then
+		char.HumanoidRootPart.CFrame = CFrame.new(-196.372467, 522.192139, -1534.20984)
+	end
+end)
+
+GameTab:NewButton("Glass Bridge Fake Glass", function()
+	CreateGlassBridgeCover()
+end)
+
+GameTab:NewButton("Glass Esp", function()
+	local GlassHolder = workspace:WaitForChild("GlassBridge"):WaitForChild("GlassHolder")
+
+	for i, v in pairs(GlassHolder:GetChildren()) do
+		for g, j in pairs(v:GetChildren()) do
+			if j:IsA("Model") and j.PrimaryPart then
+				local Color = j.PrimaryPart:GetAttribute("exploitingisevil") 
+					and Color3.fromRGB(248, 87, 87) 
+					or Color3.fromRGB(28, 235, 87)
+				j.PrimaryPart.Color = Color
+				j.PrimaryPart.Transparency = 0
+				j.PrimaryPart.Material = Enum.Material.Neon
+			end
+		end
+	end
+end)
+
+local RebelBring = false
+local guardConnection = nil
+
+local function bringGuardsRebel()
+	RebelBring = not RebelBring
+
+	if RebelBring then
+		local Players = game:GetService("Players")
+		local localPlayer = Players.LocalPlayer
+
+		-- Function to teleport a single guard
+		local function teleportGuard(guard)
+			local character = localPlayer.Character
+			if not character then return end
+
+			local rootPart = character:FindFirstChild("HumanoidRootPart")
+			if not rootPart then return end
+
+			local guardRoot = guard:FindFirstChild("HumanoidRootPart") or guard:FindFirstChild("Torso")
+
+			if guardRoot and guardRoot:IsA("BasePart") then
+				guardRoot.CFrame = rootPart.CFrame * CFrame.new(0, 0, -10)
+			elseif guard:IsA("Model") then
+				guard:MoveTo((rootPart.CFrame * CFrame.new(0, 0, -10)).Position)
+			end
+		end
+
+		-- Teleport all existing guards
+		local liveFolder = game.Workspace:FindFirstChild("Live")
+		if liveFolder then
+			for _, child in ipairs(liveFolder:GetChildren()) do
+				if string.find(child.Name, "RebelGuard") then
+					teleportGuard(child)
+				end
+			end
+
+			-- Monitor for new guards and auto-teleport them
+			guardConnection = liveFolder.ChildAdded:Connect(function(child)
+				if RebelBring and string.find(child.Name, "RebelGuard") then
+					task.wait(0.5)
+					teleportGuard(child)
+				end
+			end)
+
+			print("RebelGuard auto-bring enabled")
+		end
+	else
+		-- Disconnect the monitoring when disabled
+		if guardConnection then
+			guardConnection:Disconnect()
+			guardConnection = nil
+		end
+		print("RebelGuard auto-bring disabled")
+	end
 end
+
+local function aimbotRebelGuards()
+	local Players = game:GetService("Players")
+	local RunService = game:GetService("RunService")
+	local localPlayer = Players.LocalPlayer
+	local camera = workspace.CurrentCamera
+
+	local aimbotConnection = nil
+	local isAimbotActive = false
+
+	return function(toggle)
+		isAimbotActive = toggle
+
+		if isAimbotActive then
+			aimbotConnection = RunService.RenderStepped:Connect(function()
+				if not isAimbotActive then return end
+
+				local character = localPlayer.Character
+				if not character then return end
+
+				local rootPart = character:FindFirstChild("HumanoidRootPart")
+				if not rootPart then return end
+
+				local liveFolder = game.Workspace:FindFirstChild("Live")
+				if not liveFolder then return end
+
+				-- Find closest RebelGuard
+				local closestGuard = nil
+				local shortestDistance = math.huge
+
+				for _, child in ipairs(liveFolder:GetChildren()) do
+					if string.find(child.Name, "RebelGuard") then
+						local guardHead = child:FindFirstChild("Head")
+						local guardHumanoid = child:FindFirstChild("Humanoid")
+
+						if guardHead and guardHumanoid and guardHumanoid.Health > 0 then
+							local distance = (rootPart.Position - guardHead.Position).Magnitude
+
+							if distance < shortestDistance then
+								shortestDistance = distance
+								closestGuard = guardHead
+							end
+						end
+					end
+				end
+
+				-- Aim at closest guard
+				if closestGuard then
+					camera.CFrame = CFrame.new(camera.CFrame.Position, closestGuard.Position)
+				end
+			end)
+
+			print("RebelGuard aimbot enabled")
+		else
+			if aimbotConnection then
+				aimbotConnection:Disconnect()
+				aimbotConnection = nil
+			end
+			print("RebelGuard aimbot disabled")
+		end
+	end
+end
+
+GameTab:NewDivider()
+GameTab:NewText("Rebel")
+
+GameTab:NewToggle("Bring Guards", false, function(state)
+	while true do
+		task.wait()
+		if state then
+			bringGuardsRebel()
+		else
+			bringGuardsRebel()
+		end
+	end
+end)
+
+GameTab:NewToggle("Aimbot Guards", false, function(state)
+	if state then
+		aimbotRebelGuards(true)
+	else
+		aimbotRebelGuards(false)
+	end
+end)
+
+GameTab:NewDivider()
+GameTab:NewText("Mingle [coming soon]")
+
+GameTab:NewButton("Teleport To Room", function()
+	local char = localPlayer.Character
+	char.HumanoidRootPart.CFrame = CFrame.new(1170.68262, 403.950592, -486.154968)
+end)
+
+GameTab:NewDivider()
+GameTab:NewText("Final [NOTHING YET DAHEN HUB IS UPDATING SOON]")
+
+GameTab:NewDivider()
+GameTab:NewText("ALL")
+
+local AURAGAINER = false -- LOL U GUYS GOT NO AURA
+
+GameTab:NewToggle("Auto Win", false, function()
+	local values = game.Workspace.Values
+	local char = localPlayer.Character
+
+	AURAGAINER = not AURAGAINER
+
+	while true do
+		if AURAGAINER == true then
+			task.wait(0.05) -- anti lag
+			if values.CurrentGame.Value == "RedLightGreenLight" then
+				char.HumanoidRootPart.CFrame = CFrame.new(-46.0587921, 1025.23352, 108.6353122)
+			elseif values.CurrentGame.Value == "Dalgona" then
+
+			elseif values.CurrentGame.Value == "TugOfWar" then
+
+			elseif values.CurrentGame.Value == "LightsOut" then
+				char.HumanoidRootPart.CFrame = CFrame.new(294.185852, 55.7636185, -3.9290698)
+			elseif values.CurrentGame.Value == "HideAndSeek" then
+				if localPlayer.Backpack:FindFirstChild("Knife") or char:FindFirstChild("Knife") then
+					local Splayer = math.random(1, #Players)
+					local Selected = Players[Splayer]
+
+					while Selected.Backpack:FindFirstChild("Knife") or char:FindFirstChild("Knife") do
+						Splayer = math.random(1, #Players)
+						Selected = Players[Splayer]
+					end
+					performLoopkill(Splayer)
+				else
+					char.HumanoidRootPart.CFrame = CFrame.new(196.83342, 55.9547985, -90.4745865)
+				end
+			elseif values.CurrentGame.Value == "JumpRope" then
+				char.HumanoidRootPart.CFrame = CFrame.new(720.896057, 198.628311, 921.170654)
+			elseif values.CurrentGame.Value == "GlassBridge" then
+				char.HumanoidRootPart.CFrame = CFrame.new(-196.372467, 522.192139, -1534.20984)
+			elseif values.CurrentGame.Value == "Mingle" then
+				char.HumanoidRootPart.CFrame = CFrame.new(1170.68262, 403.950592, -486.154968)
+			elseif values.CurrentGame.Value == "SkySquidGame" then
+				char.HumanoidRootPart.CFrame = CFrame.new(2730.44263,1043.33435,800.130554)
+			elseif values.CurrentGame.Value == "SquidGame" then
+
+			end
+		else
+			task.wait(0.05)
+		end
+	end
+end)
+
+GameTab:NewDivider()
+GameTab:NewText("Game Entrances")
+
+GameTab:NewButton("Dalgona Entrance", function()
+	local char = localPlayer.Character
+	char.PrimaryPart.CFrame = CFrame.new(-222.226, 230.93, 406.97)
+end)
+
+GameTab:NewButton("HNS/TUG Entrance", function()
+	local char = localPlayer.Character
+	char.PrimaryPart.CFrame = CFrame.new(-469.221, 245.556, 448.558)
+end)
+
+GameTab:NewButton("Jump Rope Entrance", function()
+	local char = localPlayer.Character
+	char.PrimaryPart.CFrame = CFrame.new(-435.823, 245.556, 504.708)
+end)
+
+GameTab:NewButton("Glass Bridge Entrance", function()
+	local char = localPlayer.Character
+	char.PrimaryPart.CFrame = CFrame.new(-372.466, 259.659, 482.508)
+end)
+
+GameTab:NewButton("Mingle Entrance", function()
+	local char = localPlayer.Character
+	char.PrimaryPart.CFrame = CFrame.new(-382.445, 288.554, 436.898)
+end)
+
+GameTab:NewButton("Last Game Entrance", function()
+	local char = localPlayer.Character
+	char.PrimaryPart.CFrame = CFrame.new(-430.687, 251.535, 791.952)
+end)
+
+-- MISC TAB CONTENT
+MiscTab:NewText("=== TELEPORTS ===")
+
+MiscTab:NewButton("Teleport To Spawn", function()
+	local char = localPlayer.Character
+	if char and char:FindFirstChild("HumanoidRootPart") then
+		char.HumanoidRootPart.CFrame = CFrame.new(196.83342, 55.9547985, -90.4745865)
+	end
+end)
+
+MiscTab:NewButton("Teleport To Safe Spot", function()
+	local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+	if char and char:FindFirstChild("HumanoidRootPart") then
+		char.HumanoidRootPart.CFrame = CFrame.new(179.030807, 57.9083214, 49.8269196)
+	end
+end)
+
+MiscTab:NewDivider()
+
+MiscTab:NewText("=== SpamX TITLES ===")
+
+MiscTab:NewButton("[DAHEN HUB] Black Title", function()
+	localPlayer:SetAttribute("_CurrentTitle", "Him")
+	spawn(function()
+		while task.wait() do
+			localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[DAHEN SCRIPT]"
+		end
+	end)
+end)
+
+MiscTab:NewButton("[SpamX] Gold Title", function()
+	localPlayer:SetAttribute("_CurrentTitle", "Rich Millionaire")
+	spawn(function()
+		while task.wait() do
+			localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[SpamX USER]"
+		end
+	end)
+end)
+
+MiscTab:NewButton("[DAHEN HUB] Purple Title", function()
+	localPlayer:SetAttribute("_CurrentTitle", "Tanos")
+	spawn(function()
+		while task.wait() do
+			localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[SpamX USER]"
+		end
+	end)
+end)
+
+MiscTab:NewButton("[DAHEN HUB] Red Title", function()
+	localPlayer:SetAttribute("_CurrentTitle", "The Chosen One")
+	spawn(function()
+		while task.wait() do
+			localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[DAHEN SCRIPT ]"
+		end
+	end)
+end)
+
+MiscTab:NewDivider()
+
+MiscTab:NewText("=== ITEM TELEPORTS ===")
+
+MiscTab:NewButton("Teleport To Dropped Bandage", function()
+	local char = localPlayer.Character
+	if char and char:FindFirstChild("HumanoidRootPart") then
+		for i = 1, 10 do
+			char.HumanoidRootPart.CFrame = game.Workspace.Effects:FindFirstChild("DroppedBandage").PrimaryPart.CFrame
+			task.wait(0.125)
+		end
+	end
+end)
+
+MiscTab:NewButton("Teleport To Dropped Grenade", function()
+	local char = localPlayer.Character
+	if char and char:FindFirstChild("HumanoidRootPart") then
+		for i = 1, 10 do
+			char.HumanoidRootPart.CFrame = game.Workspace.Effects:FindFirstChild("DroppedGrenade").PrimaryPart.CFrame
+			task.wait(0.125)
+		end
+	end
+end)
+
+MiscTab:NewButton("Teleport To Dropped FlashBang", function()
+	local char = localPlayer.Character
+	if char and char:FindFirstChild("HumanoidRootPart") then
+		for i = 1, 10 do
+			char.HumanoidRootPart.CFrame = game.Workspace.Effects:FindFirstChild("DroppedFlashbang").PrimaryPart.CFrame
+			task.wait(0.125)
+		end
+	end
+end)
+
+MiscTab:NewDivider()
+
+local teleportEnabled = false
+local teleportConnection = nil
+
+-- Teleport to Dropped Bandage Toggle
+MiscTab:NewToggle("Auto Grab Dropped Bandage", false, function(state)
+	teleportEnabled = state
+
+	if teleportEnabled then
+		-- Start the teleport loop
+		teleportConnection = game:GetService("RunService").Heartbeat:Connect(function()
+			if not teleportEnabled then return end
+
+			local char = localPlayer.Character
+			if char and char:FindFirstChild("HumanoidRootPart") then
+				local droppedBandage = game.Workspace.Effects:FindFirstChild("DroppedBandage")
+				if droppedBandage and droppedBandage.PrimaryPart then
+					char.HumanoidRootPart.CFrame = droppedBandage.PrimaryPart.CFrame
+				end
+			end
+		end)
+	else
+		-- Stop the teleport loop
+		if teleportConnection then
+			teleportConnection:Disconnect()
+			teleportConnection = nil
+		end
+	end
+end)
+
+-- Teleport to Dropped Grenade Toggle
+local grenadeEnabled = false
+local grenadeConnection = nil
+
+MiscTab:NewToggle("Auto Grab Dropped Grenade", false, function(state)
+	grenadeEnabled = state
+
+	if grenadeEnabled then
+		-- Start the teleport loop
+		grenadeConnection = game:GetService("RunService").Heartbeat:Connect(function()
+			if not grenadeEnabled then return end
+
+			local char = localPlayer.Character
+			if char and char:FindFirstChild("HumanoidRootPart") then
+				local droppedGrenade = game.Workspace.Effects:FindFirstChild("DroppedGrenade")
+				if droppedGrenade and droppedGrenade.PrimaryPart then
+					char.HumanoidRootPart.CFrame = droppedGrenade.PrimaryPart.CFrame
+				end
+			end
+		end)
+	else
+		-- Stop the teleport loop
+		if grenadeConnection then
+			grenadeConnection:Disconnect()
+			grenadeConnection = nil
+		end
+	end
+end)
+
+-- Teleport to Dropped FlashBang Toggle
+local flashbangEnabled = false
+local flashbangConnection = nil
+
+MiscTab:NewToggle("Auto Grab Dropped FlashBang", false, function(state)
+	flashbangEnabled = state
+
+	if flashbangEnabled then
+		-- Start the teleport loop
+		flashbangConnection = game:GetService("RunService").Heartbeat:Connect(function()
+			if not flashbangEnabled then return end
+
+			local char = localPlayer.Character
+			if char and char:FindFirstChild("HumanoidRootPart") then
+				local droppedFlashbang = game.Workspace.Effects:FindFirstChild("DroppedFlashbang")
+				if droppedFlashbang and droppedFlashbang.PrimaryPart then
+					char.HumanoidRootPart.CFrame = droppedFlashbang.PrimaryPart.CFrame
+				end
+			end
+		end)
+	else
+		-- Stop the teleport loop
+		if flashbangConnection then
+			flashbangConnection:Disconnect()
+			flashbangConnection = nil
+		end
+	end
+end)
+
+MiscTab:NewDivider()
+
+MiscTab:NewToggle("Enable Spectate", false, function(state)
+	game.Workspace.Values.CanSpectateIfWonGame.Value = state
+end)
+
+MiscTab:NewTextInput("Custom Player Number", "Put Tag Here", function(value)
+	local char = localPlayer.Character
+	local ui = localPlayer.PlayerGui.Leaderboard.Leaderboard.MainLeaderboard.Content:FindFirstChild(localPlayer.UserId)
+	local Tags = char:FindFirstChild("PlayerTags")
+
+	spawn(function()
+		while true do
+			task.wait()
+			for i, tag in pairs(Tags:GetChildren()) do
+				tag.SurfaceGui.TextLabel.Text = value
+				ui.PlayerNumber.Text = "#"..value
+			end
+		end
+	end)
+end)
+
+MiscTab:NewDivider()
+
+MiscTab:NewButton("FPS Boost", function()
+	-- Example FPS Booster Script
+	local Lighting = game:GetService("Lighting")
+	Lighting.GlobalShadows = false
+	Lighting.FogEnd = 100000
+	Lighting.Brightness = 1
+
+	for _, v in pairs(workspace:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.Material = Enum.Material.SmoothPlastic
+		end
+	end
+end)
+
+-- Auto-refresh player list when players join/leave
+Players.PlayerAdded:Connect(function()
+	task.wait(1)
+	-- Would need to refresh dropdown here
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	if selectedPlayer == player then
+		selectedPlayer = nil
+	end
+	-- Would need to refresh dropdown here
+end)
+
+-- Clean up speed boost and noclip on character respawn
+localPlayer.CharacterAdded:Connect(function()
+	speedBoostEnabled = false
+	if speedConnection then
+		speedConnection:Disconnect()
+		speedConnection = nil
+	end
+
+	noclipEnabled = false
+	if noclipConnection then
+		noclipConnection:Disconnect()
+		noclipConnection = nil
+	end
+end)
+
+print("DAHEN HUB LOADED")
