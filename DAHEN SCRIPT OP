@@ -12,11 +12,11 @@ if localPlayer then
 	-- Wait for TextChatService to be ready
 	local textChannel = TextChatService:WaitForChild("TextChannels"):WaitForChild("RBXGeneral")
 
-	textChannel:DisplaySystemMessage("[SpamX]: LOADING SCRIPT...")
+	textChannel:DisplaySystemMessage("[DAHEN HUB]: LOADING SCRIPT...")
 	task.wait()
-	textChannel:DisplaySystemMessage("[SpamX]: GOLD DOOM | INK GAMES")
+	textChannel:DisplaySystemMessage("[DAHEN HUB]: DAHEN HUB | INK GAMES")
 	task.wait()
-	textChannel:DisplaySystemMessage("[SpamX]: LOADED")
+	textChannel:DisplaySystemMessage("[DAHEN HUB]: LOADED")
 end
 
 -- Create main window
