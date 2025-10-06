@@ -37,18 +37,17 @@ local PlayerTab = Window:NewTab("Player")
 local GameTab = Window:NewTab("Game")
 local MiscTab = Window:NewTab("Misc")
 
-local MinimizeButton = Tab:CreateButton({
-    Name = "Minimize/Restore GUI",
-    Callback = function()
-        if isMinimized then
+
+MainTab:NewButton("minimize gui", function()
+           if isMinimized then
             -- Restore size (show content)
-            ContentFrame.Visible = true
-            ContentFrame.Size = UDim2.new(1, 0, 0, 200)
+            local Window.Visible = true
+            local Window.Size = UDim2.new(1, 0, 0, 200)
             isMinimized = false
         else
             -- Minimize (hide content, only show header)
-            ContentFrame.Visible = false
-            ContentFrame.Size = UDim2.new(1, 0, 0, 30) -- Small header size
+            local Window.Visible = false
+            local Window.Size = UDim2.new(1, 0, 0, 30) -- Small header size
             isMinimized = true
         end
     end
