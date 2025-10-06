@@ -1,7 +1,165 @@
-local summitLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/Vovabro46/DinasMenu/refs/heads/main/DinasMenus.lua"))()
+--[[
+	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+-- Load Rayfield
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
-local window = summitLib:CreateWindow({Name = "DAHEN HUB",AccentColor3 = Color3.new(1, 0.235294, 0.337255)})
-local Tab1 = window:CreateTab({Name = "PLAYER", Icon = 'rbxassetid://7733765307'})
-local Tab2 = window:CreateTab({Name = "GAME", Icon = 'rbxassetid://7743875962'})
-local Tab3 = window:CreateTab({Name = "MISC", Icon = 'rbxassetid://7743876142'})
-local Tab4 = window:CreateTab({Name = "UI SETTINGS", Icon = 'rbxassetid://7733920644'})
+-- Create Window
+local Window = Rayfield:CreateWindow({
+    Name = "DAHEN HUB (TESTING)",
+    LoadingTitle = "bac0nGUI",
+    LoadingSubtitle = "by bac0n",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = nil,
+        FileName = "DAHEN HUB INK GAME"
+    },
+    KeySystem = false
+})
+
+-------------------------
+-- ESP Tab
+-------------------------
+local ESPTab = Window:CreateTab("HIDE AND SEEK", 4483362458)
+local espEnabled = false
+local players = game.Players
+local ESPObjects = {}
+
+local function addRedHighlight(plr)
+    if not plr.Character then return end
+    if plr.Character:FindFirstChild("ESP_Highlight") then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_Highlight"
+    highlight.Adornee = plr.Character
+    highlight.FillColor = Color3.fromRGB(255,0,0)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineColor = Color3.fromRGB(255,0,0)
+    highlight.OutlineTransparency = 0
+    highlight.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+end
+
+local function removeRedHighlight(plr)
+    if plr.Character and plr.Character:FindFirstChild("ESP_Highlight") then
+        plr.Character.ESP_Highlight:Destroy()
+    end
+end
+
+local function createESP(plr)
+    local char = plr.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local root = char.HumanoidRootPart
+    local hum = char:FindFirstChild("Humanoid")
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESPBillboard"
+    billboard.Adornee = root
+    billboard.Size = UDim2.new(0,150,0,50)
+    billboard.StudsOffset = Vector3.new(0,3,0)
+    billboard.AlwaysOnTop = true
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(1,0,0.3,0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextColor3 = Color3.new(1,0,0)
+    nameLabel.TextStrokeTransparency = 0
+    nameLabel.Font = Enum.Font.SourceSansBold
+    nameLabel.TextScaled = true
+    nameLabel.Text = plr.Name
+    nameLabel.Parent = billboard
+
+    local healthLabel = Instance.new("TextLabel")
+    healthLabel.Size = UDim2.new(1,0,0.3,0)
+    healthLabel.Position = UDim2.new(0,0,0.3,0)
+    healthLabel.BackgroundTransparency = 1
+    healthLabel.TextColor3 = Color3.new(0,1,0)
+    healthLabel.TextStrokeTransparency = 0
+    healthLabel.Font = Enum.Font.SourceSansBold
+    healthLabel.TextScaled = true
+    healthLabel.Text = "HP: " .. math.floor(hum.Health)
+    healthLabel.Parent = billboard
+
+    local distLabel = Instance.new("TextLabel")
+    distLabel.Size = UDim2.new(1,0,0.3,0)
+    distLabel.Position = UDim2.new(0,0,0.6,0)
+    distLabel.BackgroundTransparency = 1
+    distLabel.TextColor3 = Color3.new(1,1,0)
+    distLabel.TextStrokeTransparency = 0
+    distLabel.Font = Enum.Font.SourceSansBold
+    distLabel.TextScaled = true
+    distLabel.Text = "Distance: 0"
+    distLabel.Parent = billboard
+
+    billboard.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+    ESPObjects[plr] = {Billboard = billboard, HealthLabel = healthLabel, DistLabel = distLabel, Humanoid = hum}
+
+    addRedHighlight(plr)
+end
+
+local function removeESP(plr)
+    if ESPObjects[plr] then
+        ESPObjects[plr].Billboard:Destroy()
+        ESPObjects[plr] = nil
+    end
+    removeRedHighlight(plr)
+end
+
+local function updateESP()
+    for plr, obj in pairs(ESPObjects) do
+        if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            obj.HealthLabel.Text = "HP: " .. math.floor(obj.Humanoid.Health)
+            local dist = (plr.Character.HumanoidRootPart.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+            obj.DistLabel.Text = "Distance: " .. math.floor(dist)
+        end
+    end
+end
+
+ESPTab:CreateToggle({
+    Name = "ESP Mode",
+    CurrentValue = false,
+    Callback = function(value)
+        espEnabled = value
+        if espEnabled then
+            for _, plr in pairs(players:GetPlayers()) do
+                if plr ~= game.Players.LocalPlayer then
+                    createESP(plr)
+                end
+            end
+        else
+            for plr, _ in pairs(ESPObjects) do
+                removeESP(plr)
+            end
+        end
+    end
+})
+
+players.PlayerAdded:Connect(function(plr)
+    plr.CharacterAdded:Connect(function()
+        if espEnabled then
+            createESP(plr)
+        end
+    end)
+end)
+
+game:GetService("RunService").RenderStepped:Connect(function()
+    if espEnabled then
+        updateESP()
+    end
+end)
+
+-------------------------
+
+-------------------------
+-- Bug Fixes and Updates Tab
+-------------------------
+local UpdatesTab = Window:CreateTab("TESTING INK GAME SCRIPT", 4483362458)
+
+local announcements = {
+    "DAHEN HUB",
+    "INK GAME SCRIPT",
+    "USE A NEW ACCOUNT FOR TESTING THE INK GAME SCRIPT MIGHT GET DETECTED",
+}
+
+for _, text in ipairs(announcements) do
+    UpdatesTab:CreateLabel(text)
+end
