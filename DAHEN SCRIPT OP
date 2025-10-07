@@ -14,14 +14,14 @@ if localPlayer then
 
 	textChannel:DisplaySystemMessage("[DAHEN HUB]: LOADING SCRIPT...")
 	task.wait()
-	textChannel:DisplaySystemMessage("[DAHEN HUB]: DAHEN SCRIPT | INK GAMES")
+	textChannel:DisplaySystemMessage("[DAHEN HUB]: DAHEN HUB | INK GAMES")
 	task.wait()
 	textChannel:DisplaySystemMessage("[DAHEN HUB]: LOADED")
 end
 
 -- Create main window
 local Window = Library:LoadWindow(
-	"DAHEN HUB INK GAME: Discord soon",  
+	"DAHEN HUB INK GAME: https://discord.gg/golddoom, https://discord.gg/ringta",  
 	"DAHEN HUB TESTING | INK GAMES", 
 	"1.2.0", 
 	nil, 
@@ -36,7 +36,6 @@ local MainTab = Window:NewTab("Main")
 local PlayerTab = Window:NewTab("Player")
 local GameTab = Window:NewTab("Game")
 local MiscTab = Window:NewTab("Misc")
-
 
 -- Player Teleport System Variables
 local selectedPlayer = nil
@@ -1606,8 +1605,8 @@ GameTab:NewToggle("Auto Win", false, function()
 	end
 end)
 
-GameTab:NewButton("SKY SQUID ANTI FALL", function(
-  loadstring(game:HttpGet("https://pastefy.app/Qc1ZIUwO/raw", true))()
+GameTab:NewButton("SKY SQUID ANTIFALL", function()
+      loadstring(game:HttpGet("https://pastefy.app/Qc1ZIUwO/raw", true))()
 
 GameTab:NewDivider()
 GameTab:NewText("Game Entrances")
@@ -1672,7 +1671,7 @@ MiscTab:NewButton("[DAHEN HUB] Black Title", function()
 	end)
 end)
 
-MiscTab:NewButton("[SpamX] Gold Title", function()
+MiscTab:NewButton("[DAHEN HUB] Gold Title", function()
 	localPlayer:SetAttribute("_CurrentTitle", "Rich Millionaire")
 	spawn(function()
 		while task.wait() do
