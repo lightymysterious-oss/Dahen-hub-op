@@ -1554,59 +1554,31 @@ GameTab:NewDivider()
 GameTab:NewText("Final Sky squid Game[SKY SQUID]")
 
 GameTab:NewButton("Anti fall", function()
-  local UserInputService = game:GetService("UserInputService")
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
 
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local rootPart = character:WaitForChild("HumanoidRootPart")
+    local player = Players.LocalPlayer
+    repeat task.wait() until player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 
-local floating = false
-local floatBodyPosition = nil
-local speed = 300
-local normalSpeed = 16
+    local character = player.Character
+    local humanoid = character:WaitForChild("Humanoid")
+    local rootPart = character:WaitForChild("HumanoidRootPart")
 
-local keybind = Enum.KeyCode.Q
+    humanoid.WalkSpeed = 16
 
-local function enableFloat()
-	floating = true
-	humanoid.WalkSpeed = speed
+    local floatBodyPosition = Instance.new("BodyPosition")
+    floatBodyPosition.Name = "FloatForce"
+    floatBodyPosition.MaxForce = Vector3.new(0, math.huge, 0)
+    floatBodyPosition.Position = rootPart.Position + Vector3.new(0, 5, 0)
+    floatBodyPosition.P = 100000
+    floatBodyPosition.D = 1000
+    floatBodyPosition.Parent = rootPart
 
-	floatBodyPosition = Instance.new("BodyPosition")
-	floatBodyPosition.Name = "FloatForce"
-	floatBodyPosition.MaxForce = Vector3.new(0, math.huge, 0)
-	floatBodyPosition.Position = rootPart.Position + Vector3.new(0, 5, 0)
-	floatBodyPosition.P = 100000
-	floatBodyPosition.D = 1000
-	floatBodyPosition.Parent = rootPart
-
-	RunService.RenderStepped:Connect(function()
-		if floating and floatBodyPosition then
-			floatBodyPosition.Position = rootPart.Position + Vector3.new(0, 5, 0)
-		end
-	end)
-end
-
-local function disableFloat()
-	floating = false
-	humanoid.WalkSpeed = normalSpeed
-	if floatBodyPosition then
-		floatBodyPosition:Destroy()
-		floatBodyPosition = nil
-	end
-end
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
-	if input.KeyCode == keybind then
-		if floating then
-			disableFloat()
-		else
-			enableFloat()
-		end
-	end
+    RunService.RenderStepped:Connect(function()
+        if floatBodyPosition and rootPart then
+            floatBodyPosition.Position = rootPart.Position + Vector3.new(0, 5, 0)
+        end
+    end)
 end)
 
 GameTab:NewDivider()
