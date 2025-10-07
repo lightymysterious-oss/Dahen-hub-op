@@ -1564,22 +1564,34 @@ GameTab:NewButton("Anti fall", function()
 	local humanoid = character:WaitForChild("Humanoid")
 	local rootPart = character:WaitForChild("HumanoidRootPart")
 
-	-- Save current height (Y position)
-	local lockY = rootPart.Position.Y
+	local floatBody = Instance.new("BodyPosition")
+	floatBody.Name = "AntiFallFloat"
+	floatBody.MaxForce = Vector3.new(0, math.huge, 0)
+	floatBody.P = 100000
+	floatBody.D = 1000
+	floatBody.Parent = rootPart
 
-	-- Create BodyPosition to hold player in place vertically
-	local bodyPos = Instance.new("BodyPosition")
-	bodyPos.MaxForce = Vector3.new(0, math.huge, 0)
-	bodyPos.P = 100000
-	bodyPos.D = 1000
-	bodyPos.Position = Vector3.new(rootPart.Position.X, lockY, rootPart.Position.Z)
-	bodyPos.Parent = rootPart
+	local floatHeight = 3  -- height above ground
+	local groundCheckDistance = 6  -- how far down to look for ground
 
-	-- Keep character locked at that height
 	RunService.RenderStepped:Connect(function()
-		if not rootPart or not bodyPos then return end
-		-- Only lock Y, allow X and Z to move
-		bodyPos.Position = Vector3.new(rootPart.Position.X, lockY, rootPart.Position.Z)
+		if not rootPart or not rootPart.Parent then return end
+
+		local rayOrigin = rootPart.Position
+		local rayDirection = Vector3.new(0, -groundCheckDistance, 0)
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterDescendantsInstances = {character}
+		raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+
+		local result = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+
+		if result then
+			-- hover just above ground
+			floatBody.Position = result.Position + Vector3.new(0, floatHeight, 0)
+		else
+			-- no ground found, hold current position
+			floatBody.Position = rootPart.Position
+		end
 	end)
 end)
 
