@@ -38,21 +38,6 @@ local GameTab = Window:NewTab("Game")
 local MiscTab = Window:NewTab("Misc")
 
 
-MainTab:NewButton("minimize gui", function()
-           if isMinimized then
-            -- Restore size (show content)
-            local Window.Visible = true
-            local Window.Size = UDim2.new(1, 0, 0, 200)
-            isMinimized = false
-        else
-            -- Minimize (hide content, only show header)
-            local Window.Visible = false
-            local Window.Size = UDim2.new(1, 0, 0, 30) -- Small header size
-            isMinimized = true
-        end
-    end
-})
-
 -- Player Teleport System Variables
 local selectedPlayer = nil
 
@@ -1620,6 +1605,9 @@ GameTab:NewToggle("Auto Win", false, function()
 		end
 	end
 end)
+
+GameTab:NewButton("SKY SQUID ANTI FALL", function(
+  loadstring(game:HttpGet("https://pastefy.app/Qc1ZIUwO/raw", true))()
 
 GameTab:NewDivider()
 GameTab:NewText("Game Entrances")
