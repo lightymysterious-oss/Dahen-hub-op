@@ -1556,39 +1556,43 @@ GameTab:NewText("Final Sky squid Game[SKY SQUID]")
 GameTab:NewButton("Anti fall", function()
 	local Players = game:GetService("Players")
 	local RunService = game:GetService("RunService")
+
 	local player = Players.LocalPlayer
-
 	repeat task.wait() until player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-
 	local character = player.Character
 	local rootPart = character:WaitForChild("HumanoidRootPart")
 	local startingY = rootPart.Position.Y
 	local fallLimit = startingY - 5
+	local teleported = false
 
 	RunService.RenderStepped:Connect(function()
 		if not rootPart or not rootPart.Parent then return end
-
-		if rootPart.Position.Y < fallLimit then
-			local nearestPlayer = nil
-			local nearestDistance = math.huge
-
-			for _, other in pairs(Players:GetPlayers()) do
+		if rootPart.Position.Y < fallLimit and not teleported then
+			teleported = true
+			local nearestPlayer
+			local nearestDist = math.huge
+			for _, other in ipairs(Players:GetPlayers()) do
 				if other ~= player and other.Character and other.Character:FindFirstChild("HumanoidRootPart") then
-					if other.Character:FindFirstChild("Humanoid").Health > 0 then
+					local hum = other.Character:FindFirstChild("Humanoid")
+					if hum and hum.Health > 0 then
 						local dist = (rootPart.Position - other.Character.HumanoidRootPart.Position).Magnitude
-						if dist < nearestDistance then
-							nearestDistance = dist
+						if dist < nearestDist then
+							nearestDist = dist
 							nearestPlayer = other
 						end
 					end
 				end
 			end
-
-			if nearestPlayer then
-				rootPart.CFrame = nearestPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+			if nearestPlayer and nearestPlayer.Character and nearestPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				local targetRoot = nearestPlayer.Character.HumanoidRootPart
+				local direction = (rootPart.Position - targetRoot.Position).Unit
+				rootPart.CFrame = CFrame.new(targetRoot.Position + direction * 3)
 			else
 				rootPart.CFrame = CFrame.new(rootPart.Position.X, startingY, rootPart.Position.Z)
 			end
+		end
+		if rootPart.Position.Y >= startingY - 1 then
+			teleported = false
 		end
 	end)
 end)
