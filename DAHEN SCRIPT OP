@@ -1553,7 +1553,7 @@ end)
 GameTab:NewDivider()
 GameTab:NewText("Final Sky squid Game[SKY SQUID]")
 
-GameTab:NewButton("Anti fall", function()
+GameTab:NewButton("Anti Fall", function()
     local Players = game:GetService("Players")
     local RunService = game:GetService("RunService")
 
@@ -1561,22 +1561,21 @@ GameTab:NewButton("Anti fall", function()
     repeat task.wait() until player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 
     local character = player.Character
-    local humanoid = character:WaitForChild("Humanoid")
     local rootPart = character:WaitForChild("HumanoidRootPart")
 
-    humanoid.WalkSpeed = 16
+    -- Create invisible platform under player
+    local barrier = Instance.new("Part")
+    barrier.Name = "AntiFallBarrier"
+    barrier.Anchored = true
+    barrier.CanCollide = true
+    barrier.Size = Vector3.new(10, 1, 10) -- adjust width/length as needed
+    barrier.Transparency = 1 -- 1 = fully invisible
+    barrier.Parent = workspace
 
-    local floatBodyPosition = Instance.new("BodyPosition")
-    floatBodyPosition.Name = "FloatForce"
-    floatBodyPosition.MaxForce = Vector3.new(0, math.huge, 0)
-    floatBodyPosition.Position = rootPart.Position + Vector3.new(0, 5, 0)
-    floatBodyPosition.P = 100000
-    floatBodyPosition.D = 1000
-    floatBodyPosition.Parent = rootPart
-
+    -- Keep platform under player
     RunService.RenderStepped:Connect(function()
-        if floatBodyPosition and rootPart then
-            floatBodyPosition.Position = rootPart.Position + Vector3.new(0, 5, 0)
+        if rootPart and barrier then
+            barrier.Position = rootPart.Position - Vector3.new(0, (rootPart.Size.Y / 2) + 3, 0)
         end
     end)
 end)
