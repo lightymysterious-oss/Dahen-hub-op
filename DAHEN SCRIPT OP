@@ -1605,9 +1605,6 @@ GameTab:NewToggle("Auto Win", false, function()
 	end
 end)
 
-GameTab:NewButton("SKY SQUID ANTIFALL", function()
-      loadstring(game:HttpGet("https://pastefy.app/Qc1ZIUwO/raw", true))()
-
 GameTab:NewDivider()
 GameTab:NewText("Game Entrances")
 
