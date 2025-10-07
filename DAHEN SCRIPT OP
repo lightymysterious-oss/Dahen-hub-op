@@ -1556,41 +1556,39 @@ GameTab:NewText("Final Sky squid Game[SKY SQUID]")
 GameTab:NewButton("Anti fall", function()
 	local Players = game:GetService("Players")
 	local RunService = game:GetService("RunService")
-
 	local player = Players.LocalPlayer
+
 	repeat task.wait() until player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 
 	local character = player.Character
-	local humanoid = character:WaitForChild("Humanoid")
 	local rootPart = character:WaitForChild("HumanoidRootPart")
-
-	local floatBody = Instance.new("BodyPosition")
-	floatBody.Name = "AntiFallFloat"
-	floatBody.MaxForce = Vector3.new(0, math.huge, 0)
-	floatBody.P = 100000
-	floatBody.D = 1000
-	floatBody.Parent = rootPart
-
-	local floatHeight = 3  -- height above ground
-	local groundCheckDistance = 6  -- how far down to look for ground
+	local startingY = rootPart.Position.Y
+	local fallLimit = startingY - 5
 
 	RunService.RenderStepped:Connect(function()
 		if not rootPart or not rootPart.Parent then return end
 
-		local rayOrigin = rootPart.Position
-		local rayDirection = Vector3.new(0, -groundCheckDistance, 0)
-		local raycastParams = RaycastParams.new()
-		raycastParams.FilterDescendantsInstances = {character}
-		raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+		if rootPart.Position.Y < fallLimit then
+			local nearestPlayer = nil
+			local nearestDistance = math.huge
 
-		local result = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+			for _, other in pairs(Players:GetPlayers()) do
+				if other ~= player and other.Character and other.Character:FindFirstChild("HumanoidRootPart") then
+					if other.Character:FindFirstChild("Humanoid").Health > 0 then
+						local dist = (rootPart.Position - other.Character.HumanoidRootPart.Position).Magnitude
+						if dist < nearestDistance then
+							nearestDistance = dist
+							nearestPlayer = other
+						end
+					end
+				end
+			end
 
-		if result then
-			-- hover just above ground
-			floatBody.Position = result.Position + Vector3.new(0, floatHeight, 0)
-		else
-			-- no ground found, hold current position
-			floatBody.Position = rootPart.Position
+			if nearestPlayer then
+				rootPart.CFrame = nearestPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+			else
+				rootPart.CFrame = CFrame.new(rootPart.Position.X, startingY, rootPart.Position.Z)
+			end
 		end
 	end)
 end)
