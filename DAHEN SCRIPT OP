@@ -1554,30 +1554,45 @@ GameTab:NewDivider()
 GameTab:NewText("Final Sky squid Game[SKY SQUID]")
 
 GameTab:NewButton("Anti fall", function()
-    local Players = game:GetService("Players")
-    local RunService = game:GetService("RunService")
+	local Players = game:GetService("Players")
+	local RunService = game:GetService("RunService")
 
-    local player = Players.LocalPlayer
-    repeat task.wait() until player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	local player = Players.LocalPlayer
+	repeat task.wait() until player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 
-    local character = player.Character
-    local rootPart = character:WaitForChild("HumanoidRootPart")
+	local character = player.Character
+	local humanoid = character:WaitForChild("Humanoid")
+	local rootPart = character:WaitForChild("HumanoidRootPart")
 
-    -- Create invisible platform under player
-    local barrier = Instance.new("Part")
-    barrier.Name = "AntiFallBarrier"
-    barrier.Anchored = true
-    barrier.CanCollide = true
-    barrier.Size = Vector3.new(10, 1, 10) -- adjust width/length as needed
-    barrier.Transparency = 1 -- 1 = fully invisible
-    barrier.Parent = workspace
+	local floatBody = Instance.new("BodyPosition")
+	floatBody.Name = "AntiFallFloat"
+	floatBody.MaxForce = Vector3.new(0, math.huge, 0)
+	floatBody.P = 100000
+	floatBody.D = 1000
+	floatBody.Parent = rootPart
 
-    -- Keep platform under player
-    RunService.RenderStepped:Connect(function()
-        if rootPart and barrier then
-            barrier.Position = rootPart.Position - Vector3.new(0, (rootPart.Size.Y / 2) + 3, 0)
-        end
-    end)
+	local floatHeight = 3  -- height above ground
+	local groundCheckDistance = 6  -- how far down to look for ground
+
+	RunService.RenderStepped:Connect(function()
+		if not rootPart or not rootPart.Parent then return end
+
+		local rayOrigin = rootPart.Position
+		local rayDirection = Vector3.new(0, -groundCheckDistance, 0)
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterDescendantsInstances = {character}
+		raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+
+		local result = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+
+		if result then
+			-- hover just above ground
+			floatBody.Position = result.Position + Vector3.new(0, floatHeight, 0)
+		else
+			-- no ground found, hold current position
+			floatBody.Position = rootPart.Position
+		end
+	end)
 end)
 
 GameTab:NewDivider()
