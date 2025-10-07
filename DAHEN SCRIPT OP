@@ -1553,7 +1553,7 @@ end)
 GameTab:NewDivider()
 GameTab:NewText("Final Sky squid Game[SKY SQUID]")
 
-GameTab:NewButton("Anti Fall", function()
+GameTab:NewButton("Anti fall", function()
     local Players = game:GetService("Players")
     local RunService = game:GetService("RunService")
 
