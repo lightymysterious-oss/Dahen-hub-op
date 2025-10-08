@@ -368,6 +368,55 @@ closeButton.MouseButton1Click:Connect(function()
 	mainFrame.Visible = false
 end)
 
+-- safe minimize: collapse the content area instead of resizing the whole window
+local content = mainFrame:FindFirstChild("Content")
+if not content then
+    content = Instance.new("Frame")
+    content.Name = "Content"
+    content.BackgroundTransparency = 1
+    content.Size = UDim2.new(1, 0, 1, -30)       -- fills frame minus top 30px for header
+    content.Position = UDim2.new(0, 0, 0, 30)
+    content.Parent = mainFrame
+    content.ClipsDescendants = true
+end
+
+-- move existing children (except the two buttons and content itself) into content
+local toMove = {}
+for _, child in ipairs(mainFrame:GetChildren()) do
+    if child ~= content and child ~= minimizeButton and child ~= closeButton and not child:IsA("UICorner") then
+        table.insert(toMove, child)
+    end
+end
+for _, obj in ipairs(toMove) do
+    obj.Parent = content
+end
+
+local minimized = false
+local contentFullSize = content.Size
+
+minimizeButton.MouseButton1Click:Connect(function()
+    minimized = not minimized
+
+    if minimized then
+        -- collapse content (animate down to zero height, then hide to avoid input)
+        content:TweenSize(UDim2.new(1, 0, 0, 0), Enum.EasingDirection.In, Enum.EasingStyle.Quint, 0.35, true)
+        task.delay(0.36, function()
+            if minimized then
+                content.Visible = false
+            end
+        end)
+    else
+        -- show and expand content back to full size
+        content.Visible = true
+        content:TweenSize(contentFullSize, Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.35, true)
+    end
+end)
+
+-- optional: close button behavior (keeps it visible and reliable)
+closeButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+end)
+
 -- Example Content
 local content = Instance.new("Frame")
 content.Size = UDim2.new(1, 0, 1, -30)
