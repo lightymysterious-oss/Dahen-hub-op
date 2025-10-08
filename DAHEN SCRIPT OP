@@ -311,43 +311,55 @@ MainTab:NewButton("Custom Emotes 2", function()
 		gui:Destroy()
 	end)
 
--- Main Frame
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 300, 0, 300)
-mainFrame.Position = UDim2.new(0.5, -150, 0.5, -150)
-mainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-mainFrame.BorderSizePixel = 0
-mainFrame.Parent = game.Players.LocalPlayer.PlayerGui:WaitForChild("ScreenGui")
+-- Assuming mainFrame, topBar, minimizeButton, closeButton are already created earlier in your script
 
-local uiCorner = Instance.new("UICorner")
-uiCorner.CornerRadius = UDim.new(0, 10)
-uiCorner.Parent = mainFrame
+-- Create content container
+local content = mainFrame:FindFirstChild("Content")
+if not content then
+    content = Instance.new("Frame")
+    content.Name = "Content"
+    content.BackgroundTransparency = 1
+    content.Size = UDim2.new(1, 0, 1, -30)    -- full width, height minus top bar of 30 px
+    content.Position = UDim2.new(0, 0, 0, 30)  -- below the top bar
+    content.Parent = mainFrame
+    content.ClipsDescendants = true
+end
 
--- Top Bar
-local topBar = Instance.new("Frame")
-topBar.Size = UDim2.new(1, 0, 0, 30)
-topBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-topBar.BorderSizePixel = 0
-topBar.Parent = mainFrame
+-- Move existing GUI elements (except the buttons and UICorners) into content
+local toMove = {}
+for _, child in ipairs(mainFrame:GetChildren()) do
+    if child ~= content and child ~= minimizeButton and child ~= closeButton and not child:IsA("UICorner") and child ~= topBar then
+        table.insert(toMove, child)
+    end
+end
+for _, obj in ipairs(toMove) do
+    obj.Parent = content
+end
 
-local topCorner = Instance.new("UICorner")
-topCorner.CornerRadius = UDim.new(0, 10)
-topCorner.Parent = topBar
+-- Minimize / Restore logic
+local minimized = false
+local contentFullSize = content.Size
 
--- Minimize Button
-local minimizeButton = Instance.new("TextButton")
-minimizeButton.Size = UDim2.new(0, 30, 0, 30)
-minimizeButton.Position = UDim2.new(1, -70, 0, 0)
-minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
-minimizeButton.Text = "-"
-minimizeButton.Font = Enum.Font.SourceSansBold
-minimizeButton.TextSize = 20
-minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-minimizeButton.Parent = topBar
+minimizeButton.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    if minimized then
+        -- collapse content
+        content:TweenSize(UDim2.new(1, 0, 0, 0), Enum.EasingDirection.In, Enum.EasingStyle.Quint, 0.35, true)
+        task.delay(0.36, function()
+            if minimized then
+                content.Visible = false
+            end
+        end)
+    else
+        -- restore content
+        content.Visible = true
+        content:TweenSize(contentFullSize, Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.35, true)
+    end
+end)
 
-local minimizeCorner = Instance.new("UICorner")
-minimizeCorner.CornerRadius = UDim.new(0, 8)
-minimizeCorner.Parent = minimizeButton
+closeButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+end)
 
 -- Close Button
 local closeButton = Instance.new("TextButton")
@@ -368,49 +380,6 @@ closeButton.MouseButton1Click:Connect(function()
 	mainFrame.Visible = false
 end)
 
--- safe minimize: collapse the content area instead of resizing the whole window
-local content = mainFrame:FindFirstChild("Content")
-if not content then
-    content = Instance.new("Frame")
-    content.Name = "Content"
-    content.BackgroundTransparency = 1
-    content.Size = UDim2.new(1, 0, 1, -30)       -- fills frame minus top 30px for header
-    content.Position = UDim2.new(0, 0, 0, 30)
-    content.Parent = mainFrame
-    content.ClipsDescendants = true
-end
-
--- move existing children (except the two buttons and content itself) into content
-local toMove = {}
-for _, child in ipairs(mainFrame:GetChildren()) do
-    if child ~= content and child ~= minimizeButton and child ~= closeButton and not child:IsA("UICorner") then
-        table.insert(toMove, child)
-    end
-end
-for _, obj in ipairs(toMove) do
-    obj.Parent = content
-end
-
-local minimized = false
-local contentFullSize = content.Size
-
-minimizeButton.MouseButton1Click:Connect(function()
-    minimized = not minimized
-
-    if minimized then
-        -- collapse content (animate down to zero height, then hide to avoid input)
-        content:TweenSize(UDim2.new(1, 0, 0, 0), Enum.EasingDirection.In, Enum.EasingStyle.Quint, 0.35, true)
-        task.delay(0.36, function()
-            if minimized then
-                content.Visible = false
-            end
-        end)
-    else
-        -- show and expand content back to full size
-        content.Visible = true
-        content:TweenSize(contentFullSize, Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.35, true)
-    end
-end)
 
 -- optional: close button behavior (keeps it visible and reliable)
 closeButton.MouseButton1Click:Connect(function()
