@@ -292,18 +292,58 @@ MainTab:NewButton("Custom Emotes 2", function()
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Parent = mainFrame
 
-    local miniBtn = Instance.new("TextButton")
-    miniBtn.Size = UDim2.new(0, 36, 0, 36)
-    miniBtn.Position = UDim2.new(0, 12, 0, 12)
-    miniBtn.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
-    miniBtn.Text = "🔮"
-    miniBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-    miniBtn.TextScaled = true
-    miniBtn.Visible = false
-    miniBtn.Parent = screenGui
-    Instance.new("UICorner", miniBtn).CornerRadius = UDim.new(0, 8)
-    end)
+    -- Dahen Hub Minimize/Restore System (Fixed)
+local minimized = false
 
+-- Main Dahen Hub restore button (appears when minimized)
+local restoreBtn = Instance.new("TextButton")
+restoreBtn.Size = UDim2.new(0, 120, 0, 36)
+restoreBtn.Position = UDim2.new(0, 12, 0, 12)
+restoreBtn.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+restoreBtn.Text = "Dahen Hub"
+restoreBtn.Font = Enum.Font.SourceSansBold
+restoreBtn.TextSize = 18
+restoreBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+restoreBtn.Visible = false
+restoreBtn.Parent = screenGui
+
+Instance.new("UICorner", restoreBtn).CornerRadius = UDim.new(0, 8)
+
+-- Existing minimize button setup
+local miniBtn = Instance.new("TextButton")
+miniBtn.Size = UDim2.new(0, 36, 0, 36)
+miniBtn.Position = UDim2.new(1, -76, 0, 12)
+miniBtn.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+miniBtn.Text = "-"
+miniBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+miniBtn.TextScaled = true
+miniBtn.Parent = mainFrame
+
+Instance.new("UICorner", miniBtn).CornerRadius = UDim.new(0, 8)
+
+-- Minimize behavior
+miniBtn.MouseButton1Click:Connect(function()
+	if minimized then return end
+	minimized = true
+
+	-- Tween out smoothly
+	mainFrame:TweenSize(UDim2.new(0, 300, 0, 0), Enum.EasingDirection.In, Enum.EasingStyle.Quint, 0.3, true, function()
+		mainFrame.Visible = false
+		restoreBtn.Visible = true
+	end)
+end)
+
+-- Restore behavior
+restoreBtn.MouseButton1Click:Connect(function()
+	if not minimized then return end
+	minimized = false
+
+	restoreBtn.Visible = false
+	mainFrame.Visible = true
+
+	-- Tween back to normal size
+	mainFrame:TweenSize(UDim2.new(0, 300, 0, 300), Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.3, true)
+end)
 
 	-- Close Button
 	local closeButton = Instance.new("TextButton")
