@@ -311,30 +311,30 @@ MainTab:NewButton("Custom Emotes 2", function()
 		gui:Destroy()
 	end)
 
-	-- Minimize Button
-	local minimizeButton = Instance.new("TextButton")
-	minimizeButton.Size = UDim2.new(0, 30, 0, 30)
-	minimizeButton.Position = UDim2.new(1, -80, 0, 0)
-	minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
-	minimizeButton.Text = "-"
-	minimizeButton.Font = Enum.Font.SourceSansBold
-	minimizeButton.TextSize = 20
-	minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	minimizeButton.Parent = mainFrame
+local minimized = false
+local fullSize = UDim2.new(0, 300, 0, 300)
+local minimizedSize = UDim2.new(0, 300, 0, 30)
 
-	local minimizeCorner = Instance.new("UICorner")
-	minimizeCorner.CornerRadius = UDim.new(0, 10)
-	minimizeCorner.Parent = minimizeButton
-
-	local minimized = false
-	minimizeButton.MouseButton1Click:Connect(function()
-		minimized = not minimized
-		if minimized then
-			mainFrame:TweenSize(UDim2.new(0, 300, 0, 30), Enum.EasingDirection.In, Enum.EasingStyle.Quint, 0.5)
-		else
-			mainFrame:TweenSize(UDim2.new(0, 300, 0, 300), Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.5)
+minimizeButton.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	
+	if minimized then
+		mainFrame:TweenSize(minimizedSize, Enum.EasingDirection.In, Enum.EasingStyle.Quint, 0.4, true)
+		for _, obj in pairs(mainFrame:GetChildren()) do
+			if obj:IsA("GuiObject") and obj ~= minimizeButton and obj ~= closeButton then
+				obj.Visible = false
+			end
 		end
-	end)
+	else
+		mainFrame:TweenSize(fullSize, Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.4, true)
+		task.wait(0.4)
+		for _, obj in pairs(mainFrame:GetChildren()) do
+			if obj:IsA("GuiObject") and obj ~= minimizeButton and obj ~= closeButton then
+				obj.Visible = true
+			end
+		end
+	end
+end)
 
 	-- Dragging Functionality
 	local dragging, dragStart, startPos
