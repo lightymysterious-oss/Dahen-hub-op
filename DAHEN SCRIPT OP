@@ -302,6 +302,7 @@ MainTab:NewButton("Custom Emotes 2", function()
     miniBtn.Visible = false
     miniBtn.Parent = screenGui
     Instance.new("UICorner", miniBtn).CornerRadius = UDim.new(0, 8)
+    end)
 
 
 	-- Close Button
