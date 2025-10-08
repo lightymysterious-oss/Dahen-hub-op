@@ -565,7 +565,56 @@ MainTab:NewButton("Show All Buttons", function()
 	end
 end)
 
-MainTab:NewButton("Expand Hitboxes", function()
+-- PLAYER TAB CONTENT
+PlayerTab:NewText("=== PLAYER TELEPORTS ===")
+
+-- Create player dropdown
+local playerOptions = getPlayerList()
+local playerDropdown = PlayerTab:NewDropdown("Player Selector", playerOptions, playerOptions[1], function(selectedName)
+	selectedPlayer = getPlayerByDisplayName(selectedName)
+end)
+
+PlayerTab:NewButton("Refresh Players", function()
+	-- Note: GoldField dropdown refresh would need to be implemented in the library
+	print("Player list refreshed")
+end)
+
+PlayerTab:NewButton("Teleport To Selected Player", function()
+	if selectedPlayer then
+		teleportToPlayer(selectedPlayer)
+	else
+		print("No player selected!")
+	end
+end)
+
+local goatersa = false
+
+PlayerTab:NewToggle("Attach to player", false, function(state)
+	if selectedPlayer then
+		goatersa = state
+		spawn(function()
+			while true do
+				if goatersa == true then
+					teleportToPlayer(selectedPlayer)
+				else
+					-- ignore
+				end
+				task.wait(0.1) -- for preformance without there will be lag
+			end
+		end)
+	else
+		print("No player selected!")
+	end
+end)
+
+
+PlayerTab:NewButton("Teleport To Random Player", function()
+	teleportToRandomPlayer()
+end)
+
+PlayerTab:NewDivider()
+
+PlayerTab:NewButton("Expand Hitboxes", function()
 	local Players = game:GetService("Players")
 	local localPlayer = Players.LocalPlayer
 	local MULT = 10
@@ -626,81 +675,6 @@ MainTab:NewButton("Expand Hitboxes", function()
 			created[p] = nil
 		end
 	end)
-end)
-
--- PLAYER TAB CONTENT
-PlayerTab:NewText("=== PLAYER TELEPORTS ===")
-
--- Create player dropdown
-local playerOptions = getPlayerList()
-local playerDropdown = PlayerTab:NewDropdown("Player Selector", playerOptions, playerOptions[1], function(selectedName)
-	selectedPlayer = getPlayerByDisplayName(selectedName)
-end)
-
-PlayerTab:NewButton("Refresh Players", function()
-	-- Note: GoldField dropdown refresh would need to be implemented in the library
-	print("Player list refreshed")
-end)
-
-PlayerTab:NewButton("Teleport To Selected Player", function()
-	if selectedPlayer then
-		teleportToPlayer(selectedPlayer)
-	else
-		print("No player selected!")
-	end
-end)
-
-local goatersa = false
-
-PlayerTab:NewToggle("Attach to player", false, function(state)
-	if selectedPlayer then
-		goatersa = state
-		spawn(function()
-			while true do
-				if goatersa == true then
-					teleportToPlayer(selectedPlayer)
-				else
-					-- ignore
-				end
-				task.wait(0.1) -- for preformance without there will be lag
-			end
-		end)
-	else
-		print("No player selected!")
-	end
-end)
-
-
-PlayerTab:NewButton("Teleport To Random Player", function()
-	teleportToRandomPlayer()
-end)
-
-PlayerTab:NewDivider()
-
-PlayerTab:NewButton("Hitbox multiplier", function()
-	if game.Workspace.Values.HitboxMultiplier.Value == 10 then
-		Library:Notify("[HITBOX]", "Changed To 1x", 4, "Info")
-		game.Workspace.Values.HitboxMultiplier.Value = 1
-	else
-		Library:Notify("[HITBOX]", "Changed To 10x", 4, "Info")
-		game.Workspace.Values.HitboxMultiplier.Value = 10
-	end
-end)
-
--- Fixed Speed Boost (no infinite loops)
-local speedBoostEnabled = false
-local speedConnection = nil
-
-local currentv = 32
-
-PlayerTab:NewTextInput("Speed Boost", "Put Speed Here", function(value)
-	local char = localPlayer.Character
-
-	print(value)
-	while true do
-		task.wait()
-		localPlayer.Character.Humanoid.WalkSpeed = value
-	end
 end)
 
 PlayerTab:NewToggle("Infinite Jump", false, function(value)
