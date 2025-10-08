@@ -672,67 +672,78 @@ end)
 PlayerTab:NewDivider()
 
 PlayerTab:NewButton("Expand Hitboxes", function()
-	local Players = game:GetService("Players")
-	local localPlayer = Players.LocalPlayer
-	local MULT = 10
-	local created = {}
+	local HitboxSize = tonumber(sizeBox.Text) or 10
+local HitboxTransparency = tonumber(transBox.Text) or 0.3
+local Disabled = true
+local PlayersList = {}
 
-	local function attachHitbox(plr, char)
-		if plr == localPlayer then return end
-		if not char then return end
-		local hrp = char:FindFirstChild("HumanoidRootPart") or char:WaitForChild("HumanoidRootPart")
-		local name = "LocalHitbox_" .. plr.UserId
-		local existing = workspace:FindFirstChild(name)
-		if existing then existing:Destroy() end
-		local hb = Instance.new("Part")
-		hb.Name = name
-		hb.Size = hrp.Size * MULT
-		hb.Transparency = 1
-		hb.CanCollide = false
-		hb.Anchored = false
-		hb.Massless = true
-		hb.Parent = workspace
-		local weld = Instance.new("WeldConstraint")
-		weld.Part0 = hb
-		weld.Part1 = hrp
-		weld.Parent = hb
-		if created[plr] and created[plr].connection then
-			created[plr].connection:Disconnect()
-		end
-		local conn = plr.CharacterRemoving:Connect(function()
-			if hb and hb.Parent then hb:Destroy() end
-			created[plr] = nil
-		end)
-		created[plr] = { part = hb, connection = conn }
-	end
-
-	for _, p in ipairs(Players:GetPlayers()) do
-		if p ~= localPlayer then
-			if p.Character and p.Character.Parent then
-				attachHitbox(p, p.Character)
-			end
-			p.CharacterAdded:Connect(function(char)
-				attachHitbox(p, char)
-			end)
+local function refreshTargets()
+	PlayersList = {}
+	for _, pl in ipairs(Players:GetPlayers()) do
+		if pl ~= player and pl.Character and pl.Character:FindFirstChild("HumanoidRootPart") then
+			table.insert(PlayersList, pl)
 		end
 	end
+end
 
-	Players.PlayerAdded:Connect(function(p)
-		if p ~= localPlayer then
-			p.CharacterAdded:Connect(function(char)
-				attachHitbox(p, char)
-			end)
-		end
-	end)
-
-	Players.PlayerRemoving:Connect(function(p)
-		if created[p] then
-			if created[p].connection then created[p].connection:Disconnect() end
-			if created[p].part and created[p].part.Parent then created[p].part:Destroy() end
-			created[p] = nil
-		end
-	end)
+-- Events
+sizeBox.FocusLost:Connect(function()
+	local n = tonumber(sizeBox.Text)
+	if n then HitboxSize = n else sizeBox.Text = tostring(HitboxSize) end
 end)
+
+transBox.FocusLost:Connect(function()
+	local t = tonumber(transBox.Text)
+	if t and t >= 0 and t <= 1 then HitboxTransparency = t else transBox.Text = tostring(HitboxTransparency) end
+end)
+
+addBtn.MouseButton1Click:Connect(function()
+	local n = tonumber(sizeBox.Text) or 0
+	HitboxSize = HitboxSize + n
+	sizeBox.Text = tostring(HitboxSize)
+end)
+
+subBtn.MouseButton1Click:Connect(function()
+	local n = tonumber(sizeBox.Text) or 0
+	HitboxSize = math.max(1, HitboxSize - n)
+	sizeBox.Text = tostring(HitboxSize)
+end)
+
+toggleBtn.MouseButton1Click:Connect(function()
+	Disabled = not Disabled
+	toggleBtn.Text = Disabled and "Enable Hitbox" or "Disable Hitbox"
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+	frame.Visible = false
+	miniBtn.Visible = true
+end)
+
+miniBtn.MouseButton1Click:Connect(function()
+	frame.Visible = true
+	miniBtn.Visible = false
+end)
+
+-- Main Loop
+RunService.RenderStepped:Connect(function()
+	if not Disabled then
+		for _, pl in ipairs(PlayersList) do
+			if pl.Character and pl.Character:FindFirstChild("HumanoidRootPart") then
+				local part = pl.Character.HumanoidRootPart
+				part.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+				part.Transparency = HitboxTransparency
+				part.BrickColor = BrickColor.new("White")
+				part.Material = Enum.Material.Neon
+				part.CanCollide = false
+			end
+		end
+	end
+end)
+
+while true do
+	refreshTargets()
+	wait(1)
+end
 
 PlayerTab:NewToggle("Infinite Jump", false, function(value)
 	infiniteJumpEnabled = value
