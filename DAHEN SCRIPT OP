@@ -292,6 +292,18 @@ MainTab:NewButton("Custom Emotes 2", function()
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Parent = mainFrame
 
+    local miniBtn = Instance.new("TextButton")
+    miniBtn.Size = UDim2.new(0, 36, 0, 36)
+    miniBtn.Position = UDim2.new(0, 12, 0, 12)
+    miniBtn.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+    miniBtn.Text = "🔮"
+    miniBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+    miniBtn.TextScaled = true
+    miniBtn.Visible = false
+    miniBtn.Parent = screenGui
+    Instance.new("UICorner", miniBtn).CornerRadius = UDim.new(0, 8)
+
+
 	-- Close Button
 	local closeButton = Instance.new("TextButton")
 	closeButton.Size = UDim2.new(0, 30, 0, 30)
