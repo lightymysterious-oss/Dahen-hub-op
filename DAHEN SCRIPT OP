@@ -802,25 +802,10 @@ PlayerTab:NewButton("Expand Hitboxes", function()
 	RunService.RenderStepped:Connect(function()
 		if not Disabled then
 			for _, pl in ipairs(PlayersList) do
-				if pl.Character and pl.Character:FindFirstChild("HumanoidRootPart") then
-					local part = pl.Character.HumanoidRootPart
-					part.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
-					part.Transparency = HitboxTransparency
-					part.BrickColor = BrickColor.new("White")
-					part.Material = Enum.Material.Neon
-					part.CanCollide = false
-				end
-			end
-		end
-	end)
-
-	--// Safe Refresh Loop
-	task.spawn(function()
-		while screenGui.Parent do
-			refreshTargets()
-			task.wait(1)
-		end
-	end)
+PlayerTab:NewButton("Hitbox Expander v2", function()
+    pcall(function()
+        loadstring(game:HttpGet("https://pastebin.com/AVaNXLA6"))()
+    end)
 end)
 
 PlayerTab:NewToggle("Infinite Jump", false, function(value)
