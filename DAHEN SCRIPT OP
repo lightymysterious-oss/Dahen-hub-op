@@ -725,78 +725,103 @@ end)
 PlayerTab:NewDivider()
 
 PlayerTab:NewButton("Expand Hitboxes", function()
-	local HitboxSize = tonumber(sizeBox.Text) or 10
-local HitboxTransparency = tonumber(transBox.Text) or 0.3
-local Disabled = true
-local PlayersList = {}
+	--// Services
+	local Players = game:GetService("Players")
+	local RunService = game:GetService("RunService")
+	local LocalPlayer = Players.LocalPlayer
 
-local function refreshTargets()
-	PlayersList = {}
-	for _, pl in ipairs(Players:GetPlayers()) do
-		if pl ~= player and pl.Character and pl.Character:FindFirstChild("HumanoidRootPart") then
-			table.insert(PlayersList, pl)
-		end
-	end
-end
+	--// Variables
+	local HitboxSize = 10
+	local HitboxTransparency = 0.3
+	local Disabled = true
+	local PlayersList = {}
 
--- Events
-sizeBox.FocusLost:Connect(function()
-	local n = tonumber(sizeBox.Text)
-	if n then HitboxSize = n else sizeBox.Text = tostring(HitboxSize) end
-end)
-
-transBox.FocusLost:Connect(function()
-	local t = tonumber(transBox.Text)
-	if t and t >= 0 and t <= 1 then HitboxTransparency = t else transBox.Text = tostring(HitboxTransparency) end
-end)
-
-addBtn.MouseButton1Click:Connect(function()
-	local n = tonumber(sizeBox.Text) or 0
-	HitboxSize = HitboxSize + n
-	sizeBox.Text = tostring(HitboxSize)
-end)
-
-subBtn.MouseButton1Click:Connect(function()
-	local n = tonumber(sizeBox.Text) or 0
-	HitboxSize = math.max(1, HitboxSize - n)
-	sizeBox.Text = tostring(HitboxSize)
-end)
-
-toggleBtn.MouseButton1Click:Connect(function()
-	Disabled = not Disabled
-	toggleBtn.Text = Disabled and "Enable Hitbox" or "Disable Hitbox"
-end)
-
-closeBtn.MouseButton1Click:Connect(function()
-	frame.Visible = false
-	miniBtn.Visible = true
-end)
-
-miniBtn.MouseButton1Click:Connect(function()
-	frame.Visible = true
-	miniBtn.Visible = false
-end)
-
--- Main Loop
-RunService.RenderStepped:Connect(function()
-	if not Disabled then
-		for _, pl in ipairs(PlayersList) do
-			if pl.Character and pl.Character:FindFirstChild("HumanoidRootPart") then
-				local part = pl.Character.HumanoidRootPart
-				part.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
-				part.Transparency = HitboxTransparency
-				part.BrickColor = BrickColor.new("White")
-				part.Material = Enum.Material.Neon
-				part.CanCollide = false
+	--// Functions
+	local function refreshTargets()
+		table.clear(PlayersList)
+		for _, pl in ipairs(Players:GetPlayers()) do
+			if pl ~= LocalPlayer and pl.Character and pl.Character:FindFirstChild("HumanoidRootPart") then
+				table.insert(PlayersList, pl)
 			end
 		end
 	end
-end)
 
-while true do
-	refreshTargets()
-	wait(1)
-end
+	--// Create Simple Control GUI
+	local screenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+	screenGui.Name = "HitboxController"
+
+	local frame = Instance.new("Frame", screenGui)
+	frame.Size = UDim2.new(0, 260, 0, 160)
+	frame.Position = UDim2.new(0.5, -130, 0.5, -80)
+	frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+	frame.Active = true
+	frame.Draggable = true
+
+	local uiCorner = Instance.new("UICorner", frame)
+	uiCorner.CornerRadius = UDim.new(0, 10)
+
+	local title = Instance.new("TextLabel", frame)
+	title.Size = UDim2.new(1, 0, 0, 30)
+	title.BackgroundTransparency = 1
+	title.Text = "Hitbox Expander"
+	title.Font = Enum.Font.SourceSansBold
+	title.TextSize = 18
+	title.TextColor3 = Color3.new(1, 1, 1)
+
+	local toggleBtn = Instance.new("TextButton", frame)
+	toggleBtn.Size = UDim2.new(0.9, 0, 0, 35)
+	toggleBtn.Position = UDim2.new(0.05, 0, 0.3, 0)
+	toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+	toggleBtn.Text = "Enable Hitbox"
+	toggleBtn.Font = Enum.Font.SourceSansBold
+	toggleBtn.TextSize = 18
+	toggleBtn.TextColor3 = Color3.new(0, 0, 0)
+	Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 8)
+
+	local closeBtn = Instance.new("TextButton", frame)
+	closeBtn.Size = UDim2.new(0.9, 0, 0, 30)
+	closeBtn.Position = UDim2.new(0.05, 0, 0.7, 0)
+	closeBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+	closeBtn.Text = "Close"
+	closeBtn.Font = Enum.Font.SourceSansBold
+	closeBtn.TextSize = 18
+	closeBtn.TextColor3 = Color3.new(1, 1, 1)
+	Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 8)
+
+	--// Button Logic
+	toggleBtn.MouseButton1Click:Connect(function()
+		Disabled = not Disabled
+		toggleBtn.Text = Disabled and "Enable Hitbox" or "Disable Hitbox"
+	end)
+
+	closeBtn.MouseButton1Click:Connect(function()
+		screenGui:Destroy()
+	end)
+
+	--// Main Hitbox Update Loop
+	RunService.RenderStepped:Connect(function()
+		if not Disabled then
+			for _, pl in ipairs(PlayersList) do
+				if pl.Character and pl.Character:FindFirstChild("HumanoidRootPart") then
+					local part = pl.Character.HumanoidRootPart
+					part.Size = Vector3.new(HitboxSize, HitboxSize, HitboxSize)
+					part.Transparency = HitboxTransparency
+					part.BrickColor = BrickColor.new("White")
+					part.Material = Enum.Material.Neon
+					part.CanCollide = false
+				end
+			end
+		end
+	end)
+
+	--// Safe Refresh Loop
+	task.spawn(function()
+		while screenGui.Parent do
+			refreshTargets()
+			task.wait(1)
+		end
+	end)
+end)
 
 PlayerTab:NewToggle("Infinite Jump", false, function(value)
 	infiniteJumpEnabled = value
