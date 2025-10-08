@@ -1780,6 +1780,51 @@ GameTab:NewButton("Anti fall", function()
 	end)
 end)
 
+GameTab:NewButton("Auto QTE for mingle and sky squid", function()
+
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    local UserInputService = game:GetService("UserInputService")
+
+    local qteFolder = workspace:WaitForChild("QTEButtons", 10)
+    if not qteFolder then
+        return
+    end
+
+    local autoPressEnabled = true
+
+    local function pressKey(keyCode)
+        VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
+        task.wait(0.05)
+        VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
+    end
+
+    local function pressAllQTEButtons()
+        for _, button in pairs(qteFolder:GetChildren()) do
+            if button:IsA("BillboardGui") or button:IsA("ScreenGui") or button:IsA("Frame") then
+                local key = button:GetAttribute("Key") or "E"
+                local keyEnum = Enum.KeyCode[key]
+                if keyEnum then
+                    pressKey(keyEnum)
+                end
+            end
+        end
+    end
+
+    task.spawn(function()
+        while task.wait(0.1) do
+            if autoPressEnabled then
+                pressAllQTEButtons()
+            end
+        end
+    end)
+
+    UserInputService.InputBegan:Connect(function(input, processed)
+        if input.KeyCode == Enum.KeyCode.F8 and not processed then
+            autoPressEnabled = not autoPressEnabled
+        end
+    end)
+end)
+
 GameTab:NewDivider()
 GameTab:NewText("ALL")
 
