@@ -311,28 +311,95 @@ MainTab:NewButton("Custom Emotes 2", function()
 		gui:Destroy()
 	end)
 
+-- Main Frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 300, 0, 300)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -150)
+mainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = game.Players.LocalPlayer.PlayerGui:WaitForChild("ScreenGui")
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 10)
+uiCorner.Parent = mainFrame
+
+-- Top Bar
+local topBar = Instance.new("Frame")
+topBar.Size = UDim2.new(1, 0, 0, 30)
+topBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+topBar.BorderSizePixel = 0
+topBar.Parent = mainFrame
+
+local topCorner = Instance.new("UICorner")
+topCorner.CornerRadius = UDim.new(0, 10)
+topCorner.Parent = topBar
+
+-- Minimize Button
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Size = UDim2.new(0, 30, 0, 30)
+minimizeButton.Position = UDim2.new(1, -70, 0, 0)
+minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+minimizeButton.Text = "-"
+minimizeButton.Font = Enum.Font.SourceSansBold
+minimizeButton.TextSize = 20
+minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeButton.Parent = topBar
+
+local minimizeCorner = Instance.new("UICorner")
+minimizeCorner.CornerRadius = UDim.new(0, 8)
+minimizeCorner.Parent = minimizeButton
+
+-- Close Button
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -35, 0, 0)
+closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+closeButton.Text = "X"
+closeButton.Font = Enum.Font.SourceSansBold
+closeButton.TextSize = 20
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.Parent = topBar
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 8)
+closeCorner.Parent = closeButton
+
+closeButton.MouseButton1Click:Connect(function()
+	mainFrame.Visible = false
+end)
+
+-- Example Content
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, 0, 1, -30)
+content.Position = UDim2.new(0, 0, 0, 30)
+content.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+content.Parent = mainFrame
+
+local label = Instance.new("TextLabel")
+label.Size = UDim2.new(1, 0, 0, 40)
+label.Position = UDim2.new(0, 0, 0, 10)
+label.BackgroundTransparency = 1
+label.Text = "Welcome to Dahen Hub!"
+label.Font = Enum.Font.SourceSansBold
+label.TextSize = 22
+label.TextColor3 = Color3.fromRGB(255, 255, 255)
+label.Parent = content
+
+-- Fixed Minimize Function (Shrink Only)
 local minimized = false
 local fullSize = UDim2.new(0, 300, 0, 300)
 local minimizedSize = UDim2.new(0, 300, 0, 30)
 
 minimizeButton.MouseButton1Click:Connect(function()
 	minimized = not minimized
-	
+
 	if minimized then
+		content.Visible = false
 		mainFrame:TweenSize(minimizedSize, Enum.EasingDirection.In, Enum.EasingStyle.Quint, 0.4, true)
-		for _, obj in pairs(mainFrame:GetChildren()) do
-			if obj:IsA("GuiObject") and obj ~= minimizeButton and obj ~= closeButton then
-				obj.Visible = false
-			end
-		end
 	else
 		mainFrame:TweenSize(fullSize, Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.4, true)
 		task.wait(0.4)
-		for _, obj in pairs(mainFrame:GetChildren()) do
-			if obj:IsA("GuiObject") and obj ~= minimizeButton and obj ~= closeButton then
-				obj.Visible = true
-			end
-		end
+		content.Visible = true
 	end
 end)
 
