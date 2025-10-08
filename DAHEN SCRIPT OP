@@ -311,75 +311,47 @@ MainTab:NewButton("Custom Emotes 2", function()
 		gui:Destroy()
 	end)
 
--- Assuming mainFrame, topBar, minimizeButton, closeButton are already created earlier in your script
+-- Dahen Hub Minimize/Restore System
 
--- Create content container
-local content = mainFrame:FindFirstChild("Content")
-if not content then
-    content = Instance.new("Frame")
-    content.Name = "Content"
-    content.BackgroundTransparency = 1
-    content.Size = UDim2.new(1, 0, 1, -30)    -- full width, height minus top bar of 30 px
-    content.Position = UDim2.new(0, 0, 0, 30)  -- below the top bar
-    content.Parent = mainFrame
-    content.ClipsDescendants = true
-end
+-- MainFrame, minimizeButton, and closeButton should already exist
+local player = game.Players.LocalPlayer
+local gui = player:WaitForChild("PlayerGui")
 
--- Move existing GUI elements (except the buttons and UICorners) into content
-local toMove = {}
-for _, child in ipairs(mainFrame:GetChildren()) do
-    if child ~= content and child ~= minimizeButton and child ~= closeButton and not child:IsA("UICorner") and child ~= topBar then
-        table.insert(toMove, child)
-    end
-end
-for _, obj in ipairs(toMove) do
-    obj.Parent = content
-end
+-- Create the Dahen Hub restore button
+local restoreButton = Instance.new("TextButton")
+restoreButton.Name = "RestoreButton"
+restoreButton.Text = "Dahen Hub"
+restoreButton.Font = Enum.Font.SourceSansBold
+restoreButton.TextSize = 20
+restoreButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+restoreButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+restoreButton.Size = UDim2.new(0, 150, 0, 40)
+restoreButton.Position = UDim2.new(0.5, -75, 0, 10) -- top center
+restoreButton.Visible = false
+restoreButton.Parent = gui
 
--- Minimize / Restore logic
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = restoreButton
+
 local minimized = false
-local contentFullSize = content.Size
 
 minimizeButton.MouseButton1Click:Connect(function()
-    minimized = not minimized
-    if minimized then
-        -- collapse content
-        content:TweenSize(UDim2.new(1, 0, 0, 0), Enum.EasingDirection.In, Enum.EasingStyle.Quint, 0.35, true)
-        task.delay(0.36, function()
-            if minimized then
-                content.Visible = false
-            end
-        end)
-    else
-        -- restore content
-        content.Visible = true
-        content:TweenSize(contentFullSize, Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.35, true)
-    end
+	minimized = true
+	mainFrame.Visible = false
+	restoreButton.Visible = true
 end)
 
-closeButton.MouseButton1Click:Connect(function()
-    mainFrame.Visible = false
+restoreButton.MouseButton1Click:Connect(function()
+	minimized = false
+	mainFrame.Visible = true
+	restoreButton.Visible = false
 end)
-
--- Close Button
-local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0, 30, 0, 30)
-closeButton.Position = UDim2.new(1, -35, 0, 0)
-closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-closeButton.Text = "X"
-closeButton.Font = Enum.Font.SourceSansBold
-closeButton.TextSize = 20
-closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeButton.Parent = topBar
-
-local closeCorner = Instance.new("UICorner")
-closeCorner.CornerRadius = UDim.new(0, 8)
-closeCorner.Parent = closeButton
 
 closeButton.MouseButton1Click:Connect(function()
 	mainFrame.Visible = false
+	restoreButton.Visible = false
 end)
-
 
 -- optional: close button behavior (keeps it visible and reliable)
 closeButton.MouseButton1Click:Connect(function()
