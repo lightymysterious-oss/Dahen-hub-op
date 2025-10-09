@@ -1009,7 +1009,7 @@ PlayerTab:NewToggle("Smart Attack Dodge", "Dodge attacks without falling off map
     
     -- Toggle functionality
     if state then
-        Library:Notify("[AUTO DODGE]", "Enabled - Platform safe!", 3, "Success")
+        Library:Notify("[AUTO DODGE]", "Enabled -Safe in Sky squid!", 3, "Success")
         -- Start smart attack detection
         if not autoDodgeConnection then
             autoDodgeConnection = RunService.Heartbeat:Connect(smartAttackDodgeCheck)
