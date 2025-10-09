@@ -812,6 +812,123 @@ PlayerTab:NewToggle("Noclip", false, function(state)
 	end
 end)
 
+-- Auto Dodge Toggle with Built-in Script
+PlayerTab:NewToggle("Auto Dodge", "Automatically dodge players", function(state)
+    -- Script variables
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local player = Players.LocalPlayer
+    local autoDodgeConnection = nil
+    
+    -- Auto Dodge settings
+    local dodgeDistance = 8 -- Distance to trigger dodge
+    local dodgeRange = 12 -- How far to teleport away
+    local cooldown = 1 -- Cooldown between dodges (seconds)
+    local lastDodge = 0
+    
+    -- Dodge function
+    local function dodgeAway(fromPosition)
+        local character = player.Character
+        if not character then return false end
+        
+        local humanoid = character:FindFirstChild("Humanoid")
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        
+        if not humanoid or not rootPart or humanoid.Health <= 0 then return false end
+        
+        -- Cooldown check
+        if tick() - lastDodge < cooldown then return false end
+        
+        -- Calculate direction away from threat
+        local threatDirection = (rootPart.Position - fromPosition)
+        local dodgeDirection = threatDirection.Unit * dodgeRange
+        
+        -- Calculate new position
+        local newPosition = rootPart.Position + dodgeDirection
+        
+        -- Check if new position is valid
+        local ray = Ray.new(rootPart.Position, dodgeDirection)
+        local hit, position = workspace:FindPartOnRay(ray, character)
+        
+        if hit then
+            -- Adjust position if would hit something
+            newPosition = position - dodgeDirection.Unit * 3
+        end
+        
+        -- Teleport to new position
+        rootPart.CFrame = CFrame.new(newPosition)
+        lastDodge = tick()
+        
+        -- Visual effect
+        spawn(function()
+            local dodgeEffect = Instance.new("Part")
+            dodgeEffect.Size = Vector3.new(3, 3, 3)
+            dodgeEffect.Position = rootPart.Position
+            dodgeEffect.BrickColor = BrickColor.new("Bright blue")
+            dodgeEffect.Material = Enum.Material.Neon
+            dodgeEffect.Anchored = true
+            dodgeEffect.CanCollide = false
+            dodgeEffect.Parent = workspace
+            
+            -- Fade out effect
+            for i = 1, 10 do
+                if dodgeEffect then
+                    dodgeEffect.Transparency = i / 10
+                    wait(0.05)
+                end
+            end
+            if dodgeEffect then
+                dodgeEffect:Destroy()
+            end
+        end)
+        
+        return true
+    end
+    
+    -- Check for nearby players
+    local function autoDodgeCheck()
+        local character = player.Character
+        if not character then return end
+        
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        if not rootPart then return end
+        
+        -- Check all other players
+        for _, otherPlayer in pairs(Players:GetPlayers()) do
+            if otherPlayer ~= player and otherPlayer.Character then
+                local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if otherRoot then
+                    local distance = (rootPart.Position - otherRoot.Position).Magnitude
+                    
+                    -- If player is too close, dodge away
+                    if distance <= dodgeDistance then
+                        local dodged = dodgeAway(otherRoot.Position)
+                        if dodged then
+                            break -- Only dodge from one player at a time
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Toggle functionality
+    if state then
+        Library:Notify("[AUTO DODGE]", "Enabled", 4, "Success")
+        -- Start auto dodge
+        if not autoDodgeConnection then
+            autoDodgeConnection = RunService.Heartbeat:Connect(autoDodgeCheck)
+        end
+    else
+        Library:Notify("[AUTO DODGE]", "Disabled", 4, "Warning")
+        -- Stop auto dodge
+        if autoDodgeConnection then
+            autoDodgeConnection:Disconnect()
+            autoDodgeConnection = nil
+        end
+    end
+end)
+
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
 
