@@ -864,7 +864,7 @@ function ultraDodgeDetection()
             if otherRoot then
                 local distance = (myRoot.Position - otherRoot.Position).Magnitude
                 
-                if distance < 15 then
+                if distance < 18 then
                     local toMe = (myRoot.Position - otherRoot.Position).Unit
                     local lookDir = otherRoot.CFrame.LookVector
                     
@@ -893,7 +893,7 @@ function epicDodge(attackerPos)
     
     -- Calculate dodge direction
     local threatDir = (rootPart.Position - attackerPos).Unit
-    local dodgeDistance = 18
+    local dodgeDistance = 25
     
     -- Try multiple safe directions
     local directions = {
