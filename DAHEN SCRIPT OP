@@ -900,11 +900,114 @@ PlayerTab:NewToggle("Auto Dodge", "Automatically dodge players", function(state)
                 if otherRoot then
                     local distance = (rootPart.Position - otherRoot.Position).Magnitude
                     
-                    -- If player is too close, dodge away
+-- Auto Dodge Toggle with Increased TP Distance
+PlayerTab:NewToggle("Auto Dodge", "Automatically dodge players", function(state)
+    -- Script variables
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local player = Players.LocalPlayer
+    local autoDodgeConnection = nil
+    
+    -- Auto Dodge settings - INCREASED DISTANCE
+    local dodgeDistance = 10 -- Distance to trigger dodge
+    local dodgeRange = 25 -- INCREASED: How far to teleport away (was 12)
+    local cooldown = 1.2 -- Slightly increased cooldown for longer distance
+    local lastDodge = 0
+    
+    -- Dodge function with increased distance
+    local function dodgeAway(fromPosition)
+        local character = player.Character
+        if not character then return false end
+        
+        local humanoid = character:FindFirstChild("Humanoid")
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        
+        if not humanoid or not rootPart or humanoid.Health <= 0 then return false end
+        
+        -- Cooldown check
+        if tick() - lastDodge < cooldown then return false end
+        
+        -- Calculate direction away from threat with INCREASED distance
+        local threatDirection = (rootPart.Position - fromPosition)
+        local dodgeDirection = threatDirection.Unit * dodgeRange
+        
+        -- Calculate new position further away
+        local newPosition = rootPart.Position + dodgeDirection
+        
+        -- Double check for obstacles with raycast
+        local ray1 = Ray.new(rootPart.Position, dodgeDirection)
+        local hit1, position1 = workspace:FindPartOnRay(ray1, character)
+        
+        if hit1 then
+            -- If hit something, try a shorter distance
+            newPosition = position1 - dodgeDirection.Unit * 5
+        end
+        
+        -- Second safety check
+        local ray2 = Ray.new(newPosition, Vector3.new(0, -10, 0))
+        local hit2, position2 = workspace:FindPartOnRay(ray2)
+        
+        if not hit2 then
+            -- If no ground, adjust to find ground
+            newPosition = newPosition + Vector3.new(0, -5, 0)
+        end
+        
+        -- Teleport to new position (further away)
+        rootPart.CFrame = CFrame.new(newPosition)
+        lastDodge = tick()
+        
+        -- Enhanced visual effect for longer distance
+        spawn(function()
+            -- Create multiple effects to show the dodge path
+            for i = 1, 3 do
+                local dodgeEffect = Instance.new("Part")
+                dodgeEffect.Size = Vector3.new(2, 2, 2)
+                dodgeEffect.Position = rootPart.Position - (dodgeDirection.Unit * (i * 3))
+                dodgeEffect.BrickColor = BrickColor.new("Bright blue")
+                dodgeEffect.Material = Enum.Material.Neon
+                dodgeEffect.Anchored = true
+                dodgeEffect.CanCollide = false
+                dodgeEffect.Parent = workspace
+                
+                -- Fade out effect
+                spawn(function()
+                    for i = 1, 10 do
+                        if dodgeEffect then
+                            dodgeEffect.Transparency = i / 10
+                            wait(0.08)
+                        end
+                    end
+                    if dodgeEffect then
+                        dodgeEffect:Destroy()
+                    end
+                end)
+            end
+        end)
+        
+        return true
+    end
+    
+    -- Check for nearby players
+    local function autoDodgeCheck()
+        local character = player.Character
+        if not character then return end
+        
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        if not rootPart then return end
+        
+        -- Check all other players
+        for _, otherPlayer in pairs(Players:GetPlayers()) do
+            if otherPlayer ~= player and otherPlayer.Character then
+                local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if otherRoot then
+                    local distance = (rootPart.Position - otherRoot.Position).Magnitude
+                    
+                    -- If player is too close, dodge FAR away
                     if distance <= dodgeDistance then
                         local dodged = dodgeAway(otherRoot.Position)
                         if dodged then
-                            break -- Only dodge from one player at a time
+                            Library:Notify("[DODGE]", "Dodged " .. math.floor(dodgeRange) .. " studs away!", 2, "Info")
+                            break
                         end
                     end
                 end
@@ -914,7 +1017,7 @@ PlayerTab:NewToggle("Auto Dodge", "Automatically dodge players", function(state)
     
     -- Toggle functionality
     if state then
-        Library:Notify("[AUTO DODGE]", "Enabled", 4, "Success")
+        Library:Notify("[AUTO DODGE]", "Enabled - " .. dodgeRange .. " stud dodge", 4, "Success")
         -- Start auto dodge
         if not autoDodgeConnection then
             autoDodgeConnection = RunService.Heartbeat:Connect(autoDodgeCheck)
