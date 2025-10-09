@@ -725,7 +725,7 @@ end)
 PlayerTab:NewDivider()
 
 PlayerTab:NewButton("Expand hitbox", function()
-    loadstring(game:HttpGet("https://pastebin.com/AVaNXLA6"))()
+    loadstring(game:HttpGet("https://pastebin.com/raw/AVaNXLA6"))()
 end)
 
 PlayerTab:NewToggle("Infinite Jump", false, function(value)
