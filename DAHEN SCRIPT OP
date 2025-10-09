@@ -724,12 +724,12 @@ end)
 
 PlayerTab:NewDivider()
 
-PlayerTab:NewButton("Expand Hitbox", function()
+PlayerTab:NewButton("Hitbox multiplier", function()
 	if game.Workspace.Values.HitboxMultiplier.Value == 10 then
-		Library:Notify("[HITBOX]", "Disabled", 4, "Info")
+		Library:Notify("[HITBOX]", "is 1x", 4, "Info")
 		game.Workspace.Values.HitboxMultiplier.Value = 1
 	else
-		Library:Notify("[HITBOX]", "Enabled", 4, "Info")
+		Library:Notify("[HITBOX]", "is 10x", 4, "Info")
 		game.Workspace.Values.HitboxMultiplier.Value = 10
 	end
 end)
