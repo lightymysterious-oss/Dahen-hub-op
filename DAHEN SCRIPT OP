@@ -821,7 +821,7 @@ PlayerTab:NewToggle("Smart Attack Dodge", "Dodge attacks without falling off map
     local autoDodgeConnection = nil
     
     -- Dodge settings
-    local dodgeRange = 18
+    local dodgeRange = 25
     local attackDetectionRange = 15
     
     -- Function to find safe teleport positions
@@ -923,11 +923,11 @@ PlayerTab:NewToggle("Smart Attack Dodge", "Dodge attacks without falling off map
             end)
             
             -- NOTIFICATION: ATTACK DODGED
-            Library:Notify("ATTACK DODGED", "Safe teleport to platform!", 2, "Success")
+            Library:Notify("ATTACK DODGED", "Safe in Sky Squid", 2, "Success")
             return true
         else
             -- If no safe position found, notify user
-            Library:Notify("DODGE FAILED", "No safe position found!", 2, "Warning")
+            Library:Notify("DODGE FAILED", "Edge detected Sky squid", 2, "Warning")
             return false
         end
     end
