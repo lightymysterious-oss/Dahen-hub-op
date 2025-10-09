@@ -725,7 +725,13 @@ end)
 PlayerTab:NewDivider()
 
 PlayerTab:NewButton("Expand Hitbox", function()
-    loadstring(game:HttpGet("https://pastebin.com/raw/9d7XQT6V"))()
+	if game.Workspace.Values.HitboxMultiplier.Value == 10 then
+		Library:Notify("[HITBOX]", "Disabled", 4, "Info")
+		game.Workspace.Values.HitboxMultiplier.Value = 1
+	else
+		Library:Notify("[HITBOX]", "Enabled", 4, "Info")
+		game.Workspace.Values.HitboxMultiplier.Value = 10
+	end
 end)
 
 PlayerTab:NewToggle("Infinite Jump", false, function(value)
