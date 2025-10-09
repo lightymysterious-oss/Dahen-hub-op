@@ -812,124 +812,68 @@ PlayerTab:NewToggle("Noclip", false, function(state)
 	end
 end)
 
--- Complete Fixed Auto Dodge Toggle
+-- Complete Auto Dodge - Starts Disabled
 PlayerTab:NewToggle("Auto Dodge", "Automatically dodge attacks", function(state)
-    -- Script variables (local to this toggle)
+    -- Local variables for this toggle instance
     local Players = game:GetService("Players")
     local RunService = game:GetService("RunService")
     local player = Players.LocalPlayer
-    local autoDodgeConnection = nil
-    local dodgeEnabled = state  -- Track state locally
+    
+    -- State management
+    local dodgeEnabled = state
+    local dodgeConnection = nil
     
     -- Dodge settings
-    local dodgeRange = 25
-    local attackDetectionRange = 15
+    local dodgeRange = 18
+    local detectionRange = 15
     
-    -- Safe position finding function
-    local function findSafePosition(threatPosition)
+    -- Safe dodge function
+    local function safeDodge(attackerPos)
+        if not dodgeEnabled then return false end  -- Critical: Check if enabled
+        
         local character = player.Character
-        if not character then return nil end
+        if not character then return false end
         
         local rootPart = character:FindFirstChild("HumanoidRootPart")
-        if not rootPart then return nil end
+        if not rootPart then return false end
         
-        local currentPos = rootPart.Position
-        local threatDir = (currentPos - threatPosition).Unit
-        
-        -- Try multiple safe directions
-        local safeDirections = {
-            threatDir, -- Away from threat
-            threatDir:Cross(Vector3.new(0, 1, 0)), -- Left
-            -threatDir:Cross(Vector3.new(0, 1, 0)), -- Right
-            (threatDir + Vector3.new(0, 0.3, 0)).Unit, -- Away and up
+        -- Calculate safe position
+        local threatDir = (rootPart.Position - attackerPos).Unit
+        local testPositions = {
+            rootPart.Position + (threatDir * dodgeRange),
+            rootPart.Position + (threatDir:Cross(Vector3.new(0, 1, 0)) * dodgeRange),
+            rootPart.Position + (-threatDir:Cross(Vector3.new(0, 1, 0)) * dodgeRange)
         }
         
-        for _, dir in ipairs(safeDirections) do
-            local testPos = currentPos + (dir.Unit * dodgeRange)
-            
-            -- Check for ground
+        for _, testPos in ipairs(testPositions) do
             local groundRay = Ray.new(testPos + Vector3.new(0, 3, 0), Vector3.new(0, -15, 0))
             local groundHit, groundPos = workspace:FindPartOnRay(groundRay)
             
             if groundHit then
-                return groundPos + Vector3.new(0, 3, 0)
-            end
-        end
-        
-        -- Last resort: don't move
-        return nil
-    end
-    
-    -- Dodge function with enabled check
-    local function smartDodgeAway(threatPosition)
-        if not dodgeEnabled then return false end  -- CRITICAL FIX: Check if still enabled
-        
-        local character = player.Character
-        if not character then return false end
-        
-        local humanoid = character:FindFirstChild("Humanoid")
-        local rootPart = character:FindFirstChild("HumanoidRootPart")
-        
-        if not humanoid or not rootPart or humanoid.Health <= 0 then return false end
-        
-        -- Find safe position
-        local safePosition = findSafePosition(threatPosition)
-        
-        if safePosition then
-            rootPart.CFrame = CFrame.new(safePosition)
-            
-            -- Visual effect
-            local dodgeEffect = Instance.new("Part")
-            dodgeEffect.Size = Vector3.new(4, 4, 4)
-            dodgeEffect.Position = rootPart.Position
-            dodgeEffect.BrickColor = BrickColor.new("Bright green")
-            dodgeEffect.Material = Enum.Material.Neon
-            dodgeEffect.Anchored = true
-            dodgeEffect.CanCollide = false
-            dodgeEffect.Parent = workspace
-            game:GetService("Debris"):AddItem(dodgeEffect, 0.5)
-            
-            Library:Notify("ATTACK DODGED", "Safe teleport!", 2, "Success")
-            return true
-        end
-        
-        return false
-    end
-    
-    -- Attack detection function
-    local function isPlayerAttacking(otherPlayer)
-        if not dodgeEnabled then return false end  -- Additional safety check
-        
-        local character = otherPlayer.Character
-        if not character then return false end
-        
-        local humanoid = character:FindFirstChild("Humanoid")
-        local rootPart = character:FindFirstChild("HumanoidRootPart")
-        local myRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        
-        if not humanoid or not rootPart or not myRoot then return false end
-        
-        -- Check if player has tool and is facing you
-        local tool = character:FindFirstChildOfClass("Tool")
-        if tool then
-            local directionToMe = (myRoot.Position - rootPart.Position).Unit
-            local lookDirection = rootPart.CFrame.LookVector
-            local dotProduct = directionToMe:Dot(lookDirection)
-            
-            if dotProduct > 0.5 then
-                local distance = (myRoot.Position - rootPart.Position).Magnitude
-                if distance <= attackDetectionRange then
-                    return true
-                end
+                rootPart.CFrame = CFrame.new(groundPos + Vector3.new(0, 3, 0))
+                
+                -- Visual effect
+                local effect = Instance.new("Part")
+                effect.Size = Vector3.new(4, 4, 4)
+                effect.Position = rootPart.Position
+                effect.BrickColor = BrickColor.new("Bright green")
+                effect.Material = Enum.Material.Neon
+                effect.Anchored = true
+                effect.CanCollide = false
+                effect.Parent = workspace
+                game:GetService("Debris"):AddItem(effect, 0.5)
+                
+                Library:Notify("ATTACK DODGED", "Safe teleport!", 2, "Success")
+                return true
             end
         end
         
         return false
     end
     
-    -- Main detection loop with enabled check
-    local function autoDodgeCheck()
-        if not dodgeEnabled then return end  -- CRITICAL FIX: Exit if disabled
+    -- Attack detection
+    local function detectAttacks()
+        if not dodgeEnabled then return end  -- Exit immediately if disabled
         
         local character = player.Character
         if not character then return end
@@ -943,10 +887,16 @@ PlayerTab:NewToggle("Auto Dodge", "Automatically dodge attacks", function(state)
                 if otherRoot then
                     local distance = (myRoot.Position - otherRoot.Position).Magnitude
                     
-                    if distance <= attackDetectionRange then
-                        if isPlayerAttacking(otherPlayer) then
-                            smartDodgeAway(otherRoot.Position)
-                            break
+                    if distance < detectionRange then
+                        local toMe = (myRoot.Position - otherRoot.Position).Unit
+                        local lookDir = otherRoot.CFrame.LookVector
+                        
+                        if toMe:Dot(lookDir) > 0.6 then
+                            local tool = otherPlayer.Character:FindFirstChildOfClass("Tool")
+                            if tool then
+                                safeDodge(otherRoot.Position)
+                                break
+                            end
                         end
                     end
                 end
@@ -954,23 +904,23 @@ PlayerTab:NewToggle("Auto Dodge", "Automatically dodge attacks", function(state)
         end
     end
     
-    -- Toggle functionality
+    -- Toggle logic
     if state then
-        Library:Notify("[AUTO DODGE]", "Enabled", 3, "Success")
-        -- Start auto dodge
-        if not autoDodgeConnection then
-            autoDodgeConnection = RunService.Heartbeat:Connect(autoDodgeCheck)
+        -- Enable
+        Library:Notify("[AUTO DODGE]", "Enabled - Will dodge attacks", 3, "Success")
+        if not dodgeConnection then
+            dodgeConnection = RunService.Heartbeat:Connect(detectAttacks)
         end
     else
+        -- Disable
         Library:Notify("[AUTO DODGE]", "Disabled", 3, "Warning")
-        -- Stop auto dodge
-        if autoDodgeConnection then
-            autoDodgeConnection:Disconnect()
-            autoDodgeConnection = nil
+        if dodgeConnection then
+            dodgeConnection:Disconnect()
+            dodgeConnection = nil
         end
-        dodgeEnabled = false  -- Ensure disabled
     end
 end)
+
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
