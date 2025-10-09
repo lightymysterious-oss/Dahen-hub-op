@@ -1410,13 +1410,8 @@ function createWeaponEffects(weapon)
     muzzle.Parent = workspace
     
     game:GetService("Debris"):AddItem(muzzle, 0.2)
-end
+end)
 
--- Initial notification
-Library:Notify("⚔️ AUTO ATTACK", "Toggle to start hunting enemies!", 4, "Info")
-
--- Initial notification
-Library:Notify("✨ ULTRA DODGE", "Toggle for epic matrix-style dodges!", 4, "Info")
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
