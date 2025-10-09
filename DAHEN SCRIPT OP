@@ -812,22 +812,16 @@ PlayerTab:NewToggle("Noclip", false, function(state)
 	end
 end)
 
--- Auto Dodge Toggle - Only on Attack
-PlayerTab:NewToggle("Attack Dodge", "Dodge when players try to attack you", function(state)
+-- Instant Attack Dodge - No Cooldowns
+PlayerTab:NewToggle("Instant Attack Dodge", "Immediately dodge attacks with no cooldown", function(state)
     -- Script variables
     local Players = game:GetService("Players")
     local RunService = game:GetService("RunService")
-    local UserInputService = game:GetService("UserInputService")
     local player = Players.LocalPlayer
     local autoDodgeConnection = nil
     
-    -- Dodge settings
+    -- Dodge settings - NO COOLDOWNS
     local dodgeRange = 20 -- How far to teleport away
-    local cooldown = 1.5 -- Cooldown between dodges
-    local lastDodge = 0
-    
-    -- Track nearby players and their actions
-    local nearbyPlayers = {}
     local attackDetectionRange = 15
     
     -- Detect if player is attacking
@@ -835,7 +829,6 @@ PlayerTab:NewToggle("Attack Dodge", "Dodge when players try to attack you", func
         local character = otherPlayer.Character
         if not character then return false end
         
-        -- Method 1: Check if holding tool and looking at you
         local humanoid = character:FindFirstChild("Humanoid")
         local rootPart = character:FindFirstChild("HumanoidRootPart")
         local myRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -845,30 +838,27 @@ PlayerTab:NewToggle("Attack Dodge", "Dodge when players try to attack you", func
         -- Check if player has a tool equipped (weapon)
         local tool = character:FindFirstChildOfClass("Tool")
         if tool then
-            -- Check if tool is being used (Activated event)
-            if tool:FindFirstChild("Handle") then
-                -- Check if player is facing towards you
-                local directionToMe = (myRoot.Position - rootPart.Position).Unit
-                local lookDirection = rootPart.CFrame.LookVector
-                
-                local dotProduct = directionToMe:Dot(lookDirection)
-                
-                -- If player is looking at you (within 60 degree cone) and close enough
-                if dotProduct > 0.5 then
-                    local distance = (myRoot.Position - rootPart.Position).Magnitude
-                    if distance <= attackDetectionRange then
-                        return true
-                    end
+            -- Check if player is facing towards you
+            local directionToMe = (myRoot.Position - rootPart.Position).Unit
+            local lookDirection = rootPart.CFrame.LookVector
+            
+            local dotProduct = directionToMe:Dot(lookDirection)
+            
+            -- If player is looking at you (within 60 degree cone) and close enough
+            if dotProduct > 0.5 then
+                local distance = (myRoot.Position - rootPart.Position).Magnitude
+                if distance <= attackDetectionRange then
+                    return true
                 end
             end
         end
         
-        -- Method 2: Check animation state (if attacking animations exist)
+        -- Check animation state for attacks
         local animator = humanoid:FindFirstChildOfClass("Animator")
         if animator then
             for _, track in pairs(animator:GetPlayingAnimationTracks()) do
                 local animName = track.Animation.Name:lower()
-                if animName:find("attack") or animName:find("swing") or animName:find("punch") then
+                if animName:find("attack") or animName:find("swing") or animName:find("punch") or animName:find("slash") then
                     local distance = (myRoot.Position - rootPart.Position).Magnitude
                     if distance <= attackDetectionRange then
                         return true
@@ -880,64 +870,8 @@ PlayerTab:NewToggle("Attack Dodge", "Dodge when players try to attack you", func
         return false
     end
     
-    -- Detect sword swings or weapon usage
-    local function setupAttackDetection()
-        -- Monitor other players' tools for activation
-        for _, otherPlayer in pairs(Players:GetPlayers()) do
-            if otherPlayer ~= player then
-                otherPlayer.CharacterAdded:Connect(function(character)
-                    wait(1) -- Wait for character to load
-                    
-                    -- Check for tools being added
-                    character.ChildAdded:Connect(function(child)
-                        if child:IsA("Tool") then
-                            -- Monitor tool activation
-                            local toolActivated = false
-                            
-                            -- Use a loop to continuously check tool state
-                            spawn(function()
-                                while child and child.Parent == character and autoDodgeConnection do
-                                    -- Check if tool is being used based on cooldowns or state
-                                    if child:FindFirstChild("Handle") then
-                                        local myRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-                                        local otherRoot = character:FindFirstChild("HumanoidRootPart")
-                                        
-                                        if myRoot and otherRoot then
-                                            local distance = (myRoot.Position - otherRoot.Position).Magnitude
-                                            local directionToMe = (myRoot.Position - otherRoot.Position).Unit
-                                            local lookDirection = otherRoot.CFrame.LookVector
-                                            local dotProduct = directionToMe:Dot(lookDirection)
-                                            
-                                            -- If player is close, facing you, and has weapon - consider it an attack
-                                            if distance <= attackDetectionRange and dotProduct > 0.6 then
-                                                if autoDodgeConnection and tick() - lastDodge > cooldown then
-                                                    dodgeAway(otherRoot.Position)
-                                                    break
-                                                end
-                                            end
-                                        end
-                                    end
-                                    wait(0.1)
-                                end
-                            end)
-                        end
-                    end)
-                end)
-                
-                -- Setup existing character
-                if otherPlayer.Character then
-                    for _, child in pairs(otherPlayer.Character:GetChildren()) do
-                        if child:IsA("Tool") then
-                            -- Similar monitoring for existing tools
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    -- Dodge function
-    local function dodgeAway(fromPosition)
+    -- Instant dodge function - NO COOLDOWN CHECKS
+    local function instantDodgeAway(fromPosition)
         local character = player.Character
         if not character then return false end
         
@@ -946,8 +880,7 @@ PlayerTab:NewToggle("Attack Dodge", "Dodge when players try to attack you", func
         
         if not humanoid or not rootPart or humanoid.Health <= 0 then return false end
         
-        -- Cooldown check
-        if tick() - lastDodge < cooldown then return false end
+        -- NO COOLDOWN CHECK - INSTANT DODGE
         
         -- Calculate direction away from attacker
         local threatDirection = (rootPart.Position - fromPosition)
@@ -956,22 +889,21 @@ PlayerTab:NewToggle("Attack Dodge", "Dodge when players try to attack you", func
         -- Calculate new position
         local newPosition = rootPart.Position + dodgeDirection
         
-        -- Check for obstacles
+        -- Quick obstacle check
         local ray = Ray.new(rootPart.Position, dodgeDirection)
         local hit, position = workspace:FindPartOnRay(ray, character)
         
         if hit then
-            newPosition = position - dodgeDirection.Unit * 4
+            newPosition = position - dodgeDirection.Unit * 3
         end
         
-        -- Teleport away from attacker
+        -- INSTANT TELEPORT - NO DELAYS
         rootPart.CFrame = CFrame.new(newPosition)
-        lastDodge = tick()
         
-        -- Visual effect
+        -- Quick visual effect
         spawn(function()
             local dodgeEffect = Instance.new("Part")
-            dodgeEffect.Size = Vector3.new(5, 5, 5)
+            dodgeEffect.Size = Vector3.new(4, 4, 4)
             dodgeEffect.Position = rootPart.Position
             dodgeEffect.BrickColor = BrickColor.new("Bright red")
             dodgeEffect.Material = Enum.Material.Neon
@@ -979,23 +911,14 @@ PlayerTab:NewToggle("Attack Dodge", "Dodge when players try to attack you", func
             dodgeEffect.CanCollide = false
             dodgeEffect.Parent = workspace
             
-            for i = 1, 10 do
-                if dodgeEffect then
-                    dodgeEffect.Transparency = i / 10
-                    wait(0.05)
-                end
-            end
-            if dodgeEffect then
-                dodgeEffect:Destroy()
-            end
+            game:GetService("Debris"):AddItem(dodgeEffect, 0.3)
         end)
         
-        Library:Notify("[DODGE]", "Dodged attack!", 2, "Warning")
         return true
     end
     
-    -- Main detection loop
-    local function attackDodgeCheck()
+    -- Main detection loop - RUNS EVERY FRAME
+    local function instantAttackDodgeCheck()
         local character = player.Character
         if not character then return end
         
@@ -1013,10 +936,9 @@ PlayerTab:NewToggle("Attack Dodge", "Dodge when players try to attack you", func
                     if distance <= attackDetectionRange then
                         -- Check if player appears to be attacking
                         if isPlayerAttacking(otherPlayer) then
-                            if tick() - lastDodge > cooldown then
-                                dodgeAway(otherRoot.Position)
-                                break
-                            end
+                            -- INSTANT DODGE - NO COOLDOWN
+                            instantDodgeAway(otherRoot.Position)
+                            break
                         end
                     end
                 end
@@ -1026,14 +948,13 @@ PlayerTab:NewToggle("Attack Dodge", "Dodge when players try to attack you", func
     
     -- Toggle functionality
     if state then
-        Library:Notify("[ATTACK DODGE]", "Enabled - Will dodge attacks", 4, "Success")
-        -- Start attack detection
+        Library:Notify("[AUTO DODGE]", "Enabled - No cooldowns!", 3, "Success")
+        -- Start INSTANT attack detection
         if not autoDodgeConnection then
-            autoDodgeConnection = RunService.Heartbeat:Connect(attackDodgeCheck)
-            setupAttackDetection()
+            autoDodgeConnection = RunService.Heartbeat:Connect(instantAttackDodgeCheck)
         end
     else
-        Library:Notify("[ATTACK DODGE]", "Disabled", 4, "Warning")
+        Library:Notify("[AUTO DODGE]", "Disabled", 3, "Warning")
         -- Stop attack detection
         if autoDodgeConnection then
             autoDodgeConnection:Disconnect()
@@ -1041,7 +962,6 @@ PlayerTab:NewToggle("Attack Dodge", "Dodge when players try to attack you", func
         end
     end
 end)
-
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
