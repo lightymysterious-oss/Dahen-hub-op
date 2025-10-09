@@ -812,19 +812,20 @@ PlayerTab:NewToggle("Noclip", false, function(state)
 	end
 end)
 
--- Smart Attack Dodge - Platform Safe with Notifications
-PlayerTab:NewToggle("Smart Attack Dodge", "Dodge attacks without falling off map", function(state)
-    -- Script variables
+-- Complete Fixed Auto Dodge Toggle
+PlayerTab:NewToggle("Auto Dodge", "Automatically dodge attacks", function(state)
+    -- Script variables (local to this toggle)
     local Players = game:GetService("Players")
     local RunService = game:GetService("RunService")
     local player = Players.LocalPlayer
     local autoDodgeConnection = nil
+    local dodgeEnabled = state  -- Track state locally
     
     -- Dodge settings
     local dodgeRange = 25
     local attackDetectionRange = 15
     
-    -- Function to find safe teleport positions
+    -- Safe position finding function
     local function findSafePosition(threatPosition)
         local character = player.Character
         if not character then return nil end
@@ -835,64 +836,34 @@ PlayerTab:NewToggle("Smart Attack Dodge", "Dodge attacks without falling off map
         local currentPos = rootPart.Position
         local threatDir = (currentPos - threatPosition).Unit
         
-        -- Try multiple directions to find a safe spot
-        local directionsToTry = {
-            threatDir, -- Directly away from threat
-            threatDir:Cross(Vector3.new(0, 1, 0)), -- Left of threat direction
-            -threatDir:Cross(Vector3.new(0, 1, 0)), -- Right of threat direction
-            (threatDir + Vector3.new(0, 0.3, 0)).Unit, -- Away and slightly up
-            Vector3.new(1, 0, 0), -- Right
-            Vector3.new(-1, 0, 0), -- Left
-            Vector3.new(0, 0, 1), -- Forward
-            Vector3.new(0, 0, -1), -- Backward
+        -- Try multiple safe directions
+        local safeDirections = {
+            threatDir, -- Away from threat
+            threatDir:Cross(Vector3.new(0, 1, 0)), -- Left
+            -threatDir:Cross(Vector3.new(0, 1, 0)), -- Right
+            (threatDir + Vector3.new(0, 0.3, 0)).Unit, -- Away and up
         }
         
-        -- Try each direction
-        for _, direction in ipairs(directionsToTry) do
-            local testPos = currentPos + (direction.Unit * dodgeRange)
+        for _, dir in ipairs(safeDirections) do
+            local testPos = currentPos + (dir.Unit * dodgeRange)
             
-            -- Check if this position is safe (has ground below)
-            local groundRay = Ray.new(testPos + Vector3.new(0, 5, 0), Vector3.new(0, -20, 0))
+            -- Check for ground
+            local groundRay = Ray.new(testPos + Vector3.new(0, 3, 0), Vector3.new(0, -15, 0))
             local groundHit, groundPos = workspace:FindPartOnRay(groundRay)
             
             if groundHit then
-                -- Additional safety check - make sure we're not teleporting to an edge
-                local safetyCheck1 = Ray.new(groundPos, Vector3.new(5, 0, 0))
-                local safetyCheck2 = Ray.new(groundPos, Vector3.new(-5, 0, 0))
-                local safetyCheck3 = Ray.new(groundPos, Vector3.new(0, 0, 5))
-                local safetyCheck4 = Ray.new(groundPos, Vector3.new(0, 0, -5))
-                
-                local hit1 = workspace:FindPartOnRay(safetyCheck1)
-                local hit2 = workspace:FindPartOnRay(safetyCheck2)
-                local hit3 = workspace:FindPartOnRay(safetyCheck3)
-                local hit4 = workspace:FindPartOnRay(safetyCheck4)
-                
-                -- If most directions have ground, it's probably safe
-                if hit1 and hit2 and hit3 and hit4 then
-                    return groundPos + Vector3.new(0, 3, 0)
-                end
+                return groundPos + Vector3.new(0, 3, 0)
             end
         end
         
-        -- If no safe position found at full range, try shorter distances
-        for distance = dodgeRange - 5, 5, -5 do
-            for _, direction in ipairs(directionsToTry) do
-                local testPos = currentPos + (direction.Unit * distance)
-                local groundRay = Ray.new(testPos + Vector3.new(0, 5, 0), Vector3.new(0, -15, 0))
-                local groundHit, groundPos = workspace:FindPartOnRay(groundRay)
-                
-                if groundHit then
-                    return groundPos + Vector3.new(0, 3, 0)
-                end
-            end
-        end
-        
-        -- Last resort: teleport straight up if no safe ground position
-        return currentPos + Vector3.new(0, 10, 0)
+        -- Last resort: don't move
+        return nil
     end
     
-    -- Smart dodge function with notification
+    -- Dodge function with enabled check
     local function smartDodgeAway(threatPosition)
+        if not dodgeEnabled then return false end  -- CRITICAL FIX: Check if still enabled
+        
         local character = player.Character
         if not character then return false end
         
@@ -901,39 +872,34 @@ PlayerTab:NewToggle("Smart Attack Dodge", "Dodge attacks without falling off map
         
         if not humanoid or not rootPart or humanoid.Health <= 0 then return false end
         
-        -- Find a safe position to teleport to
+        -- Find safe position
         local safePosition = findSafePosition(threatPosition)
         
         if safePosition then
-            -- Teleport to safe position
             rootPart.CFrame = CFrame.new(safePosition)
             
             -- Visual effect
-            spawn(function()
-                local dodgeEffect = Instance.new("Part")
-                dodgeEffect.Size = Vector3.new(4, 4, 4)
-                dodgeEffect.Position = rootPart.Position
-                dodgeEffect.BrickColor = BrickColor.new("Bright green")
-                dodgeEffect.Material = Enum.Material.Neon
-                dodgeEffect.Anchored = true
-                dodgeEffect.CanCollide = false
-                dodgeEffect.Parent = workspace
-                
-                game:GetService("Debris"):AddItem(dodgeEffect, 0.5)
-            end)
+            local dodgeEffect = Instance.new("Part")
+            dodgeEffect.Size = Vector3.new(4, 4, 4)
+            dodgeEffect.Position = rootPart.Position
+            dodgeEffect.BrickColor = BrickColor.new("Bright green")
+            dodgeEffect.Material = Enum.Material.Neon
+            dodgeEffect.Anchored = true
+            dodgeEffect.CanCollide = false
+            dodgeEffect.Parent = workspace
+            game:GetService("Debris"):AddItem(dodgeEffect, 0.5)
             
-            -- NOTIFICATION: ATTACK DODGED
-            Library:Notify("ATTACK DODGED", "Safe in Sky Squid", 2, "Success")
+            Library:Notify("ATTACK DODGED", "Safe teleport!", 2, "Success")
             return true
-        else
-            -- If no safe position found, notify user
-            Library:Notify("DODGE FAILED", "Edge detected Sky squid", 2, "Warning")
-            return false
         end
+        
+        return false
     end
     
-    -- Detect if player is attacking
+    -- Attack detection function
     local function isPlayerAttacking(otherPlayer)
+        if not dodgeEnabled then return false end  -- Additional safety check
+        
         local character = otherPlayer.Character
         if not character then return false end
         
@@ -943,16 +909,13 @@ PlayerTab:NewToggle("Smart Attack Dodge", "Dodge attacks without falling off map
         
         if not humanoid or not rootPart or not myRoot then return false end
         
-        -- Check if player has a tool equipped (weapon)
+        -- Check if player has tool and is facing you
         local tool = character:FindFirstChildOfClass("Tool")
         if tool then
-            -- Check if player is facing towards you
             local directionToMe = (myRoot.Position - rootPart.Position).Unit
             local lookDirection = rootPart.CFrame.LookVector
-            
             local dotProduct = directionToMe:Dot(lookDirection)
             
-            -- If player is looking at you and close enough
             if dotProduct > 0.5 then
                 local distance = (myRoot.Position - rootPart.Position).Magnitude
                 if distance <= attackDetectionRange then
@@ -961,43 +924,27 @@ PlayerTab:NewToggle("Smart Attack Dodge", "Dodge attacks without falling off map
             end
         end
         
-        -- Check animation state for attacks
-        local animator = humanoid:FindFirstChildOfClass("Animator")
-        if animator then
-            for _, track in pairs(animator:GetPlayingAnimationTracks()) do
-                local animName = track.Animation.Name:lower()
-                if animName:find("attack") or animName:find("swing") or animName:find("punch") or animName:find("slash") then
-                    local distance = (myRoot.Position - rootPart.Position).Magnitude
-                    if distance <= attackDetectionRange then
-                        return true
-                    end
-                end
-            end
-        end
-        
         return false
     end
     
-    -- Main detection loop
-    local function smartAttackDodgeCheck()
+    -- Main detection loop with enabled check
+    local function autoDodgeCheck()
+        if not dodgeEnabled then return end  -- CRITICAL FIX: Exit if disabled
+        
         local character = player.Character
         if not character then return end
         
         local myRoot = character:FindFirstChild("HumanoidRootPart")
         if not myRoot then return end
         
-        -- Check all other players for attack behavior
         for _, otherPlayer in pairs(Players:GetPlayers()) do
             if otherPlayer ~= player and otherPlayer.Character then
                 local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
                 if otherRoot then
                     local distance = (myRoot.Position - otherRoot.Position).Magnitude
                     
-                    -- Only check players who are close enough to attack
                     if distance <= attackDetectionRange then
-                        -- Check if player appears to be attacking
                         if isPlayerAttacking(otherPlayer) then
-                            -- SMART DODGE with platform safety
                             smartDodgeAway(otherRoot.Position)
                             break
                         end
@@ -1009,18 +956,19 @@ PlayerTab:NewToggle("Smart Attack Dodge", "Dodge attacks without falling off map
     
     -- Toggle functionality
     if state then
-        Library:Notify("[AUTO DODGE]", "Enabled -Safe in Sky squid!", 3, "Success")
-        -- Start smart attack detection
+        Library:Notify("[AUTO DODGE]", "Enabled", 3, "Success")
+        -- Start auto dodge
         if not autoDodgeConnection then
-            autoDodgeConnection = RunService.Heartbeat:Connect(smartAttackDodgeCheck)
+            autoDodgeConnection = RunService.Heartbeat:Connect(autoDodgeCheck)
         end
     else
         Library:Notify("[AUTO DODGE]", "Disabled", 3, "Warning")
-        -- Stop attack detection
+        -- Stop auto dodge
         if autoDodgeConnection then
             autoDodgeConnection:Disconnect()
             autoDodgeConnection = nil
         end
+        dodgeEnabled = false  -- Ensure disabled
     end
 end)
 
