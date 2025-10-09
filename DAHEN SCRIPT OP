@@ -725,7 +725,6 @@ end)
 PlayerTab:NewDivider()
 
 PlayerTab:NewButton("Expand hitbox ", function()
-    pcall(function()
         loadstring(game:HttpGet("https://pastebin.com/AVaNXLA6"))()
     end)
 end)
