@@ -1107,20 +1107,20 @@ function createDodgeEffects(startPos, endPos)
     end)
 end
 
--- Auto Dash Script - Detects attacks (including tools) and dashes away
+-- Auto Dash Script - Detects attack direction and dashes accordingly
 local isAutoDashActive = false
 local autoDashLoop = nil
 local lastDashTime = 0
-local dashCooldown = 2 -- 2 second cooldown between dashes
+local dashCooldown = 2
 local isHoldingShift = false
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
 -- Add the toggle button
-PlayerTab:NewToggle("🌀 Auto DODGE LEGIT", "Auto dash away from attacks", function(state)
+PlayerTab:NewToggle("🌀 Auto Dash", "Dash based on attack direction", function(state)
     isAutoDashActive = state
     
     if state then
-        Library:Notify("🌀 AUTO DODGE LEGIT", "ACTIVE - Will dash from attacks!", 3, "Success")
+        Library:Notify("🌀 AUTO DASH", "ACTIVE - Directional dodging!", 3, "Success")
         
         if autoDashLoop then
             autoDashLoop:Disconnect()
@@ -1132,7 +1132,7 @@ PlayerTab:NewToggle("🌀 Auto DODGE LEGIT", "Auto dash away from attacks", func
         end)
         
     else
-        Library:Notify("🌀 AUTO DODGE LEGIT", "INACTIVE", 3, "Warning")
+        Library:Notify("🌀 AUTO DASH", "INACTIVE", 3, "Warning")
         releaseShift()
         if autoDashLoop then
             autoDashLoop:Disconnect()
@@ -1175,25 +1175,24 @@ function autoDashRoutine()
     -- Check cooldown
     if tick() - lastDashTime < dashCooldown then return end
     
-    -- Detect if any player is attacking us (WITH TOOL DETECTION)
-    local attacker, attackDirection, weaponType = detectAttackerWithTool()
+    -- Detect attack direction and type
+    local attacker, attackDirection, attackSide = detectAttackDirection()
     
-    if attacker then
-        Library:Notify("⚠️ ATTACK DETECTED", weaponType .. " aiming at you!", 2, "Warning")
-        -- DASH AWAY FROM ATTACKER!
-        performEvadeDash(attackDirection)
+    if attacker and attackSide then
+        Library:Notify("⚠️ ATTACK FROM " .. attackSide, "Dodging accordingly!", 2, "Warning")
+        performDirectionalDash(attackSide, attackDirection)
         lastDashTime = tick()
     end
 end
 
--- Detect if any player is attacking us WITH TOOL DETECTION
-function detectAttackerWithTool()
+-- Detect which direction the attack is coming from
+function detectAttackDirection()
     local player = game.Players.LocalPlayer
     local character = player.Character
-    if not character then return nil, nil, "" end
+    if not character then return nil, nil, nil end
     
     local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return nil, nil, "" end
+    if not rootPart then return nil, nil, nil end
     
     for _, otherPlayer in pairs(game.Players:GetPlayers()) do
         if otherPlayer ~= player and otherPlayer.Character then
@@ -1203,100 +1202,68 @@ function detectAttackerWithTool()
             if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
                 local distance = (rootPart.Position - otherRoot.Position).Magnitude
                 
-                -- Check if player is close enough to attack
-                if distance <= 20 then -- Increased range for tool detection
-                    local directionToMe = (rootPart.Position - otherRoot.Position).Unit
-                    local lookDirection = otherRoot.CFrame.LookVector
+                if distance <= 20 then
+                    -- Calculate relative position
+                    local attackerPos = otherRoot.Position
+                    local myPos = rootPart.Position
+                    local relativePos = attackerPos - myPos
                     
-                    -- Check if player is facing us (likely attacking)
-                    if directionToMe:Dot(lookDirection) > 0.6 then
-                        
-                        -- TOOL DETECTION - Check if player has a weapon/tool
-                        local tool = otherPlayer.Character:FindFirstChildOfClass("Tool")
-                        if tool then
-                            local weaponName = tool.Name
-                            local weaponType = getWeaponType(tool)
-                            
-                            -- Additional check: Is tool in a "ready" state?
-                            if isToolReady(tool) then
-                                return otherPlayer, directionToMe, weaponType .. " (" .. weaponName .. ")"
-                            end
-                        end
-                        
-                        -- Also check for attack animations
-                        if isPlayerAnimatingAttack(otherPlayer) then
-                            return otherPlayer, directionToMe, "Melee Attack"
-                        end
+                    -- Get local space direction (relative to my character's facing)
+                    local lookVector = rootPart.CFrame.LookVector
+                    local rightVector = rootPart.CFrame.RightVector
+                    
+                    -- Convert to local space
+                    local localX = relativePos:Dot(rightVector)  -- Right/Left
+                    local localZ = relativePos:Dot(lookVector)   -- Front/Back
+                    
+                    -- Determine attack direction
+                    local attackSide = getAttackDirection(localX, localZ)
+                    local attackDirection = (attackerPos - myPos).Unit
+                    
+                    -- Check if attacker is actually attacking (has tool and facing us)
+                    local tool = otherPlayer.Character:FindFirstChildOfClass("Tool")
+                    local lookDirection = otherRoot.CFrame.LookVector
+                    local directionToMe = (myPos - attackerPos).Unit
+                    
+                    if tool and directionToMe:Dot(lookDirection) > 0.6 then
+                        return otherPlayer, attackDirection, attackSide
+                    end
+                    
+                    -- Also check animations
+                    if isPlayerAnimatingAttack(otherPlayer) then
+                        return otherPlayer, attackDirection, attackSide
                     end
                 end
             end
         end
     end
     
-    return nil, nil, ""
+    return nil, nil, nil
 end
 
--- Determine weapon type
-function getWeaponType(tool)
-    if not tool then return "Unknown" end
+-- Determine which side the attack is coming from
+function getAttackDirection(localX, localZ)
+    -- Calculate angles and determine quadrant
+    local angle = math.atan2(localX, localZ)
+    local degrees = math.deg(angle)
     
-    local toolName = tool.Name:lower()
+    -- Normalize to 0-360
+    if degrees < 0 then degrees = degrees + 360 end
     
-    if toolName:find("sword") or toolName:find("blade") or toolName:find("katana") then
-        return "Sword"
-    elseif toolName:find("gun") or toolName:find("rifle") or toolName:find("pistol") then
-        return "Gun"
-    elseif toolName:find("bow") or toolName:find("arrow") then
-        return "Bow"
-    elseif toolName:find("hammer") or toolName:find("mace") then
-        return "Hammer"
-    elseif toolName:find("axe") then
-        return "Axe"
-    elseif toolName:find("knife") or toolName:find("dagger") then
-        return "Knife"
-    else
-        return "Weapon"
+    -- Determine direction based on angle
+    if degrees >= 315 or degrees < 45 then
+        return "FRONT"
+    elseif degrees >= 45 and degrees < 135 then
+        return "RIGHT"
+    elseif degrees >= 135 and degrees < 225 then
+        return "BACK"
+    else -- 225 to 315
+        return "LEFT"
     end
 end
 
--- Check if tool is in a ready/active state
-function isToolReady(tool)
-    if not tool then return false end
-    
-    -- Check for handle (most tools have handles)
-    local handle = tool:FindFirstChild("Handle")
-    if not handle then return true end -- If no handle, assume it's ready
-    
-    -- Check if tool is currently equipped/active
-    -- You can add more specific checks based on your game's tools
-    return true
-end
-
--- Check if player is performing attack animations
-function isPlayerAnimatingAttack(targetPlayer)
-    if not targetPlayer or not targetPlayer.Character then return false end
-    
-    local humanoid = targetPlayer.Character:FindFirstChild("Humanoid")
-    if not humanoid then return false end
-    
-    local animator = humanoid:FindFirstChildOfClass("Animator")
-    if not animator then return false end
-    
-    -- Check for attack-related animations
-    for _, track in pairs(animator:GetPlayingAnimationTracks()) do
-        local animName = track.Animation.Name:lower()
-        if animName:find("attack") or animName:find("swing") or animName:find("slash") or 
-           animName:find("punch") or animName:find("kick") or animName:find("shoot") or
-           animName:find("fire") or animName:find("throw") then
-            return true
-        end
-    end
-    
-    return false
-end
-
--- Perform evade dash away from attacker
-function performEvadeDash(attackDirection)
+-- Perform dash based on attack direction
+function performDirectionalDash(attackSide, attackDirection)
     local player = game.Players.LocalPlayer
     local character = player.Character
     if not character then return end
@@ -1305,42 +1272,75 @@ function performEvadeDash(attackDirection)
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     if not humanoid or not rootPart then return end
     
-    -- HOLD SHIFT TO RUN FIRST
+    -- HOLD SHIFT TO RUN
     holdShift()
     
-    -- Calculate safe dash directions (away from attacker + variations)
-    local dashDirections = {
-        attackDirection, -- Directly away from attacker
-        (attackDirection + rootPart.CFrame.RightVector).Unit, -- Away + right
-        (attackDirection - rootPart.CFrame.RightVector).Unit, -- Away + left
-        (attackDirection + Vector3.new(0, 0.3, 0)).Unit, -- Away + slightly up
-        (attackDirection + rootPart.CFrame.RightVector * 0.7).Unit, -- Diagonal right
-        (attackDirection - rootPart.CFrame.RightVector * 0.7).Unit  -- Diagonal left
-    }
+    local dashVector = Vector3.new(0, 0, 0)
+    local dashMessage = ""
     
-    -- Find the safest dash direction
-    local bestDirection = findSafestDirection(dashDirections, rootPart.Position)
+    -- Calculate dash direction based on attack side
+    if attackSide == "FRONT" then
+        -- Attack from front - dash backward or diagonally
+        local options = {
+            -rootPart.CFrame.LookVector, -- Straight back
+            (-rootPart.CFrame.LookVector + rootPart.CFrame.RightVector).Unit, -- Back-right
+            (-rootPart.CFrame.LookVector - rootPart.CFrame.RightVector).Unit  -- Back-left
+        }
+        dashVector = findSafestDirection(options, rootPart.Position) or options[1]
+        dashMessage = "Dashing BACK from frontal attack!"
+        
+    elseif attackSide == "BACK" then
+        -- Attack from back - dash forward or diagonally
+        local options = {
+            rootPart.CFrame.LookVector, -- Straight forward
+            (rootPart.CFrame.LookVector + rootPart.CFrame.RightVector).Unit, -- Forward-right
+            (rootPart.CFrame.LookVector - rootPart.CFrame.RightVector).Unit  -- Forward-left
+        }
+        dashVector = findSafestDirection(options, rootPart.Position) or options[1]
+        dashMessage = "Dashing FORWARD from rear attack!"
+        
+    elseif attackSide == "LEFT" then
+        -- Attack from left - dash right
+        local options = {
+            rootPart.CFrame.RightVector, -- Straight right
+            (rootPart.CFrame.RightVector + rootPart.CFrame.LookVector * 0.3).Unit, -- Right-forward
+            (rootPart.CFrame.RightVector - rootPart.CFrame.LookVector * 0.3).Unit  -- Right-backward
+        }
+        dashVector = findSafestDirection(options, rootPart.Position) or options[1]
+        dashMessage = "Dashing RIGHT from left attack!"
+        
+    elseif attackSide == "RIGHT" then
+        -- Attack from right - dash left
+        local options = {
+            -rootPart.CFrame.RightVector, -- Straight left
+            (-rootPart.CFrame.RightVector + rootPart.CFrame.LookVector * 0.3).Unit, -- Left-forward
+            (-rootPart.CFrame.RightVector - rootPart.CFrame.LookVector * 0.3).Unit  -- Left-backward
+        }
+        dashVector = findSafestDirection(options, rootPart.Position) or options[1]
+        dashMessage = "Dashing LEFT from right attack!"
+    end
     
-    if bestDirection then
+    -- Execute the dash
+    if dashVector.Magnitude > 0 then
         -- Face the dash direction
-        rootPart.CFrame = CFrame.new(rootPart.Position, rootPart.Position + bestDirection)
+        rootPart.CFrame = CFrame.new(rootPart.Position, rootPart.Position + dashVector)
         
         -- PRESS Q TO DASH
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
         wait(0.1)
         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
         
-        -- Move in dash direction while holding shift
+        -- Move in dash direction
         local dashDistance = 25
-        local dashPosition = rootPart.Position + (bestDirection * dashDistance)
+        local dashPosition = rootPart.Position + (dashVector * dashDistance)
         
-        -- Move to dash position (this combined with Q creates the dash effect)
+        -- Move to dash position
         humanoid:MoveTo(dashPosition)
         
-        -- Create epic dash effects
-        createDashEffects(rootPart.Position, dashPosition)
+        -- Create directional dash effects
+        createDirectionalDashEffects(rootPart.Position, dashPosition, attackSide)
         
-        Library:Notify("🌀 EVASIVE DASH!", "Dashed away from attack!", 2, "Success")
+        Library:Notify("🌀 " .. dashMessage, "Directional evasion!", 2, "Success")
         
         -- Release shift after dash
         spawn(function()
@@ -1350,7 +1350,7 @@ function performEvadeDash(attackDirection)
     end
 end
 
--- Find the safest direction to dash (avoid obstacles and edges)
+-- Find the safest direction to dash
 function findSafestDirection(directions, startPosition)
     for _, direction in ipairs(directions) do
         local testPosition = startPosition + (direction * 20)
@@ -1368,29 +1368,40 @@ function findSafestDirection(directions, startPosition)
         end
     end
     
-    -- If no safe direction found, use the first one
-    return directions[1]
+    return directions[1] -- Fallback to first direction
 end
 
--- Create cool dash effects
-function createDashEffects(startPos, endPos)
+-- Create directional dash effects with different colors
+function createDirectionalDashEffects(startPos, endPos, direction)
     local TweenService = game:GetService("TweenService")
+    local effectColor = BrickColor.new("Bright blue") -- Default
+    
+    -- Different colors for different directions
+    if direction == "FRONT" then
+        effectColor = BrickColor.new("Bright red") -- Red for back dash
+    elseif direction == "BACK" then
+        effectColor = BrickColor.new("Bright green") -- Green for forward dash
+    elseif direction == "LEFT" then
+        effectColor = BrickColor.new("Bright yellow") -- Yellow for right dash
+    elseif direction == "RIGHT" then
+        effectColor = BrickColor.new("Bright purple") -- Purple for left dash
+    end
     
     -- DASH TRAIL
     spawn(function()
-        for i = 1, 8 do
+        for i = 1, 6 do
             local trailPart = Instance.new("Part")
-            trailPart.Size = Vector3.new(1, 1, 1)
-            trailPart.Position = startPos + Vector3.new(math.random(-2,2), 1, math.random(-2,2))
-            trailPart.BrickColor = BrickColor.new("Bright blue")
+            trailPart.Size = Vector3.new(1.5, 1.5, 1.5)
+            trailPart.Position = startPos + Vector3.new(0, 1, 0)
+            trailPart.BrickColor = effectColor
             trailPart.Material = Enum.Material.Neon
-            trailPart.Transparency = 0.5
+            trailPart.Transparency = 0.4
             trailPart.Anchored = true
             trailPart.CanCollide = false
             trailPart.Parent = workspace
             
             local trailTween = TweenService:Create(trailPart, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
-                Position = endPos + Vector3.new(math.random(-2,2), 1, math.random(-2,2)),
+                Position = endPos + Vector3.new(0, 1, 0),
                 Transparency = 1,
                 Size = Vector3.new(0.1, 0.1, 0.1)
             })
@@ -1400,27 +1411,76 @@ function createDashEffects(startPos, endPos)
         end
     end)
     
-    -- SPEED LINES EFFECT
+    -- DIRECTIONAL ARROW EFFECT
     spawn(function()
-        local speedLines = Instance.new("Part")
-        speedLines.Size = Vector3.new(10, 10, 10)
-        speedLines.Position = startPos
-        speedLines.Transparency = 1
-        speedLines.Anchored = true
-        speedLines.CanCollide = false
-        speedLines.Parent = workspace
+        local arrow = Instance.new("Part")
+        arrow.Size = Vector3.new(2, 0.2, 4)
+        arrow.Position = startPos + Vector3.new(0, 2, 0)
+        arrow.BrickColor = effectColor
+        arrow.Material = Enum.Material.Neon
+        arrow.Transparency = 0.3
+        arrow.Anchored = true
+        arrow.CanCollide = false
+        arrow.Parent = workspace
         
-        local particleEmitter = Instance.new("ParticleEmitter")
-        particleEmitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-        particleEmitter.Lifetime = NumberRange.new(0.2, 0.5)
-        particleEmitter.Rate = 100
-        particleEmitter.SpreadAngle = Vector2.new(180, 180)
-        particleEmitter.Speed = NumberRange.new(10, 20)
-        particleEmitter.Color = ColorSequence.new(Color3.fromRGB(0, 150, 255))
-        particleEmitter.Parent = speedLines
+        -- Point arrow in dash direction
+        local directionVector = (endPos - startPos).Unit
+        arrow.CFrame = CFrame.lookAt(arrow.Position, arrow.Position + directionVector)
         
-        game:GetService("Debris"):AddItem(speedLines, 0.5)
+        game:GetService("Debris"):AddItem(arrow, 0.8)
     end)
+    
+    -- DIRECTION TEXT EFFECT
+    spawn(function()
+        local billboard = Instance.new("BillboardGui")
+        billboard.Size = UDim2.new(0, 200, 0, 50)
+        billboard.StudsOffset = Vector3.new(0, 3, 0)
+        
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.new(1, 0, 1, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Text = "DASH " .. direction
+        textLabel.TextColor3 = effectColor.Color
+        textLabel.TextScaled = true
+        textLabel.Font = Enum.Font.GothamBold
+        textLabel.Parent = billboard
+        
+        billboard.Parent = workspace
+        billboard.Adornee = Instance.new("Part")
+        
+        local part = Instance.new("Part")
+        part.Size = Vector3.new(1, 1, 1)
+        part.Position = startPos + Vector3.new(0, 2, 0)
+        part.Transparency = 1
+        part.Anchored = true
+        part.CanCollide = false
+        part.Parent = workspace
+        billboard.Adornee = part
+        
+        game:GetService("Debris"):AddItem(part, 1.5)
+        game:GetService("Debris"):AddItem(billboard, 1.5)
+    end)
+end
+
+-- Check if player is performing attack animations
+function isPlayerAnimatingAttack(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character then return false end
+    
+    local humanoid = targetPlayer.Character:FindFirstChild("Humanoid")
+    if not humanoid then return false end
+    
+    local animator = humanoid:FindFirstChildOfClass("Animator")
+    if not animator then return false end
+    
+    for _, track in pairs(animator:GetPlayingAnimationTracks()) do
+        local animName = track.Animation.Name:lower()
+        if animName:find("attack") or animName:find("swing") or animName:find("slash") or 
+           animName:find("punch") or animName:find("kick") or animName:find("shoot") then
+            return true
+        end
+    end
+    
+    return false
 end
 
 -- Clean up when script stops
@@ -1429,7 +1489,7 @@ game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
 end)
 
 -- Initial notification
-Library:Notify("🌀 AUTO DODGE LEGIT", "Tool detection enabled - Will dash from weapons!", 4, "Info")
+Library:Notify("🌀 AUTO DASH", "Directional dodging enabled!", 4, "Info")
 
 -- Auto Attack Script - Spam attacks with movement during combat
 local isAutoAttackActive = false
