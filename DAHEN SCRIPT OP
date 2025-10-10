@@ -1491,6 +1491,533 @@ end)
 -- Initial notification
 Library:Notify("🌀 AUTO DASH", "Directional dodging enabled!", 4, "Info")
 
+-- Advanced AI Assistant - Game File Explorer
+local isAIActive = false
+local AIBotConnection = nil
+
+-- Add the toggle button
+PlayerTab:NewToggle("🤖 DAHENBOT", "AI that explores game files for development", function(state)
+    isAIActive = state
+    
+    if state then
+        Library:Notify("🤖 DAHENBOT", "Activated - Game file explorer ready!", 4, "Success")
+        
+        if AIBotConnection then
+            AIBotConnection:Disconnect()
+        end
+        
+        -- Listen for chat messages
+        AIBotConnection = game:GetService("Players").LocalPlayer.Chatted:Connect(function(message)
+            if isAIActive then
+                processDevMessage(message)
+            end
+        end)
+        
+    else
+        Library:Notify("🤖 DAHEN BOT", "Deactivated", 3, "Warning")
+        if AIBotConnection then
+            AIBotConnection:Disconnect()
+            AIBotConnection = nil
+        end
+    end
+end)
+
+-- Enhanced AI Response Function for Development
+function processDevMessage(message)
+    local lowerMessage = message:lower()
+    
+    -- Check if message is for the bot
+    if lowerMessage:find("dahenbot") or lowerMessage:find("dev") or lowerMessage:find("script") or lowerMessage:find("file") or lowerMessage:find("explore") then
+        
+        -- Game File Exploration Commands
+        if lowerMessage:find("explore") or lowerMessage:find("files") or lowerMessage:find("what's in") then
+            exploreGameFiles(message)
+            
+        -- Find specific objects
+        elseif lowerMessage:find("find") or lowerMessage:find("where is") or lowerMessage:find("locate") then
+            findInGameFiles(message)
+            
+        -- Script analysis
+        elseif lowerMessage:find("script") or lowerMessage:find("code") then
+            analyzeScripts(message)
+            
+        -- Service information
+        elseif lowerMessage:find("service") or lowerMessage:find("workspace") or lowerMessage:find("players") then
+            showServiceInfo(message)
+            
+        -- Object properties
+        elseif lowerMessage:find("property") or lowerMessage:find("properties") or lowerMessage:find("what does") then
+            showObjectProperties(message)
+            
+        -- Game structure
+        elseif lowerMessage:find("structure") or lowerMessage:find("hierarchy") then
+            showGameStructure()
+            
+        -- Help for developers
+        elseif lowerMessage:find("help") or lowerMessage:find("commands") then
+            showDevHelp()
+            
+        else
+            -- Enhanced response with file exploration
+            local enhancedResponse = enhanceDevResponse(message)
+            if enhancedResponse then
+                sendAIResponse(enhancedResponse)
+            else
+                sendAIResponse("I can help you explore game files! Try: 'find scripts', 'explore workspace', or 'show services'")
+            end
+        end
+    end
+end
+
+-- Explore game files based on query
+function exploreGameFiles(message)
+    local lowerMessage = message:lower()
+    
+    if lowerMessage:find("workspace") then
+        exploreWorkspace()
+    elseif lowerMessage:find("lighting") then
+        exploreLighting()
+    elseif lowerMessage:find("players") then
+        explorePlayers()
+    elseif lowerMessage:find("replicated") then
+        exploreReplicatedStorage()
+    elseif lowerMessage:find("server") then
+        exploreServerStorage()
+    elseif lowerMessage:find("starter") then
+        exploreStarterPack()
+    else
+        -- General exploration
+        sendAIResponse("📁 Game Structure:\n" .. getGameStructure())
+    end
+end
+
+-- Find specific objects in game files
+function findInGameFiles(message)
+    local searchTerm = extractSearchTerm(message)
+    if not searchTerm then
+        sendAIResponse("What would you like me to find? Example: 'find sword' or 'locate scripts'")
+        return
+    end
+    
+    local results = {}
+    
+    -- Search in major services
+    local servicesToSearch = {
+        workspace,
+        game:GetService("ReplicatedStorage"),
+        game:GetService("ServerStorage"),
+        game:GetService("StarterPack"),
+        game:GetService("StarterPlayer"):FindFirstChild("StarterPlayerScripts"),
+        game:GetService("StarterPlayer"):FindFirstChild("StarterCharacterScripts")
+    }
+    
+    for _, service in pairs(servicesToSearch) do
+        if service then
+            local found = searchInService(service, searchTerm)
+            for _, item in ipairs(found) do
+                table.insert(results, item)
+            end
+        end
+    end
+    
+    if #results > 0 then
+        local response = "🔍 Found '" .. searchTerm .. "' in:\n"
+        for i, result in ipairs(results) do
+            if i <= 10 then -- Limit to 10 results
+                response = response .. "• " .. result .. "\n"
+            end
+        end
+        if #results > 10 then
+            response = response .. "... and " .. (#results - 10) .. " more items"
+        end
+        sendAIResponse(response)
+    else
+        sendAIResponse("❌ No results found for '" .. searchTerm .. "'")
+    end
+end
+
+-- Search in a specific service
+function searchInService(service, searchTerm, path)
+    path = path or service.Name
+    local results = {}
+    
+    for _, item in pairs(service:GetChildren()) do
+        local itemPath = path .. " > " .. item.Name
+        
+        -- Check if item matches search
+        if item.Name:lower():find(searchTerm:lower()) then
+            table.insert(results, itemPath .. " (" .. item.ClassName .. ")")
+        end
+        
+        -- Recursively search children
+        if #item:GetChildren() > 0 then
+            local childResults = searchInService(item, searchTerm, itemPath)
+            for _, result in ipairs(childResults) do
+                table.insert(results, result)
+            end
+        end
+    end
+    
+    return results
+end
+
+-- Explore Workspace
+function exploreWorkspace()
+    local workspaceInfo = "🏗️ Workspace Contents:\n"
+    local categories = {}
+    
+    for _, item in pairs(workspace:GetChildren()) do
+        local class = item.ClassName
+        if not categories[class] then
+            categories[class] = {}
+        end
+        table.insert(categories[class], item.Name)
+    end
+    
+    for class, items in pairs(categories) do
+        workspaceInfo = workspaceInfo .. "📦 " .. class .. " (" .. #items .. "):\n"
+        for i, item in ipairs(items) do
+            if i <= 5 then
+                workspaceInfo = workspaceInfo .. "  • " .. item .. "\n"
+            end
+        end
+        if #items > 5 then
+            workspaceInfo = workspaceInfo .. "  ... and " .. (#items - 5) .. " more\n"
+        end
+    end
+    
+    sendAIResponse(workspaceInfo)
+end
+
+-- Explore ReplicatedStorage
+function exploreReplicatedStorage()
+    local repStorage = game:GetService("ReplicatedStorage")
+    local info = "🔁 ReplicatedStorage:\n"
+    
+    if #repStorage:GetChildren() == 0 then
+        info = info .. "Empty"
+    else
+        for _, item in pairs(repStorage:GetChildren()) do
+            info = info .. "• " .. item.Name .. " (" .. item.ClassName .. ")\n"
+        end
+    end
+    
+    sendAIResponse(info)
+end
+
+-- Show service information
+function showServiceInfo(message)
+    local lowerMessage = message:lower()
+    local response = "🔧 Services:\n"
+    
+    local services = game:GetServices()
+    for _, service in pairs(services) do
+        local serviceName = service.Name
+        if lowerMessage:find(serviceName:lower()) or lowerMessage:find("all") then
+            response = response .. "• " .. serviceName .. ": " .. countChildren(service) .. " items\n"
+        end
+    end
+    
+    if response == "🔧 Services:\n" then
+        response = "Available services: Workspace, Lighting, Players, ReplicatedStorage, ServerStorage, etc."
+    end
+    
+    sendAIResponse(response)
+end
+
+-- Analyze scripts
+function analyzeScripts(message)
+    local lowerMessage = message:lower()
+    local scriptsFound = {}
+    
+    -- Search for scripts in major containers
+    local containers = {
+        workspace,
+        game:GetService("ReplicatedStorage"),
+        game:GetService("ServerStorage"),
+        game:GetService("StarterPack"),
+        game:GetService("StarterPlayer"):FindFirstChild("StarterPlayerScripts"),
+        game:GetService("StarterPlayer"):FindFirstChild("StarterCharacterScripts")
+    }
+    
+    for _, container in pairs(containers) do
+        if container then
+            findScriptsInContainer(container, scriptsFound)
+        end
+    end
+    
+    if #scriptsFound > 0 then
+        local response = "📜 Scripts Found (" .. #scriptsFound .. "):\n"
+        for i, scriptInfo in ipairs(scriptsFound) do
+            if i <= 8 then
+                response = response .. "• " .. scriptInfo .. "\n"
+            end
+        end
+        if #scriptsFound > 8 then
+            response = response .. "... and " .. (#scriptsFound - 8) .. " more scripts"
+        end
+        sendAIResponse(response)
+    else
+        sendAIResponse("❌ No scripts found in game structure")
+    end
+end
+
+-- Find scripts in a container
+function findScriptsInContainer(container, scriptsFound, path)
+    path = path or container.Name
+    
+    for _, item in pairs(container:GetChildren()) do
+        if item:IsA("Script") or item:IsA("LocalScript") or item:IsA("ModuleScript") then
+            table.insert(scriptsFound, item.Name .. " (" .. item.ClassName .. " in " .. path .. ")")
+        end
+        
+        -- Recursively search children
+        if #item:GetChildren() > 0 then
+            findScriptsInContainer(item, scriptsFound, path .. " > " .. item.Name)
+        end
+    end
+end
+
+-- Show object properties
+function showObjectProperties(message)
+    local searchTerm = extractSearchTerm(message)
+    if not searchTerm then
+        sendAIResponse("Which object's properties? Example: 'properties of Part'")
+        return
+    end
+    
+    local foundObjects = {}
+    
+    -- Search for object
+    local services = {workspace, game:GetService("ReplicatedStorage")}
+    for _, service in pairs(services) do
+        local object = findObjectByName(service, searchTerm)
+        if object then
+            table.insert(foundObjects, object)
+        end
+    end
+    
+    if #foundObjects > 0 then
+        local object = foundObjects[1]
+        local response = "📋 Properties of " .. object.Name .. " (" .. object.ClassName .. "):\n"
+        
+        -- Show important properties
+        local importantProps = {"Position", "Size", "Color", "Material", "Transparency", "Anchored", "CanCollide"}
+        
+        for _, propName in pairs(importantProps) do
+            local success, value = pcall(function()
+                return object[propName]
+            end)
+            if success and value ~= nil then
+                response = response .. "• " .. propName .. ": " .. tostring(value) .. "\n"
+            end
+        end
+        
+        sendAIResponse(response)
+    else
+        sendAIResponse("❌ Object '" .. searchTerm .. "' not found")
+    end
+end
+
+-- Show game structure overview
+function showGameStructure()
+    local structure = "🎮 Game Structure Overview:\n"
+    
+    local services = {
+        "Workspace", "Lighting", "Players", "ReplicatedStorage", 
+        "ServerStorage", "StarterPack", "StarterPlayer"
+    }
+    
+    for _, serviceName in pairs(services) do
+        local service = game:GetService(serviceName)
+        if service then
+            structure = structure .. "• " .. serviceName .. ": " .. countChildren(service) .. " items\n"
+        end
+    end
+    
+    sendAIResponse(structure)
+end
+
+-- Helper function to extract search term from message
+function extractSearchTerm(message)
+    local patterns = {
+        "find%s+(.+)",
+        "where%s+is%s+(.+)",
+        "locate%s+(.+)",
+        "properties%s+of%s+(.+)",
+        "what%s+is%s+(.+)"
+    }
+    
+    for _, pattern in ipairs(patterns) do
+        local match = message:match(pattern)
+        if match then
+            return match
+        end
+    end
+    
+    return nil
+end
+
+-- Helper function to count children recursively
+function countChildren(object)
+    local count = #object:GetChildren()
+    for _, child in pairs(object:GetChildren()) do
+        count = count + countChildren(child)
+    end
+    return count
+end
+
+-- Find object by name recursively
+function findObjectByName(container, name)
+    for _, item in pairs(container:GetChildren()) do
+        if item.Name:lower() == name:lower() then
+            return item
+        end
+        
+        local found = findObjectByName(item, name)
+        if found then
+            return found
+        end
+    end
+    return nil
+end
+
+-- Get general game structure
+function getGameStructure()
+    local structure = ""
+    
+    local majorServices = {
+        workspace,
+        game:GetService("Lighting"),
+        game:GetService("ReplicatedStorage"),
+        game:GetService("ServerStorage"),
+        game:GetService("StarterPack")
+    }
+    
+    for _, service in pairs(majorServices) do
+        structure = structure .. "• " .. service.Name .. ": " .. countChildren(service) .. " items\n"
+    end
+    
+    return structure
+end
+
+-- Enhanced development responses
+function enhanceDevResponse(message)
+    local lowerMessage = message:lower()
+    
+    if lowerMessage:find("how many") and lowerMessage:find("script") then
+        return "I found " .. countScripts() .. " scripts in your game"
+        
+    elseif lowerMessage:find("what services") then
+        return "Available services: " .. table.concat(getServiceNames(), ", ")
+        
+    elseif lowerMessage:find("game info") then
+        return "Game Place ID: " .. game.PlaceId .. ", Players: " .. #game:GetService("Players"):GetPlayers()
+        
+    elseif lowerMessage:find("help me develop") then
+        return "I can help you explore scripts, find objects, analyze structure, and understand your game's architecture!"
+    end
+    
+    return nil
+end
+
+-- Count total scripts in game
+function countScripts()
+    local count = 0
+    local containers = {
+        workspace,
+        game:GetService("ReplicatedStorage"),
+        game:GetService("ServerStorage"),
+        game:GetService("StarterPack")
+    }
+    
+    for _, container in pairs(containers) do
+        count = count + countScriptsInContainer(container)
+    end
+    
+    return count
+end
+
+-- Count scripts in container recursively
+function countScriptsInContainer(container)
+    local count = 0
+    
+    for _, item in pairs(container:GetChildren()) do
+        if item:IsA("Script") or item:IsA("LocalScript") or item:IsA("ModuleScript") then
+            count = count + 1
+        end
+        count = count + countScriptsInContainer(item)
+    end
+    
+    return count
+end
+
+-- Get service names
+function getServiceNames()
+    local names = {}
+    local services = game:GetServices()
+    for _, service in pairs(services) do
+        table.insert(names, service.Name)
+    end
+    return names
+end
+
+-- Show development help
+function showDevHelp()
+    local helpText = [[
+🤖 DEVELOPMENT COMMANDS:
+
+🔍 EXPLORATION:
+• "explore workspace" - Show workspace contents
+• "find [name]" - Find objects by name
+• "show services" - List all services
+• "game structure" - Overview of game hierarchy
+
+📜 SCRIPT ANALYSIS:
+• "analyze scripts" - Find all scripts
+• "find scripts" - Locate script files
+• "properties of [object]" - Show object properties
+
+🎮 GAME INFO:
+• "player count" - How many players
+• "script count" - Total scripts in game
+• "service info" - Detailed service information
+
+Try: "find sword" or "explore replicatedstorage"
+]]
+    sendAIResponse(helpText)
+end
+
+-- Send AI response to chat
+function sendAIResponse(response)
+    wait(math.random(0.5, 1.5))
+    
+    local success = pcall(function()
+        game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer("🤖 " .. response, "All")
+    end)
+    
+    if not success then
+        game:GetService("TextChatService").TextChannels.RBXGeneral:SendAsync("🤖 " .. response)
+    end
+end
+
+-- Quick commands for developers
+PlayerTab:NewButton("🔍 Quick Explore", "Quick game structure analysis", function()
+    sendAIResponse("🔍 Quick Analysis:\n" .. getGameStructure())
+end)
+
+PlayerTab:NewButton("📜 Script Count", "Count all scripts in game", function()
+    sendAIResponse("📜 Total Scripts: " .. countScripts())
+end)
+
+PlayerTab:NewButton("🎮 Service Info", "Show all services", function()
+    local services = getServiceNames()
+    sendAIResponse("🔧 Services: " .. table.concat(services, ", "))
+end)
+
+-- Initial notification
+Library:Notify("🤖 DEV ASSISTANT", "Game file explorer ready! Try 'explore workspace'", 5, "Info")
+
 -- Auto Attack Script - Spam attacks with movement during combat
 local isAutoAttackActive = false
 local autoAttackLoop = nil
