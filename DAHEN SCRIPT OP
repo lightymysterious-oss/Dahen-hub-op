@@ -1116,11 +1116,11 @@ local isHoldingShift = false
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
 -- Add the toggle button
-PlayerTab:NewToggle("🌀 Auto Dash", "Dash based on attack direction", function(state)
+PlayerTab:NewToggle("🌀 Auto Dodge legit", "Dash based on attack direction", function(state)
     isAutoDashActive = state
     
     if state then
-        Library:Notify("🌀 AUTO DASH", "ACTIVE - Directional dodging!", 3, "Success")
+        Library:Notify("🌀 AUTO DODGE LEGIT", "ACTIVE - Directional dodging!", 3, "Success")
         
         if autoDashLoop then
             autoDashLoop:Disconnect()
@@ -1132,7 +1132,7 @@ PlayerTab:NewToggle("🌀 Auto Dash", "Dash based on attack direction", function
         end)
         
     else
-        Library:Notify("🌀 AUTO DASH", "INACTIVE", 3, "Warning")
+        Library:Notify("🌀 AUTO DODGE LEGIT", "INACTIVE", 3, "Warning")
         releaseShift()
         if autoDashLoop then
             autoDashLoop:Disconnect()
