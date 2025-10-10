@@ -1086,7 +1086,7 @@ function createDodgeEffects(startPos, endPos)
     end)
 end
 
--- Auto Attack Script - Moves to nearest player and auto-attacks
+-- Auto Attack Script - Moves to nearest player and auto-attacks WITH RUNNING
 local isAutoAttackActive = false
 local autoAttackLoop = nil
 local lastAttackTime = 0
@@ -1250,21 +1250,25 @@ function moveToPlayer(targetPlayer, rootPart, humanoid)
     local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not targetRoot then return end
     
+    -- HOLD CTRL TO RUN FAST
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftControl, false, game)
+    
     -- Calculate direction to target
     local direction = (targetRoot.Position - rootPart.Position).Unit
     
-    -- Move towards target
+    -- Move towards target (this will now be faster because Ctrl is held)
     humanoid:MoveTo(targetRoot.Position)
     
     -- Face the target
     rootPart.CFrame = CFrame.new(rootPart.Position, Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z))
     
-    -- Visual effect for movement
+    -- Visual effect for movement (different color when running)
     spawn(function()
         local moveEffect = Instance.new("Part")
         moveEffect.Size = Vector3.new(1, 0.2, 1)
         moveEffect.Position = rootPart.Position - Vector3.new(0, 2.5, 0)
-        moveEffect.BrickColor = BrickColor.new("Bright red")
+        moveEffect.BrickColor = BrickColor.new("Bright blue") -- Blue when running
         moveEffect.Material = Enum.Material.Neon
         moveEffect.Anchored = true
         moveEffect.CanCollide = false
@@ -1272,6 +1276,19 @@ function moveToPlayer(targetPlayer, rootPart, humanoid)
         moveEffect.Parent = workspace
         
         game:GetService("Debris"):AddItem(moveEffect, 0.3)
+    end)
+    
+    -- Release Ctrl when close to target or when stopping
+    spawn(function()
+        local distance = (rootPart.Position - targetRoot.Position).Magnitude
+        if distance <= 10 then
+            wait(0.1)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftControl, false, game)
+        else
+            -- Keep holding Ctrl for 0.5 seconds then check again
+            wait(0.5)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftControl, false, game)
+        end
     end)
 end
 
@@ -1283,9 +1300,11 @@ function performAttack()
     local humanoid = character:FindFirstChild("Humanoid")
     if not humanoid then return end
     
-    -- Method 1: Simulate mouse click (works for most combat systems)
+    -- Release Ctrl when attacking (stop running)
     local VirtualInputManager = game:GetService("VirtualInputManager")
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftControl, false, game)
     
+    -- Method 1: Simulate mouse click (works for most combat systems)
     -- Left click (primary attack)
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
     wait(0.05)
@@ -1310,6 +1329,9 @@ end
 function useWeaponAttack(weapon)
     local VirtualInputManager = game:GetService("VirtualInputManager")
     
+    -- Release Ctrl when attacking (stop running)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftControl, false, game)
+    
     -- Activate the weapon
     if weapon:FindFirstChild("Handle") then
         -- Simulate clicking the weapon
@@ -1326,6 +1348,9 @@ end
 
 function performMeleeAttack()
     local VirtualInputManager = game:GetService("VirtualInputManager")
+    
+    -- Release Ctrl when attacking (stop running)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftControl, false, game)
     
     -- Melee combo: Click + Space
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
@@ -1416,7 +1441,7 @@ function createWeaponEffects(weapon)
 end
 
 -- Initial notification
-Library:Notify("⚔️ AUTO ATTACK", "Two attack modes available!", 4, "Info")
+Library:Notify("⚔️ AUTO ATTACK", "Now with running (Ctrl) enabled!", 4, "Info")
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
