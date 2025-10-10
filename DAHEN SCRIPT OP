@@ -734,6 +734,27 @@ PlayerTab:NewButton("Hitbox multiplier", function()
 	end
 end)
 
+-- Hitbox Expander Toggle
+PlayerTab:NewToggle("🔴 Hitbox Expander", "Expand your hitbox range", function(state)
+    if state then
+        Library:Notify("🔴 HITBOX EXPANDER", "Loading hitbox expander...", 3, "Info")
+        
+        -- Execute the hitbox expander script
+        local success, error = pcall(function()
+            loadstring(game:HttpGet("https://pastebin.com/raw/tE9CCGqe", true))()
+        end)
+        
+        if success then
+            Library:Notify("🟢 HITBOX EXPANDER", "Successfully loaded!", 3, "Success")
+        else
+            Library:Notify("🔴 HITBOX EXPANDER", "Failed to load: " .. error, 5, "Error")
+        end
+        
+    else
+        Library:Notify("🔴 HITBOX EXPANDER", "Disabled - May require game rejoin", 3, "Warning")
+    end
+end)
+
 PlayerTab:NewToggle("Infinite Jump", false, function(value)
 	infiniteJumpEnabled = value
 
