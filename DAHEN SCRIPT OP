@@ -1092,7 +1092,7 @@ local autoAttackLoop = nil
 local lastAttackTime = 0
 local attackCooldown = 0.5
 
--- Add the toggle button
+-- Add the first toggle button
 PlayerTab:NewToggle("⚔️ Auto Attack", "Auto move to nearest player and attack", function(state)
     isAutoAttackActive = state
     
@@ -1118,6 +1118,36 @@ PlayerTab:NewToggle("⚔️ Auto Attack", "Auto move to nearest player and attac
     end
 end)
 
+-- Add the second toggle button (Smart Attack)
+local isSmartAttackActive = false
+local smartAttackLoop = nil
+
+PlayerTab:NewToggle("🎯 Smart Auto Attack", "Advanced targeting with weapon detection", function(state)
+    isSmartAttackActive = state
+    
+    if state then
+        Library:Notify("🎯 SMART ATTACK", "ACTIVE - Weapon-based combat!", 3, "Success")
+        
+        if smartAttackLoop then
+            smartAttackLoop:Disconnect()
+        end
+        
+        smartAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
+            if not isSmartAttackActive then return end
+            smartAttackRoutine()
+        end)
+        
+    else
+        Library:Notify("🎯 SMART ATTACK", "INACTIVE", 3, "Warning")
+        
+        if smartAttackLoop then
+            smartAttackLoop:Disconnect()
+            smartAttackLoop = nil
+        end
+    end
+end)
+
+-- Shared functions for both toggles
 function autoAttackRoutine()
     local player = game.Players.LocalPlayer
     local character = player.Character
@@ -1141,6 +1171,46 @@ function autoAttackRoutine()
             -- Player is out of range - MOVE TO PLAYER!
             moveToPlayer(nearestPlayer, rootPart, humanoid)
         end
+    else
+        Library:Notify("🎯 SEARCHING", "No targets found", 2, "Warning")
+    end
+end
+
+function smartAttackRoutine()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart or humanoid.Health <= 0 then return end
+    
+    -- Check if player has a weapon
+    local weapon = character:FindFirstChildOfClass("Tool")
+    local attackRange = weapon and 10 or 5 -- Longer range if has weapon
+    
+    local nearestPlayer, nearestDistance = findNearestPlayer()
+    
+    if nearestPlayer and nearestDistance then
+        if nearestDistance <= attackRange then
+            -- In attack range
+            if tick() - lastAttackTime >= attackCooldown then
+                if weapon then
+                    useWeaponAttack(weapon)
+                else
+                    performMeleeAttack()
+                end
+                lastAttackTime = tick()
+            end
+        else
+            -- Move to target
+            moveToPlayer(nearestPlayer, rootPart, humanoid)
+            
+            -- Show distance indicator
+            Library:Notify("🎯 TARGET", "Distance: " .. math.floor(nearestDistance) .. " studs", 1, "Info")
+        end
+    else
+        Library:Notify("🎯 SEARCHING", "No targets found", 2, "Warning")
     end
 end
 
@@ -1237,6 +1307,38 @@ function performAttack()
     Library:Notify("🗡️ ATTACKING!", "Auto-attack executed!", 1, "Info")
 end
 
+function useWeaponAttack(weapon)
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    
+    -- Activate the weapon
+    if weapon:FindFirstChild("Handle") then
+        -- Simulate clicking the weapon
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+        wait(0.1)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+        
+        -- Weapon-specific visual effect
+        createWeaponEffects(weapon)
+        
+        Library:Notify("🔫 WEAPON ATTACK", "Fired " .. weapon.Name, 1, "Success")
+    end
+end
+
+function performMeleeAttack()
+    local VirtualInputManager = game:GetService("VirtualInputManager")
+    
+    -- Melee combo: Click + Space
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+    wait(0.05)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+    wait(0.05)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+    
+    Library:Notify("🥊 MELEE ATTACK", "Punch/Kick combo!", 1, "Info")
+end
+
 function createAttackEffects(character)
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     if not rootPart then return end
@@ -1293,105 +1395,6 @@ function createAttackEffects(character)
     end)
 end
 
--- Enhanced version with weapon detection
-PlayerTab:NewToggle("🎯 Smart Auto Attack", "Advanced targeting with weapon detection", function(state)
-    isSmartAttackActive = state
-    
-    if state then
-        Library:Notify("🎯 SMART ATTACK", "ACTIVE - Weapon-based combat!", 3, "Success")
-        
-        if smartAttackLoop then
-            smartAttackLoop:Disconnect()
-        end
-        
-        smartAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
-            if not isSmartAttackActive then return end
-            smartAttackRoutine()
-        end)
-        
-    else
-        Library:Notify("🎯 SMART ATTACK", "INACTIVE", 3, "Warning")
-        
-        if smartAttackLoop then
-            smartAttackLoop:Disconnect()
-            smartAttackLoop = nil
-        end
-    end
-end)
-
-local isSmartAttackActive = false
-local smartAttackLoop = nil
-
-function smartAttackRoutine()
-    local player = game.Players.LocalPlayer
-    local character = player.Character
-    if not character then return end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not rootPart or humanoid.Health <= 0 then return end
-    
-    -- Check if player has a weapon
-    local weapon = character:FindFirstChildOfClass("Tool")
-    local attackRange = weapon and 10 or 5 -- Longer range if has weapon
-    
-    local nearestPlayer, nearestDistance = findNearestPlayer()
-    
-    if nearestPlayer and nearestDistance then
-        if nearestDistance <= attackRange then
-            -- In attack range
-            if tick() - lastAttackTime >= attackCooldown then
-                if weapon then
-                    useWeaponAttack(weapon)
-                else
-                    performMeleeAttack()
-                end
-                lastAttackTime = tick()
-            end
-        else
-            -- Move to target
-            moveToPlayer(nearestPlayer, rootPart, humanoid)
-            
-            -- Show distance indicator
-            Library:Notify("🎯 TARGET", "Distance: " .. math.floor(nearestDistance) .. " studs", 1, "Info")
-        end
-    else
-        Library:Notify("🎯 SEARCHING", "No targets found", 2, "Warning")
-    end
-end
-
-function useWeaponAttack(weapon)
-    local VirtualInputManager = game:GetService("VirtualInputManager")
-    
-    -- Activate the weapon
-    if weapon:FindFirstChild("Handle") then
-        -- Simulate clicking the weapon
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-        wait(0.1)
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-        
-        -- Weapon-specific visual effect
-        createWeaponEffects(weapon)
-        
-        Library:Notify("🔫 WEAPON ATTACK", "Fired " .. weapon.Name, 1, "Success")
-    end
-end
-
-function performMeleeAttack()
-    local VirtualInputManager = game:GetService("VirtualInputManager")
-    
-    -- Melee combo: Click + Space
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    wait(0.05)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-    
-    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
-    wait(0.05)
-    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
-    
-    Library:Notify("🥊 MELEE ATTACK", "Punch/Kick combo!", 1, "Info")
-end
-
 function createWeaponEffects(weapon)
     local character = game.Players.LocalPlayer.Character
     if not character then return end
@@ -1410,8 +1413,10 @@ function createWeaponEffects(weapon)
     muzzle.Parent = workspace
     
     game:GetService("Debris"):AddItem(muzzle, 0.2)
-end)
+end
 
+-- Initial notification
+Library:Notify("⚔️ AUTO ATTACK", "Two attack modes available!", 4, "Info")
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
