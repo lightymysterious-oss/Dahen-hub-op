@@ -1086,28 +1086,6 @@ function createDodgeEffects(startPos, endPos)
     end)
 end
 
---                         swingPart.Position = rootPart.Position + (rootPart.CFrame.LookVector * 3)
-            swingPart.BrickColor = BrickColor.new("Bright orange")
-            swingPart.Material = Enum.Material.Neon
-            swingPart.Anchored = true
-            swingPart.CanCollide = false
-            swingPart.Parent = workspace
-            
-            local angle = math.rad(i * 45)
-            local swingTween = TweenService:Create(swingPart, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-                Position = rootPart.Position + Vector3.new(
-                    math.cos(angle) * 5,
-                    0,
-                    math.sin(angle) * 5
-                ),
-                Transparency = 1
-            })
-            
-            swingTween:Play()
-            game:GetService("Debris"):AddItem(swingPart, 1)
-        end
-    end)
-
 -- Auto Attack Script - Moves to nearest player and auto-attacks WITH RUNNING
 local isAutoAttackActive = false
 local autoAttackLoop = nil
