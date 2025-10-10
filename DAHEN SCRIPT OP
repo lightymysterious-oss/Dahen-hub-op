@@ -1086,11 +1086,13 @@ function createDodgeEffects(startPos, endPos)
     end)
 end
 
--- Auto Attack Script - Moves to nearest player and auto-attacks WITH RUNNING
+-- Auto Attack Script - Moves to nearest player and auto-attacks WITH RUNNING (Shift Hold)
 local isAutoAttackActive = false
 local autoAttackLoop = nil
 local lastAttackTime = 0
 local attackCooldown = 0.5
+local isHoldingShift = false
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
 -- Add the first toggle button
 PlayerTab:NewToggle("⚔️ Auto Attack", "Auto move to nearest player and attack", function(state)
@@ -1110,7 +1112,7 @@ PlayerTab:NewToggle("⚔️ Auto Attack", "Auto move to nearest player and attac
         
     else
         Library:Notify("⚔️ AUTO ATTACK", "INACTIVE", 3, "Warning")
-        
+        releaseShift() -- Release shift when disabled
         if autoAttackLoop then
             autoAttackLoop:Disconnect()
             autoAttackLoop = nil
@@ -1139,7 +1141,7 @@ PlayerTab:NewToggle("🎯 Smart Auto Attack", "Advanced targeting with weapon de
         
     else
         Library:Notify("🎯 SMART ATTACK", "INACTIVE", 3, "Warning")
-        
+        releaseShift() -- Release shift when disabled
         if smartAttackLoop then
             smartAttackLoop:Disconnect()
             smartAttackLoop = nil
@@ -1147,15 +1149,38 @@ PlayerTab:NewToggle("🎯 Smart Auto Attack", "Advanced targeting with weapon de
     end
 end)
 
+-- Shift holding functions
+function holdShift()
+    if not isHoldingShift then
+        -- Press and hold Shift
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
+        isHoldingShift = true
+    end
+end
+
+function releaseShift()
+    if isHoldingShift then
+        -- Release Shift
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
+        isHoldingShift = false
+    end
+end
+
 -- Shared functions for both toggles
 function autoAttackRoutine()
     local player = game.Players.LocalPlayer
     local character = player.Character
-    if not character then return end
+    if not character then 
+        releaseShift()
+        return 
+    end
     
     local humanoid = character:FindFirstChild("Humanoid")
     local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not rootPart or humanoid.Health <= 0 then return end
+    if not humanoid or not rootPart or humanoid.Health <= 0 then 
+        releaseShift()
+        return 
+    end
     
     -- Find nearest player
     local nearestPlayer, nearestDistance = findNearestPlayer()
@@ -1163,15 +1188,18 @@ function autoAttackRoutine()
     if nearestPlayer and nearestDistance then
         if nearestDistance <= 8 then
             -- Player is in attack range - ATTACK!
+            releaseShift() -- Release shift when attacking
             if tick() - lastAttackTime >= attackCooldown then
                 performAttack()
                 lastAttackTime = tick()
             end
         else
-            -- Player is out of range - MOVE TO PLAYER!
+            -- Player is out of range - RUN TO PLAYER!
+            holdShift() -- Hold shift when chasing
             moveToPlayer(nearestPlayer, rootPart, humanoid)
         end
     else
+        releaseShift()
         Library:Notify("🎯 SEARCHING", "No targets found", 2, "Warning")
     end
 end
@@ -1179,11 +1207,17 @@ end
 function smartAttackRoutine()
     local player = game.Players.LocalPlayer
     local character = player.Character
-    if not character then return end
+    if not character then 
+        releaseShift()
+        return 
+    end
     
     local humanoid = character:FindFirstChild("Humanoid")
     local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not rootPart or humanoid.Health <= 0 then return end
+    if not humanoid or not rootPart or humanoid.Health <= 0 then 
+        releaseShift()
+        return 
+    end
     
     -- Check if player has a weapon
     local weapon = character:FindFirstChildOfClass("Tool")
@@ -1194,6 +1228,7 @@ function smartAttackRoutine()
     if nearestPlayer and nearestDistance then
         if nearestDistance <= attackRange then
             -- In attack range
+            releaseShift() -- Release shift when attacking
             if tick() - lastAttackTime >= attackCooldown then
                 if weapon then
                     useWeaponAttack(weapon)
@@ -1203,13 +1238,15 @@ function smartAttackRoutine()
                 lastAttackTime = tick()
             end
         else
-            -- Move to target
+            -- Move to target - RUN FAST!
+            holdShift() -- Hold shift when chasing
             moveToPlayer(nearestPlayer, rootPart, humanoid)
             
             -- Show distance indicator
             Library:Notify("🎯 TARGET", "Distance: " .. math.floor(nearestDistance) .. " studs", 1, "Info")
         end
     else
+        releaseShift()
         Library:Notify("🎯 SEARCHING", "No targets found", 2, "Warning")
     end
 end
@@ -1245,19 +1282,21 @@ function findNearestPlayer()
 end
 
 function moveToPlayer(targetPlayer, rootPart, humanoid)
-    if not targetPlayer or not targetPlayer.Character then return end
+    if not targetPlayer or not targetPlayer.Character then 
+        releaseShift()
+        return 
+    end
     
     local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not targetRoot then return end
-    
-    -- HOLD CTRL TO RUN FAST
-    local VirtualInputManager = game:GetService("VirtualInputManager")
-    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftControl, false, game)
+    if not targetRoot then 
+        releaseShift()
+        return 
+    end
     
     -- Calculate direction to target
     local direction = (targetRoot.Position - rootPart.Position).Unit
     
-    -- Move towards target (this will now be faster because Ctrl is held)
+    -- Move towards target (character will run because Shift is held)
     humanoid:MoveTo(targetRoot.Position)
     
     -- Face the target
@@ -1278,18 +1317,11 @@ function moveToPlayer(targetPlayer, rootPart, humanoid)
         game:GetService("Debris"):AddItem(moveEffect, 0.3)
     end)
     
-    -- Release Ctrl when close to target or when stopping
-    spawn(function()
-        local distance = (rootPart.Position - targetRoot.Position).Magnitude
-        if distance <= 10 then
-            wait(0.1)
-            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftControl, false, game)
-        else
-            -- Keep holding Ctrl for 0.5 seconds then check again
-            wait(0.5)
-            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftControl, false, game)
-        end
-    end)
+    -- Stop running if very close to target
+    local distance = (rootPart.Position - targetRoot.Position).Magnitude
+    if distance <= 6 then
+        releaseShift()
+    end
 end
 
 function performAttack()
@@ -1300,9 +1332,8 @@ function performAttack()
     local humanoid = character:FindFirstChild("Humanoid")
     if not humanoid then return end
     
-    -- Release Ctrl when attacking (stop running)
-    local VirtualInputManager = game:GetService("VirtualInputManager")
-    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftControl, false, game)
+    -- Make sure shift is released
+    releaseShift()
     
     -- Method 1: Simulate mouse click (works for most combat systems)
     -- Left click (primary attack)
@@ -1327,10 +1358,8 @@ function performAttack()
 end
 
 function useWeaponAttack(weapon)
-    local VirtualInputManager = game:GetService("VirtualInputManager")
-    
-    -- Release Ctrl when attacking (stop running)
-    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftControl, false, game)
+    -- Make sure shift is released
+    releaseShift()
     
     -- Activate the weapon
     if weapon:FindFirstChild("Handle") then
@@ -1347,10 +1376,8 @@ function useWeaponAttack(weapon)
 end
 
 function performMeleeAttack()
-    local VirtualInputManager = game:GetService("VirtualInputManager")
-    
-    -- Release Ctrl when attacking (stop running)
-    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftControl, false, game)
+    -- Make sure shift is released
+    releaseShift()
     
     -- Melee combo: Click + Space
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
@@ -1440,8 +1467,13 @@ function createWeaponEffects(weapon)
     game:GetService("Debris"):AddItem(muzzle, 0.2)
 end
 
+-- Clean up when script stops
+game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
+    releaseShift()
+end)
+
 -- Initial notification
-Library:Notify("⚔️ AUTO ATTACK", "Now with running (Ctrl) enabled!", 4, "Info")
+Library:Notify("⚔️ AUTO ATTACK", "Now with Shift running enabled!", 4, "Info")
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
