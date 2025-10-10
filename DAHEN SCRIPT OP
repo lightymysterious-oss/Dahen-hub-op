@@ -1086,20 +1086,22 @@ function createDodgeEffects(startPos, endPos)
     end)
 end
 
--- Auto Attack Script - Moves to nearest player and auto-attacks WITH RUNNING (Shift Hold)
+-- Auto Attack Script - Spam attacks with movement during combat
 local isAutoAttackActive = false
 local autoAttackLoop = nil
 local lastAttackTime = 0
-local attackCooldown = 0.5
+local attackCooldown = 0.1 -- Much faster cooldown for spam
 local isHoldingShift = false
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local lastMovementTime = 0
+local movementCooldown = 0.3
 
 -- Add the first toggle button
-PlayerTab:NewToggle("⚔️ Auto Attack", "Auto move to nearest player and attack", function(state)
+PlayerTab:NewToggle("⚔️ Auto Attack", "Spam attacks with movement", function(state)
     isAutoAttackActive = state
     
     if state then
-        Library:Notify("⚔️ AUTO ATTACK", "ACTIVE - Hunting enemies!", 3, "Success")
+        Library:Notify("⚔️ AUTO ATTACK", "ACTIVE - Spam attacks with movement!", 3, "Success")
         
         if autoAttackLoop then
             autoAttackLoop:Disconnect()
@@ -1124,11 +1126,11 @@ end)
 local isSmartAttackActive = false
 local smartAttackLoop = nil
 
-PlayerTab:NewToggle("🎯 Smart Auto Attack", "Advanced targeting with weapon detection", function(state)
+PlayerTab:NewToggle("🎯 Smart Auto Attack", "Spam attacks with advanced movement", function(state)
     isSmartAttackActive = state
     
     if state then
-        Library:Notify("🎯 SMART ATTACK", "ACTIVE - Weapon-based combat!", 3, "Success")
+        Library:Notify("🎯 SMART ATTACK", "ACTIVE - Advanced combat movement!", 3, "Success")
         
         if smartAttackLoop then
             smartAttackLoop:Disconnect()
@@ -1152,7 +1154,6 @@ end)
 -- Shift holding functions
 function holdShift()
     if not isHoldingShift then
-        -- Press and hold Shift
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
         isHoldingShift = true
     end
@@ -1160,10 +1161,91 @@ end
 
 function releaseShift()
     if isHoldingShift then
-        -- Release Shift
         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
         isHoldingShift = false
     end
+end
+
+-- Combat movement functions
+function performCombatMovement(character, targetPlayer)
+    if not character or not targetPlayer or not targetPlayer.Character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    
+    if not humanoid or not rootPart or not targetRoot then return end
+    
+    -- Only move every movementCooldown seconds
+    if tick() - lastMovementTime < movementCooldown then return end
+    
+    lastMovementTime = tick()
+    
+    local distance = (rootPart.Position - targetRoot.Position).Magnitude
+    
+    -- Different movement patterns based on distance
+    if distance <= 8 then
+        -- Close range: strafe around target
+        local movementPatterns = {
+            function() strafeLeft(rootPart, targetRoot, humanoid) end,
+            function() strafeRight(rootPart, targetRoot, humanoid) end,
+            function() circleStrafe(rootPart, targetRoot, humanoid) end,
+            function() backAndForward(rootPart, targetRoot, humanoid) end
+        }
+        
+        -- Random movement pattern
+        local randomPattern = movementPatterns[math.random(1, #movementPatterns)]
+        randomPattern()
+        
+    elseif distance <= 15 then
+        -- Medium range: advance while strafing
+        advanceWithStrafing(rootPart, targetRoot, humanoid)
+    end
+end
+
+function strafeLeft(rootPart, targetRoot, humanoid)
+    local rightVector = rootPart.CFrame.RightVector
+    local movePosition = rootPart.Position - (rightVector * 4)
+    humanoid:MoveTo(movePosition)
+end
+
+function strafeRight(rootPart, targetRoot, humanoid)
+    local rightVector = rootPart.CFrame.RightVector
+    local movePosition = rootPart.Position + (rightVector * 4)
+    humanoid:MoveTo(movePosition)
+end
+
+function circleStrafe(rootPart, targetRoot, humanoid)
+    local directionToTarget = (targetRoot.Position - rootPart.Position).Unit
+    local rightVector = rootPart.CFrame.RightVector
+    local circlePosition = rootPart.Position + (rightVector * 3) + (directionToTarget * 2)
+    humanoid:MoveTo(circlePosition)
+end
+
+function backAndForward(rootPart, targetRoot, humanoid)
+    local directionToTarget = (targetRoot.Position - rootPart.Position).Unit
+    -- Move back a bit then forward
+    local moveBackPosition = rootPart.Position - (directionToTarget * 3)
+    humanoid:MoveTo(moveBackPosition)
+    
+    -- After a short delay, move forward
+    spawn(function()
+        wait(0.2)
+        if humanoid and humanoid.Health > 0 then
+            local moveForwardPosition = rootPart.Position + (directionToTarget * 2)
+            humanoid:MoveTo(moveForwardPosition)
+        end
+    end)
+end
+
+function advanceWithStrafing(rootPart, targetRoot, humanoid)
+    local directionToTarget = (targetRoot.Position - rootPart.Position).Unit
+    local rightVector = rootPart.CFrame.RightVector
+    
+    -- Combine forward movement with slight strafing
+    local strafeDirection = math.random() > 0.5 and rightVector or -rightVector
+    local advancePosition = rootPart.Position + (directionToTarget * 5) + (strafeDirection * 2)
+    humanoid:MoveTo(advancePosition)
 end
 
 -- Shared functions for both toggles
@@ -1186,13 +1268,16 @@ function autoAttackRoutine()
     local nearestPlayer, nearestDistance = findNearestPlayer()
     
     if nearestPlayer and nearestDistance then
-        if nearestDistance <= 8 then
-            -- Player is in attack range - ATTACK!
-            releaseShift() -- Release shift when attacking
-            if tick() - lastAttackTime >= attackCooldown then
-                performAttack()
-                lastAttackTime = tick()
-            end
+        if nearestDistance <= 10 then -- Increased attack range
+            -- Player is in attack range - SPAM ATTACKS WITH MOVEMENT!
+            releaseShift() -- Release shift when in combat range
+            
+            -- Perform combat movement
+            performCombatMovement(character, nearestPlayer)
+            
+            -- SPAM ATTACKS (no cooldown check for true spam)
+            performSpamAttack()
+            
         else
             -- Player is out of range - RUN TO PLAYER!
             holdShift() -- Hold shift when chasing
@@ -1200,7 +1285,6 @@ function autoAttackRoutine()
         end
     else
         releaseShift()
-        Library:Notify("🎯 SEARCHING", "No targets found", 2, "Warning")
     end
 end
 
@@ -1221,33 +1305,32 @@ function smartAttackRoutine()
     
     -- Check if player has a weapon
     local weapon = character:FindFirstChildOfClass("Tool")
-    local attackRange = weapon and 10 or 5 -- Longer range if has weapon
+    local attackRange = weapon and 12 or 8 -- Increased range
     
     local nearestPlayer, nearestDistance = findNearestPlayer()
     
     if nearestPlayer and nearestDistance then
         if nearestDistance <= attackRange then
-            -- In attack range
-            releaseShift() -- Release shift when attacking
-            if tick() - lastAttackTime >= attackCooldown then
-                if weapon then
-                    useWeaponAttack(weapon)
-                else
-                    performMeleeAttack()
-                end
-                lastAttackTime = tick()
+            -- In attack range - SPAM ATTACKS WITH MOVEMENT!
+            releaseShift()
+            
+            -- Advanced combat movement
+            performCombatMovement(character, nearestPlayer)
+            
+            -- Weapon-based spam attacks
+            if weapon then
+                spamWeaponAttack(weapon)
+            else
+                spamMeleeAttack()
             end
+            
         else
             -- Move to target - RUN FAST!
-            holdShift() -- Hold shift when chasing
+            holdShift()
             moveToPlayer(nearestPlayer, rootPart, humanoid)
-            
-            -- Show distance indicator
-            Library:Notify("🎯 TARGET", "Distance: " .. math.floor(nearestDistance) .. " studs", 1, "Info")
         end
     else
         releaseShift()
-        Library:Notify("🎯 SEARCHING", "No targets found", 2, "Warning")
     end
 end
 
@@ -1293,158 +1376,109 @@ function moveToPlayer(targetPlayer, rootPart, humanoid)
         return 
     end
     
-    -- Calculate direction to target
-    local direction = (targetRoot.Position - rootPart.Position).Unit
-    
-    -- Move towards target (character will run because Shift is held)
+    -- Move towards target
     humanoid:MoveTo(targetRoot.Position)
     
     -- Face the target
     rootPart.CFrame = CFrame.new(rootPart.Position, Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z))
     
-    -- Visual effect for movement (different color when running)
-    spawn(function()
-        local moveEffect = Instance.new("Part")
-        moveEffect.Size = Vector3.new(1, 0.2, 1)
-        moveEffect.Position = rootPart.Position - Vector3.new(0, 2.5, 0)
-        moveEffect.BrickColor = BrickColor.new("Bright blue") -- Blue when running
-        moveEffect.Material = Enum.Material.Neon
-        moveEffect.Anchored = true
-        moveEffect.CanCollide = false
-        moveEffect.Transparency = 0.7
-        moveEffect.Parent = workspace
-        
-        game:GetService("Debris"):AddItem(moveEffect, 0.3)
-    end)
-    
     -- Stop running if very close to target
     local distance = (rootPart.Position - targetRoot.Position).Magnitude
-    if distance <= 6 then
+    if distance <= 8 then
         releaseShift()
     end
 end
 
-function performAttack()
-    local player = game.Players.LocalPlayer
-    local character = player.Character
-    if not character then return end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    if not humanoid then return end
-    
-    -- Make sure shift is released
-    releaseShift()
-    
-    -- Method 1: Simulate mouse click (works for most combat systems)
-    -- Left click (primary attack)
+-- SPAM ATTACK FUNCTIONS
+function performSpamAttack()
+    -- Rapid mouse clicks for spam
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    wait(0.05)
+    wait(0.02)
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
     
-    -- Method 2: Press attack keys (E, F, Q, R, Space)
+    -- Random attack keys for variety
     local attackKeys = {Enum.KeyCode.E, Enum.KeyCode.F, Enum.KeyCode.Q, Enum.KeyCode.R, Enum.KeyCode.Space}
+    local randomKey = attackKeys[math.random(1, #attackKeys)]
     
-    for _, key in pairs(attackKeys) do
-        VirtualInputManager:SendKeyEvent(true, key, false, game)
-        wait(0.03)
-        VirtualInputManager:SendKeyEvent(false, key, false, game)
-        wait(0.02)
-    end
+    VirtualInputManager:SendKeyEvent(true, randomKey, false, game)
+    wait(0.02)
+    VirtualInputManager:SendKeyEvent(false, randomKey, false, game)
     
-    -- Visual effect for attack
-    createAttackEffects(character)
-    
-    Library:Notify("🗡️ ATTACKING!", "Auto-attack executed!", 1, "Info")
+    -- Create spam attack effects
+    createSpamAttackEffects()
 end
 
-function useWeaponAttack(weapon)
-    -- Make sure shift is released
-    releaseShift()
-    
-    -- Activate the weapon
-    if weapon:FindFirstChild("Handle") then
-        -- Simulate clicking the weapon
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-        wait(0.1)
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-        
-        -- Weapon-specific visual effect
-        createWeaponEffects(weapon)
-        
-        Library:Notify("🔫 WEAPON ATTACK", "Fired " .. weapon.Name, 1, "Success")
-    end
-end
-
-function performMeleeAttack()
-    -- Make sure shift is released
-    releaseShift()
-    
-    -- Melee combo: Click + Space
+function spamWeaponAttack(weapon)
+    -- Rapid weapon activation
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    wait(0.05)
+    wait(0.01)
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
     
+    -- Additional key presses for combo
+    if math.random(1, 3) == 1 then -- 33% chance for extra input
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.R, false, game)
+        wait(0.01)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.R, false, game)
+    end
+    
+    createWeaponEffects(weapon)
+end
+
+function spamMeleeAttack()
+    -- Rapid melee combo
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+    wait(0.01)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    
+    -- Additional melee inputs
     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
-    wait(0.05)
+    wait(0.01)
     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
     
-    Library:Notify("🥊 MELEE ATTACK", "Punch/Kick combo!", 1, "Info")
+    createAttackEffects()
 end
 
-function createAttackEffects(character)
+function createSpamAttackEffects()
+    local character = game.Players.LocalPlayer.Character
+    if not character then return end
+    
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     if not rootPart then return end
     
-    local TweenService = game:GetService("TweenService")
-    
-    -- SWING EFFECT
+    -- Rapid flash effect for spam attacks
     spawn(function()
-        for i = 1, 3 do
-            local swingPart = Instance.new("Part")
-            swingPart.Size = Vector3.new(2, 2, 0.5)
-            swingPart.Position = rootPart.Position + (rootPart.CFrame.LookVector * 3)
-            swingPart.BrickColor = BrickColor.new("Bright orange")
-            swingPart.Material = Enum.Material.Neon
-            swingPart.Anchored = true
-            swingPart.CanCollide = false
-            swingPart.Parent = workspace
-            
-            local angle = math.rad(i * 45)
-            local swingTween = TweenService:Create(swingPart, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-                Position = rootPart.Position + Vector3.new(
-                    math.cos(angle) * 5,
-                    0,
-                    math.sin(angle) * 5
-                ),
-                Transparency = 1
-            })
-            
-            swingTween:Play()
-            game:GetService("Debris"):AddItem(swingPart, 1)
-        end
+        local flash = Instance.new("Part")
+        flash.Size = Vector3.new(3, 3, 3)
+        flash.Position = rootPart.Position
+        flash.BrickColor = BrickColor.new("Bright red")
+        flash.Material = Enum.Material.Neon
+        flash.Transparency = 0.3
+        flash.Anchored = true
+        flash.CanCollide = false
+        flash.Parent = workspace
+        
+        game:GetService("Debris"):AddItem(flash, 0.1)
     end)
+end
+
+function createAttackEffects()
+    local character = game.Players.LocalPlayer.Character
+    if not character then return end
     
-    -- IMPACT WAVE
-    spawn(function()
-        local wave = Instance.new("Part")
-        wave.Shape = Enum.PartType.Cylinder
-        wave.Size = Vector3.new(0.2, 2, 2)
-        wave.Position = rootPart.Position
-        wave.Orientation = Vector3.new(0, 0, 90)
-        wave.BrickColor = BrickColor.new("Bright red")
-        wave.Material = Enum.Material.Neon
-        wave.Anchored = true
-        wave.CanCollide = false
-        wave.Parent = workspace
-        
-        local waveTween = TweenService:Create(wave, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
-            Size = Vector3.new(0.2, 10, 10),
-            Transparency = 1
-        })
-        
-        waveTween:Play()
-        game:GetService("Debris"):AddItem(wave, 1)
-    end)
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+    
+    -- Quick melee effect
+    local swing = Instance.new("Part")
+    swing.Size = Vector3.new(2, 2, 0.3)
+    swing.Position = rootPart.Position + (rootPart.CFrame.LookVector * 2)
+    swing.BrickColor = BrickColor.new("Bright orange")
+    swing.Material = Enum.Material.Neon
+    swing.Anchored = true
+    swing.CanCollide = false
+    swing.Parent = workspace
+    
+    game:GetService("Debris"):AddItem(swing, 0.2)
 end
 
 function createWeaponEffects(weapon)
@@ -1454,17 +1488,17 @@ function createWeaponEffects(weapon)
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     if not rootPart then return end
     
-    -- Muzzle flash effect for weapons
+    -- Quick muzzle flash
     local muzzle = Instance.new("Part")
-    muzzle.Size = Vector3.new(1, 1, 1)
-    muzzle.Position = rootPart.Position + (rootPart.CFrame.LookVector * 4)
+    muzzle.Size = Vector3.new(0.5, 0.5, 0.5)
+    muzzle.Position = rootPart.Position + (rootPart.CFrame.LookVector * 3)
     muzzle.BrickColor = BrickColor.new("Bright yellow")
     muzzle.Material = Enum.Material.Neon
     muzzle.Anchored = true
     muzzle.CanCollide = false
     muzzle.Parent = workspace
     
-    game:GetService("Debris"):AddItem(muzzle, 0.2)
+    game:GetService("Debris"):AddItem(muzzle, 0.1)
 end
 
 -- Clean up when script stops
@@ -1473,7 +1507,7 @@ game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
 end)
 
 -- Initial notification
-Library:Notify("⚔️ AUTO ATTACK", "Now with Shift running enabled!", 4, "Info")
+Library:Notify("⚔️ AUTO ATTACK", "Spam attacks with combat movement enabled!", 4, "Info")
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
