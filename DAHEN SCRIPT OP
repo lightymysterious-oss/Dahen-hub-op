@@ -2164,6 +2164,188 @@ end)
 -- Initial notification
 Library:Notify("⚔️ AUTO ATTACK", "Mouse-click attacks with combat movement!", 4, "Info")
 
+-- Auto TP Attack - Loop TP to nearest player with spam attacks
+local isAutoTPAttackActive = false
+local autoTPAttackLoop = nil
+local currentTarget = nil
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+-- Add the toggle button
+PlayerTab:NewToggle("🔁 Killaura Rage", "Loop TP to nearest player with spam attacks", function(state)
+    isAutoTPAttackActive = state
+    
+    if state then
+        Library:Notify("🔁 KILLAURA RAGE", "ACTIVE - Teleporting and attacking!", 3, "Success")
+        
+        if autoTPAttackLoop then
+            autoTPAttackLoop:Disconnect()
+        end
+        
+        autoTPAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
+            if not isAutoTPAttackActive then return end
+            autoTPAttackRoutine()
+        end)
+        
+    else
+        Library:Notify("🔁 KILLAURA RAGE", "INACTIVE", 3, "Warning")
+        currentTarget = nil
+        if autoTPAttackLoop then
+            autoTPAttackLoop:Disconnect()
+            autoTPAttackLoop = nil
+        end
+    end
+end)
+
+-- Main TP attack routine
+function autoTPAttackRoutine()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart or humanoid.Health <= 0 then return end
+    
+    -- Check if current target is still valid
+    if currentTarget then
+        if not isTargetValid(currentTarget) then
+            -- Target died or became invalid, find new one
+            currentTarget = nil
+            Library:Notify("🎯 TARGET DOWN", "Finding new target...", 2, "Info")
+        end
+    end
+    
+    -- Find new target if needed
+    if not currentTarget then
+        currentTarget = findNearestPlayer()
+        if currentTarget then
+            Library:Notify("🎯 NEW TARGET", "Targeting: " .. currentTarget.Name, 2, "Success")
+        else
+            return -- No targets found
+        end
+    end
+    
+    -- TP to target and attack
+    if currentTarget and currentTarget.Character then
+        local targetRoot = currentTarget.Character:FindFirstChild("HumanoidRootPart")
+        if targetRoot then
+            -- Teleport behind the target
+            local behindOffset = -targetRoot.CFrame.LookVector * 3
+            local tpPosition = targetRoot.Position + behindOffset + Vector3.new(0, 3, 0)
+            
+            -- Teleport to target
+            rootPart.CFrame = CFrame.new(tpPosition)
+            
+            -- Face the target
+            rootPart.CFrame = CFrame.new(rootPart.Position, Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z))
+            
+            -- Spam attacks
+            performSpamAttacks()
+        end
+    end
+end
+
+-- Check if target is still valid (alive and in game)
+function isTargetValid(targetPlayer)
+    if not targetPlayer then return false end
+    if not targetPlayer.Character then return false end
+    
+    local humanoid = targetPlayer.Character:FindFirstChild("Humanoid")
+    if not humanoid then return false end
+    
+    return humanoid.Health > 0
+end
+
+-- Find nearest player (excluding current target if any)
+function findNearestPlayer()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return nil end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return nil end
+    
+    local nearestPlayer = nil
+    local nearestDistance = math.huge
+    
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+            
+            if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
+                local distance = (rootPart.Position - otherRoot.Position).Magnitude
+                
+                if distance < nearestDistance then
+                    nearestDistance = distance
+                    nearestPlayer = otherPlayer
+                end
+            end
+        end
+    end
+    
+    return nearestPlayer
+end
+
+-- Perform spam attacks
+function performSpamAttacks()
+    -- Rapid mouse clicks for spam
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+    wait(0.01)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    
+    -- Additional rapid clicks for more spam
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+    wait(0.01)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+end
+
+-- Monitor target health to auto-switch
+local targetMonitorLoop = nil
+
+-- Start monitoring target health when toggle is enabled
+game:GetService("Players").LocalPlayer.Chatted:Connect(function(message)
+    if message:lower() == "start target monitor" and isAutoTPAttackActive and not targetMonitorLoop then
+        startTargetMonitor()
+    end
+end)
+
+function startTargetMonitor()
+    if targetMonitorLoop then
+        targetMonitorLoop:Disconnect()
+    end
+    
+    targetMonitorLoop = game:GetService("RunService").Heartbeat:Connect(function()
+        if not isAutoTPAttackActive then
+            if targetMonitorLoop then
+                targetMonitorLoop:Disconnect()
+                targetMonitorLoop = nil
+            end
+            return
+        end
+        
+        if currentTarget and currentTarget.Character then
+            local humanoid = currentTarget.Character:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health <= 0 then
+                Library:Notify("💀 TARGET ELIMINATED", "Moving to next target...", 2, "Warning")
+                currentTarget = nil
+            end
+        end
+    end)
+end
+
+-- Clean up when script stops
+game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
+    currentTarget = nil
+    if targetMonitorLoop then
+        targetMonitorLoop:Disconnect()
+        targetMonitorLoop = nil
+    end
+end)
+
+-- Initial notification
+Library:Notify("🔁 AUTO TP ATTACK", "Will TP to nearest player and spam attacks!", 4, "Info")
+
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
 
