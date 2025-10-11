@@ -21,7 +21,7 @@ end
 
 -- Create main window
 local Window = Library:LoadWindow(
-	"DAHEN HUB INK GAME: https://discord.gg/golddoom, https://discord.gg/ringta",  
+	"DAHEH HUB INK GAME: https://discord.gg/golddoom, https://discord.gg/ringta",  
 	"DAHEN HUB TESTING | INK GAMES", 
 	"1.2.0", 
 	nil, 
