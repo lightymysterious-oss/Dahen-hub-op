@@ -2440,6 +2440,171 @@ end)
 -- Initial notification
 Library:Notify("🔁 AUTO TP ATTACK", "Will TP to nearest player and spam attacks!", 4, "Info")
 
+-- KILLAURA LEGIT - Auto spam attack players in hitbox range with optional hitbox expansion
+local isKillAuraLegitActive = false
+local killAuraLegitLoop = nil
+local hitboxRange = 10  -- Default detection range / expansion size in studs
+local attackCooldown = 0.1  -- Default attack speed in seconds
+local lastAttackTime = 0
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local localPlayer = Players.LocalPlayer
+
+-- Wait for UI to load if necessary
+task.wait(1)
+
+-- KILLAURA LEGIT Toggle
+PlayerTab:NewToggle("🔥 KILLAURA LEGIT", "Auto attack players in hitbox range", function(state)
+    isKillAuraLegitActive = state
+    
+    if state then
+        Library:Notify("🔥 KILLAURA LEGIT", "ACTIVE - Attacking in range!", 3, "Success")
+        
+        if killAuraLegitLoop then
+            killAuraLegitLoop:Disconnect()
+        end
+        
+        killAuraLegitLoop = RunService.Heartbeat:Connect(function()
+            if not isKillAuraLegitActive then return end
+            killAuraLegitRoutine()
+        end)
+        
+        -- Expand hitboxes on activation
+        expandHitboxes(hitboxRange)
+        
+    else
+        Library:Notify("🔥 KILLAURA LEGIT", "INACTIVE", 3, "Warning")
+        if killAuraLegitLoop then
+            killAuraLegitLoop:Disconnect()
+            killAuraLegitLoop = nil
+        end
+        
+        -- Restore original hitboxes on deactivation
+        restoreHitboxes()
+    end
+end)
+
+-- Hitbox Range Textbox (sets both detection range and expansion size)
+PlayerTab:NewTextBox("📏 Hitbox Range", "Detection range & expand size (5-20 studs)", function(text)
+    local range = tonumber(text)
+    if range and range >= 5 and range <= 20 then
+        hitboxRange = range
+        Library:Notify("📏 HITBOX RANGE", "Set to " .. range .. " studs", 2, "Success")
+        
+        -- Re-apply expansion if active
+        if isKillAuraLegitActive then
+            restoreHitboxes()  -- Reset first
+            expandHitboxes(hitboxRange)
+        end
+    else
+        Library:Notify("❌ INVALID RANGE", "Enter 5-20", 3, "Error")
+    end
+end)
+
+-- Function to expand hitboxes client-side (increases Head size for easier hits)
+local originalSizes = {}  -- Store original sizes for restoration
+local function expandHitboxes(size)
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character then
+            local head = player.Character:FindFirstChild("Head")
+            if head and head:IsA("BasePart") then
+                originalSizes[player.UserId] = originalSizes[player.UserId] or head.Size
+                head.Size = Vector3.new(size, size, size)
+                head.Transparency = 0.5  -- Semi-transparent for visual cue (optional, remove if too obvious for legit)
+            end
+        end
+    end
+end
+
+-- Function to restore original hitboxes
+local function restoreHitboxes()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character then
+            local head = player.Character:FindFirstChild("Head")
+            if head and head:IsA("BasePart") and originalSizes[player.UserId] then
+                head.Size = originalSizes[player.UserId]
+                head.Transparency = 0  -- Reset transparency
+            end
+        end
+    end
+    originalSizes = {}  -- Clear table
+end
+
+-- KILLAURA LEGIT ROUTINE - Auto spam attack players in range
+function killAuraLegitRoutine()
+    local character = localPlayer.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    if not humanoid or not rootPart or humanoid.Health <= 0 then return end
+    
+    local currentTime = tick()
+    
+    -- Check all players in range and attack
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= localPlayer and otherPlayer.Character then
+            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+            
+            if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
+                local distance = (rootPart.Position - otherRoot.Position).Magnitude
+                
+                if distance <= hitboxRange then
+                    -- Face the target
+                    rootPart.CFrame = CFrame.new(rootPart.Position, otherRoot.Position)
+                    
+                    -- Auto equip weapon if available
+                    local weapon = character:FindFirstChildOfClass("Tool")
+                    if weapon and weapon.Parent ~= character then
+                        humanoid:EquipTool(weapon)
+                    end
+                    
+                    -- Spam attack with cooldown
+                    if currentTime - lastAttackTime >= attackCooldown then
+                        -- Simulate mouse click attack
+                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                        task.wait(0.02)
+                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                        
+                        lastAttackTime = currentTime
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Auto disable on death
+localPlayer.CharacterAdded:Connect(function(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    humanoid.Died:Connect(function()
+        if isKillAuraLegitActive then
+            isKillAuraLegitActive = false
+            Library:Notify("🔥 KILLAURA LEGIT", "Auto-disabled (you died)", 3, "Warning")
+            restoreHitboxes()  -- Reset hitboxes
+        end
+        if killAuraLegitLoop then
+            killAuraLegitLoop:Disconnect()
+            killAuraLegitLoop = nil
+        end
+    end)
+end)
+
+-- Clean up on character removal
+localPlayer.CharacterRemoving:Connect(function()
+    if killAuraLegitLoop then
+        killAuraLegitLoop:Disconnect()
+        killAuraLegitLoop = nil
+    end
+    restoreHitboxes()  -- Reset hitboxes
+end)
+
+-- Initial notification
+Library:Notify("🔥 KILLAURA LEGIT", "Auto spam attack in hitbox range!", 4, "Info")
+
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
 
