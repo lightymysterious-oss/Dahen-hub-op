@@ -2440,10 +2440,10 @@ end)
 -- Initial notification
 Library:Notify("🔁 KILLAURA RAGE", "Will TP to nearest player and spam attacks!", 4, "Info")
 
--- Fixed KILLAURA LEGIT - Won't break other tabs
+-- FIXED KILLAURA LEGIT - Actually Works with Textbox
 local isKillAuraActive = false
 local killAuraLoop = nil
-local killAuraRange = 10
+local killAuraRange = 15
 local lastAttackTime = 0
 local attackCooldown = 0.1
 local VirtualInputManager = game:GetService("VirtualInputManager")
@@ -2451,123 +2451,156 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local localPlayer = Players.LocalPlayer
 
--- Safe function to check if UI elements exist
-local function safeCreateToggle()
-    if PlayerTab and PlayerTab.NewToggle then
-        -- KILLAURA LEGIT Toggle
-        PlayerTab:NewToggle("🔪 KILLAURA LEGIT", "Auto attack players in hitbox range", function(state)
-            isKillAuraActive = state
+-- Wait for UI to load
+task.wait(1)
+
+-- KILLAURA LEGIT Toggle
+PlayerTab:NewToggle("🔪 KILLAURA LEGIT", "Auto attack players in range", function(state)
+    isKillAuraActive = state
+    
+    if state then
+        Library:Notify("🔪 KILLAURA", "ACTIVE - Attacking nearby players!", 3, "Success")
+        
+        if killAuraLoop then
+            killAuraLoop:Disconnect()
+        end
+        
+        killAuraLoop = RunService.Heartbeat:Connect(function()
+            if not isKillAuraActive then return end
+            killAuraRoutine()
+        end)
+        
+    else
+        Library:Notify("🔪 KILLAURA", "INACTIVE", 3, "Warning")
+        if killAuraLoop then
+            killAuraLoop:Disconnect()
+            killAuraLoop = nil
+        end
+    end
+end)
+
+-- Range Textbox
+PlayerTab:NewTextBox("📏 KillAura Range", "Enter range (5-50 studs)", function(text)
+    local range = tonumber(text)
+    if range and range >= 5 and range <= 50 then
+        killAuraRange = range
+        Library:Notify("🔪 RANGE SET", "KillAura range: " .. range .. " studs", 2, "Success")
+    else
+        Library:Notify("❌ INVALID RANGE", "Please enter number between 5-50", 3, "Error")
+    end
+end)
+
+-- Attack Speed Textbox
+PlayerTab:NewTextBox("⚡ Attack Speed", "Enter speed (0.05-0.5 seconds)", function(text)
+    local speed = tonumber(text)
+    if speed and speed >= 0.05 and speed <= 0.5 then
+        attackCooldown = speed
+        Library:Notify("⚡ SPEED SET", "Attack speed: " .. string.format("%.2f", speed) .. "s", 2, "Success")
+    else
+        Library:Notify("❌ INVALID SPEED", "Please enter number between 0.05-0.5", 3, "Error")
+    end
+end)
+
+-- SIMPLE KILLAURA THAT ACTUALLY WORKS
+function killAuraRoutine()
+    local character = localPlayer.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    if not humanoid or not rootPart or humanoid.Health <= 0 then return end
+    
+    local currentTime = tick()
+    
+    -- Find closest player
+    local closestPlayer = nil
+    local closestDistance = killAuraRange + 1
+    
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= localPlayer and otherPlayer.Character then
+            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
             
-            if state then
-                Library:Notify("🔪 KILLAURA LEGIT", "ACTIVE - Attacking nearby players!", 3, "Success")
+            if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
+                local distance = (rootPart.Position - otherRoot.Position).Magnitude
                 
-                if killAuraLoop then
-                    killAuraLoop:Disconnect()
-                end
-                
-                killAuraLoop = RunService.Heartbeat:Connect(function()
-                    if not isKillAuraActive then return end
-                    killAuraRoutine()
-                end)
-                
-            else
-                Library:Notify("🔪 KILLAURA LEGIT", "INACTIVE", 3, "Warning")
-                if killAuraLoop then
-                    killAuraLoop:Disconnect()
-                    killAuraLoop = nil
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestPlayer = otherPlayer
                 end
             end
-        end)
+        end
+    end
+    
+    -- Attack if player found in range
+    if closestPlayer and closestDistance <= killAuraRange then
+        -- Face the target
+        local targetRoot = closestPlayer.Character.HumanoidRootPart
+        local lookPosition = Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z)
+        rootPart.CFrame = CFrame.new(rootPart.Position, lookPosition)
         
-        -- Hitbox Range Slider
-        PlayerTab:NewSlider("🎯 KillAura Range", "How far to detect players for KillAura", 25, 5, function(value)
-            killAuraRange = value
-            Library:Notify("🔪 KILLAURA RANGE", "Set to " .. value .. " studs", 2, "Info")
-        end)
-        
-        -- Attack Speed Slider
-        PlayerTab:NewSlider("⚡ Attack Speed", "How fast to attack (lower = faster)", 0.5, 0.05, function(value)
-            attackCooldown = value
-            Library:Notify("⚡ ATTACK SPEED", "Set to " .. string.format("%.2f", value) .. " seconds", 2, "Info")
-        end)
-        
-        return true
-    else
-        warn("PlayerTab not found - UI might not be loaded yet")
-        return false
+        -- Attack with cooldown
+        if currentTime - lastAttackTime >= attackCooldown then
+            -- Mouse click attack
+            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+            task.wait(0.02)
+            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+            
+            lastAttackTime = currentTime
+            
+            -- Auto equip weapon if available
+            local weapon = character:FindFirstChildOfClass("Tool")
+            if weapon and weapon.Parent ~= character then
+                humanoid:EquipTool(weapon)
+            end
+        end
     end
 end
 
--- Try to create the toggle with error handling
-local success, err = pcall(safeCreateToggle)
-if not success then
-    warn("Failed to create KillAura UI: " .. tostring(err))
-    
-    -- Retry after a delay
-    delay(2, function()
-        local retrySuccess = pcall(safeCreateToggle)
-        if retrySuccess then
-            Library:Notify("🔪 KILLAURA LEGIT", "Loaded successfully!", 3, "Success")
-        end
-    end)
-end
-
--- Safe KillAura routine
-function killAuraRoutine()
-    local success, err = pcall(function()
-        local character = localPlayer.Character
-        if not character then return end
-        
-        local humanoid = character:FindFirstChild("Humanoid")
-        local rootPart = character:FindFirstChild("HumanoidRootPart")
-        
-        if not humanoid or not rootPart or humanoid.Health <= 0 then return end
-        
-        local currentTime = tick()
-        
-        -- Find all players in range
-        for _, otherPlayer in pairs(Players:GetPlayers()) do
-            if otherPlayer ~= localPlayer and otherPlayer.Character then
-                local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-                local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
-                
-                if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
-                    local distance = (rootPart.Position - otherRoot.Position).Magnitude
-                    
-                    if distance <= killAuraRange then
-                        -- Face the target
-                        local lookPosition = Vector3.new(otherRoot.Position.X, rootPart.Position.Y, otherRoot.Position.Z)
-                        rootPart.CFrame = CFrame.new(rootPart.Position, lookPosition)
-                        
-                        -- Attack with cooldown
-                        if currentTime - lastAttackTime >= attackCooldown then
-                            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-                            task.wait(0.02)
-                            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-                            lastAttackTime = currentTime
+-- Debug toggle to see detection
+PlayerTab:NewToggle("🐛 Show Detection", "Show players in range", function(state)
+    if state then
+        local debugLoop = RunService.Heartbeat:Connect(function()
+            if not state then 
+                debugLoop:Disconnect() 
+                return 
+            end
+            
+            local character = localPlayer.Character
+            if not character then return end
+            
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            if not rootPart then return end
+            
+            local playersFound = 0
+            for _, otherPlayer in pairs(Players:GetPlayers()) do
+                if otherPlayer ~= localPlayer and otherPlayer.Character then
+                    local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if otherRoot then
+                        local distance = (rootPart.Position - otherRoot.Position).Magnitude
+                        if distance <= killAuraRange then
+                            playersFound = playersFound + 1
+                            print("🎯 " .. otherPlayer.Name .. " - " .. math.floor(distance) .. " studs")
                         end
-                        
-                        break -- Only attack one player per tick
                     end
                 end
             end
-        end
-    end)
-    
-    if not success then
-        warn("KillAura error: " .. tostring(err))
+            
+            if playersFound == 0 then
+                print("🔍 No players in " .. killAuraRange .. " stud range")
+            end
+        end)
     end
-end
+end)
 
--- Safe cleanup
+-- Auto disable on death
 localPlayer.CharacterAdded:Connect(function(character)
     local humanoid = character:WaitForChild("Humanoid")
     humanoid.Died:Connect(function()
         if isKillAuraActive then
             isKillAuraActive = false
-            if Library and Library.Notify then
-                Library:Notify("🔪 KILLAURA LEGIT", "Auto-disabled due to death", 3, "Warning")
-            end
+            Library:Notify("🔪 KILLAURA", "Auto-disabled (you died)", 3, "Warning")
         end
         if killAuraLoop then
             killAuraLoop:Disconnect()
@@ -2576,7 +2609,7 @@ localPlayer.CharacterAdded:Connect(function(character)
     end)
 end)
 
--- Safe cleanup on character remove
+-- Clean up
 localPlayer.CharacterRemoving:Connect(function()
     if killAuraLoop then
         killAuraLoop:Disconnect()
@@ -2584,12 +2617,8 @@ localPlayer.CharacterRemoving:Connect(function()
     end
 end)
 
--- Initial notification after delay to ensure UI is loaded
-delay(1, function()
-    if Library and Library.Notify then
-        Library:Notify("🔪 KILLAURA LEGIT", "Legit auto-attack system loaded!", 4, "Info")
-    end
-end)
+-- Initial notification
+Library:Notify("🔪 KILLAURA LEGIT", "Type range & speed then activate!", 4, "Info")
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
