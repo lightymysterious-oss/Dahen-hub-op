@@ -1873,7 +1873,7 @@ Library:Notify("🤖 DEV ASSISTANT", "Game file explorer ready! Try 'explore wor
 local isAutoAttackActive = false
 local autoAttackLoop = nil
 local lastAttackTime = 0
-local attackCooldown = 0.5
+local attackCooldown = 0.1
 local isHoldingShift = false
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
