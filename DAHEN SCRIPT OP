@@ -2346,29 +2346,28 @@ end)
 -- Initial notification
 Library:Notify("🔁 KILLAURA RAGE", "Will TP to nearest player and spam attacks!", 4, "Info")
 
--- KILLAURA LEGIT - Fixed Version
+-- KILLAURA LEGIT - PlayerTab Version
 local isKillAuraActive = false
 local killAuraLoop = nil
-local killAuraRange = 10 -- Default normal attack range
+local killAuraRange = 10
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
--- Range input box
-PlayerTab:NewTextBox("🎯 KillAura Range", "Enter attack range (1-50)", "10", function(text)
+-- Add to PlayerTab only
+PlayerTab:NewTextBox("KillAura Range", "Set attack range (1-50 studs)", "10", function(text)
     local newRange = tonumber(text)
     if newRange and newRange >= 1 and newRange <= 50 then
         killAuraRange = newRange
-        Library:Notify("🎯 RANGE SET", "KillAura range: " .. killAuraRange .. " studs", 3, "Success")
+        Library:Notify("KILLAURA", "Range set to: " .. killAuraRange .. " studs", 3)
     else
-        Library:Notify("❌ INVALID RANGE", "Please enter number between 1-50", 3, "Error")
+        Library:Notify("KILLAURA", "Invalid range! Use 1-50", 3)
     end
 end)
 
--- Toggle button for KILLAURA LEGIT
-PlayerTab:NewToggle("⚡ KILLAURA LEGIT", "Auto spam attacks when players in range", function(state)
+PlayerTab:NewToggle("KILLAURA LEGIT", "Auto attack players in range", function(state)
     isKillAuraActive = state
     
     if state then
-        Library:Notify("⚡ KILLAURA", "ACTIVE - Range: " .. killAuraRange .. " studs", 3, "Success")
+        Library:Notify("KILLAURA", "ACTIVE - Range: " .. killAuraRange .. " studs", 3)
         
         if killAuraLoop then
             killAuraLoop:Disconnect()
@@ -2380,7 +2379,7 @@ PlayerTab:NewToggle("⚡ KILLAURA LEGIT", "Auto spam attacks when players in ran
         end)
         
     else
-        Library:Notify("⚡ KILLAURA", "INACTIVE", 3, "Warning")
+        Library:Notify("KILLAURA", "INACTIVE", 3)
         if killAuraLoop then
             killAuraLoop:Disconnect()
             killAuraLoop = nil
@@ -2388,66 +2387,19 @@ PlayerTab:NewToggle("⚡ KILLAURA LEGIT", "Auto spam attacks when players in ran
     end
 end)
 
--- Fixed KILLAURA routine
-function killAuraRoutine()
+PlayerTab:NewButton("Test KillAura", "Check if players are in range", function()
     local player = game.Players.LocalPlayer
     local character = player.Character
-    if not character then return end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not rootPart or humanoid.Health <= 0 then return end
-    
-    -- Check for players in range
-    local targetFound = false
-    
-    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-        if otherPlayer ~= player and otherPlayer.Character then
-            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-            local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
-            
-            if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
-                local distance = (rootPart.Position - otherRoot.Position).Magnitude
-                
-                if distance <= killAuraRange then
-                    targetFound = true
-                    break -- Found a target, no need to check others
-                end
-            end
-        end
+    if not character then 
+        Library:Notify("KILLAURA", "No character found!", 3)
+        return 
     end
     
-    -- Attack if target found
-    if targetFound then
-        performKillAuraAttack()
-    end
-end
-
--- Perform attack
-function performKillAuraAttack()
-    -- Send mouse click
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    wait(0.01)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-    
-    -- Second click for more spam
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    wait(0.01)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-end
-
--- Test function to verify it's working
-local testMode = false
-PlayerTab:NewButton("🔧 Test KillAura", "Test if KillAura detects players", function()
-    testMode = true
-    Library:Notify("🔧 TEST MODE", "Checking for players in range...", 3, "Info")
-    
-    local player = game.Players.LocalPlayer
-    local character = player.Character
-    if not character then return end
-    
     local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return end
+    if not rootPart then 
+        Library:Notify("KILLAURA", "No root part found!", 3)
+        return 
+    end
     
     local playersInRange = 0
     for _, otherPlayer in pairs(game.Players:GetPlayers()) do
@@ -2462,12 +2414,49 @@ PlayerTab:NewButton("🔧 Test KillAura", "Test if KillAura detects players", fu
         end
     end
     
-    Library:Notify("🔧 TEST RESULTS", "Players in " .. killAuraRange .. " studs: " .. playersInRange, 4, "Info")
-    testMode = false
+    Library:Notify("KILLAURA", "Players in range: " .. playersInRange, 4)
 end)
 
--- Initial notification
-Library:Notify("⚡ KILLAURA LEGIT", "Set range and toggle ON! Default: 10 studs", 4, "Info")
+-- KillAura Function
+function killAuraRoutine()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+    
+    -- Check for players in range
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+            
+            if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
+                local distance = (rootPart.Position - otherRoot.Position).Magnitude
+                
+                if distance <= killAuraRange then
+                    -- Attack the player
+                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                    wait(0.02)
+                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                    return
+                end
+            end
+        end
+    end
+end
+
+-- Clean up
+game.Players.LocalPlayer.CharacterRemoving:Connect(function()
+    if killAuraLoop then
+        killAuraLoop:Disconnect()
+        killAuraLoop = nil
+    end
+    isKillAuraActive = false
+end)
+
+Library:Notify("KILLAURA LEGIT", "Loaded in PlayerTab!", 5)
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
