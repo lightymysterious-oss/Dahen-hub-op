@@ -2440,7 +2440,7 @@ end)
 -- Initial notification
 Library:Notify("🔁 AUTO TP ATTACK", "Will TP to nearest player and spam attacks!", 4, "Info")
 
--- KILLAURA LEGIT - Auto spam attack players in hitbox range with optional hitbox expansion
+-- KILLAURA LEGIT - Auto spam attack players in hitbox range with hitbox expansion
 local isKillAuraLegitActive = false
 local killAuraLegitLoop = nil
 local hitboxRange = 10  -- Default detection range / expansion size in studs
@@ -2454,53 +2454,143 @@ local localPlayer = Players.LocalPlayer
 -- Wait for UI to load if necessary
 task.wait(1)
 
--- KILLAURA LEGIT Toggle
-PlayerTab:NewToggle("🔥 KILLAURA LEGIT", "Auto attack players in hitbox range", function(state)
-    isKillAuraLegitActive = state
-    
-    if state then
-        Library:Notify("🔥 KILLAURA LEGIT", "ACTIVE - Attacking in range!", 3, "Success")
-        
-        if killAuraLegitLoop then
-            killAuraLegitLoop:Disconnect()
-        end
-        
-        killAuraLegitLoop = RunService.Heartbeat:Connect(function()
-            if not isKillAuraLegitActive then return end
-            killAuraLegitRoutine()
-        end)
-        
-        -- Expand hitboxes on activation
-        expandHitboxes(hitboxRange)
-        
-    else
-        Library:Notify("🔥 KILLAURA LEGIT", "INACTIVE", 3, "Warning")
-        if killAuraLegitLoop then
-            killAuraLegitLoop:Disconnect()
-            killAuraLegitLoop = nil
-        end
-        
-        -- Restore original hitboxes on deactivation
-        restoreHitboxes()
-    end
+-- Settings Button (replaces textbox and toggle)
+PlayerTab:NewButton("⚙️ Killaura Legit Settings", "Open settings GUI for range and toggle", function()
+    openSettingsGui()
 end)
 
--- Hitbox Range Textbox (sets both detection range and expansion size)
-PlayerTab:NewTextBox("📏 Hitbox Range", "Detection range & expand size (5-20 studs)", function(text)
-    local range = tonumber(text)
-    if range and range >= 5 and range <= 20 then
-        hitboxRange = range
-        Library:Notify("📏 HITBOX RANGE", "Set to " .. range .. " studs", 2, "Success")
-        
-        -- Re-apply expansion if active
-        if isKillAuraLegitActive then
-            restoreHitboxes()  -- Reset first
-            expandHitboxes(hitboxRange)
-        end
-    else
-        Library:Notify("❌ INVALID RANGE", "Enter 5-20", 3, "Error")
+-- Function to create and open the settings GUI
+local settingsGui = nil
+function openSettingsGui()
+    if settingsGui then
+        settingsGui.Enabled = true
+        return
     end
-end)
+    
+    -- Create ScreenGui
+    settingsGui = Instance.new("ScreenGui")
+    settingsGui.Name = "KillauraSettingsGui"
+    settingsGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+    settingsGui.ResetOnSpawn = false
+    
+    -- Main Frame
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 300, 0, 200)
+    frame.Position = UDim2.new(0.5, -150, 0.5, -100)
+    frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    frame.BorderSizePixel = 0
+    frame.Parent = settingsGui
+    
+    -- Title Label
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.BackgroundTransparency = 1
+    title.Text = "Killaura Legit Settings"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Font = Enum.Font.SourceSansBold
+    title.TextSize = 20
+    title.Parent = frame
+    
+    -- Hitbox Range TextBox
+    local rangeLabel = Instance.new("TextLabel")
+    rangeLabel.Size = UDim2.new(1, 0, 0, 20)
+    rangeLabel.Position = UDim2.new(0, 0, 0, 40)
+    rangeLabel.BackgroundTransparency = 1
+    rangeLabel.Text = "Hitbox Range (5-20 studs):"
+    rangeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    rangeLabel.TextSize = 16
+    rangeLabel.Parent = frame
+    
+    local rangeTextBox = Instance.new("TextBox")
+    rangeTextBox.Size = UDim2.new(1, 0, 0, 30)
+    rangeTextBox.Position = UDim2.new(0, 0, 0, 60)
+    rangeTextBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    rangeTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    rangeTextBox.Text = tostring(hitboxRange)
+    rangeTextBox.TextSize = 16
+    rangeTextBox.Parent = frame
+    
+    -- Toggle Button
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Size = UDim2.new(1, 0, 0, 40)
+    toggleButton.Position = UDim2.new(0, 0, 0, 100)
+    toggleButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    toggleButton.Text = isKillAuraLegitActive and "Killaura Legit: ON" or "Killaura Legit: OFF"
+    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleButton.TextSize = 18
+    toggleButton.Parent = frame
+    
+    -- Save Button
+    local saveButton = Instance.new("TextButton")
+    saveButton.Size = UDim2.new(0.5, 0, 0, 30)
+    saveButton.Position = UDim2.new(0, 0, 1, -30)
+    saveButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    saveButton.Text = "Save & Close"
+    saveButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    saveButton.TextSize = 16
+    saveButton.Parent = frame
+    
+    -- Close Button
+    local closeButton = Instance.new("TextButton")
+    closeButton.Size = UDim2.new(0.5, 0, 0, 30)
+    closeButton.Position = UDim2.new(0.5, 0, 1, -30)
+    closeButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+    closeButton.Text = "Close"
+    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeButton.TextSize = 16
+    closeButton.Parent = frame
+    
+    -- Toggle logic
+    toggleButton.MouseButton1Click:Connect(function()
+        isKillAuraLegitActive = not isKillAuraLegitActive
+        toggleButton.Text = isKillAuraLegitActive and "Killaura Legit: ON" or "Killaura Legit: OFF"
+        toggleButton.BackgroundColor3 = isKillAuraLegitActive and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
+        
+        if isKillAuraLegitActive then
+            Library:Notify("🔥 KILLAURA LEGIT", "ACTIVE - Attacking in range!", 3, "Success")
+            expandHitboxes(hitboxRange)
+            
+            if killAuraLegitLoop then
+                killAuraLegitLoop:Disconnect()
+            end
+            
+            killAuraLegitLoop = RunService.Heartbeat:Connect(function()
+                if not isKillAuraLegitActive then return end
+                killAuraLegitRoutine()
+            end)
+        else
+            Library:Notify("🔥 KILLAURA LEGIT", "INACTIVE", 3, "Warning")
+            restoreHitboxes()
+            if killAuraLegitLoop then
+                killAuraLegitLoop:Disconnect()
+                killAuraLegitLoop = nil
+            end
+        end
+    end)
+    
+    -- Save logic
+    saveButton.MouseButton1Click:Connect(function()
+        local newRange = tonumber(rangeTextBox.Text)
+        if newRange and newRange >= 5 and newRange <= 20 then
+            hitboxRange = newRange
+            Library:Notify("📏 HITBOX RANGE", "Set to " .. newRange .. " studs", 2, "Success")
+            
+            -- Re-apply expansion if active
+            if isKillAuraLegitActive then
+                restoreHitboxes()
+                expandHitboxes(hitboxRange)
+            end
+        else
+            Library:Notify("❌ INVALID RANGE", "Enter 5-20", 3, "Error")
+        end
+        settingsGui.Enabled = false
+    end)
+    
+    -- Close logic
+    closeButton.MouseButton1Click:Connect(function()
+        settingsGui.Enabled = false
+    end)
+end
 
 -- Function to expand hitboxes client-side (increases Head size for easier hits)
 local originalSizes = {}  -- Store original sizes for restoration
@@ -2511,7 +2601,7 @@ local function expandHitboxes(size)
             if head and head:IsA("BasePart") then
                 originalSizes[player.UserId] = originalSizes[player.UserId] or head.Size
                 head.Size = Vector3.new(size, size, size)
-                head.Transparency = 0.5  -- Semi-transparent for visual cue (optional, remove if too obvious for legit)
+                head.Transparency = 0.5  -- Semi-transparent for visual cue (optional)
             end
         end
     end
@@ -2562,19 +2652,28 @@ function killAuraLegitRoutine()
                         humanoid:EquipTool(weapon)
                     end
                     
-                    -- Spam attack with cooldown
+                    -- Spam attack with cooldown check
                     if currentTime - lastAttackTime >= attackCooldown then
-                        -- Simulate mouse click attack
-                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-                        task.wait(0.02)
-                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-                        
+                        performSpamAttacks()
                         lastAttackTime = currentTime
                     end
                 end
             end
         end
     end
+end
+
+-- Perform spam attacks (adapted from provided script)
+function performSpamAttacks()
+    -- Rapid mouse clicks for spam
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+    task.wait(0.01)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    
+    -- Additional rapid clicks for more spam
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+    task.wait(0.01)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
 end
 
 -- Auto disable on death
@@ -2584,7 +2683,7 @@ localPlayer.CharacterAdded:Connect(function(character)
         if isKillAuraLegitActive then
             isKillAuraLegitActive = false
             Library:Notify("🔥 KILLAURA LEGIT", "Auto-disabled (you died)", 3, "Warning")
-            restoreHitboxes()  -- Reset hitboxes
+            restoreHitboxes()
         end
         if killAuraLegitLoop then
             killAuraLegitLoop:Disconnect()
@@ -2599,11 +2698,11 @@ localPlayer.CharacterRemoving:Connect(function()
         killAuraLegitLoop:Disconnect()
         killAuraLegitLoop = nil
     end
-    restoreHitboxes()  -- Reset hitboxes
+    restoreHitboxes()
 end)
 
 -- Initial notification
-Library:Notify("🔥 KILLAURA LEGIT", "Auto spam attack in hitbox range!", 4, "Info")
+Library:Notify("🔥 KILLAURA LEGIT", "Press the settings button to configure!", 4, "Info")
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
