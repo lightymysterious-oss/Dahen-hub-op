@@ -1869,29 +1869,20 @@ end)
 -- Initial notification
 Library:Notify("🤖 DEV ASSISTANT", "Game file explorer ready! Try 'explore workspace'", 5, "Info")
 
--- FIXED Auto Attack Script with Light Trail Effects
+-- Fixed Auto Attack Script - No Visuals, No Random Keys
 local isAutoAttackActive = false
 local isSmartAttackActive = false
 local autoAttackLoop = nil
 local smartAttackLoop = nil
 local lastAttackTime = 0
-local attackCooldown = 0.2
+local attackCooldown = 0.1
 local isHoldingShift = false
-local lastMovementChange = 0
-local movementCooldown = 1.5
-
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local localPlayer = Players.LocalPlayer
 
--- Trail effects (lightweight)
-local trailParts = {}
-local maxTrails = 3
-local trailEnabled = false
-
--- Add the first toggle button (Basic Auto Attack)
+-- Add the first toggle button
 PlayerTab:NewToggle("⚔️ Auto Attack", "Auto move to nearest player and attack", function(state)
     isAutoAttackActive = state
     
@@ -1943,29 +1934,6 @@ PlayerTab:NewToggle("🎯 Smart Auto Attack", "Advanced targeting with weapon de
     end
 end)
 
--- Trail Effect Toggle
-PlayerTab:NewToggle("✨ Attack Trail", "Add cool trail effects to attacks", function(state)
-    trailEnabled = state
-    Library:Notify("✨ TRAIL EFFECTS", state and "ENABLED" or "DISABLED", 2, "Info")
-    
-    if not state then
-        cleanupTrails()
-    end
-end)
-
--- Detection range slider
-local detectionRange = 50
-PlayerTab:NewSlider("📏 Detection Range", "How far to detect enemies", 100, 20, function(value)
-    detectionRange = value
-    Library:Notify("🎯 DETECTION RANGE", "Set to " .. value .. " studs", 2, "Info")
-end)
-
--- Attack speed slider
-PlayerTab:NewSlider("⚡ Attack Speed", "Attack speed (lower = faster)", 1, 0.1, function(value)
-    attackCooldown = value
-    Library:Notify("⚡ ATTACK SPEED", "Set to " .. string.format("%.1f", value) .. "s", 2, "Info")
-end)
-
 -- Shift holding functions
 function holdShift()
     if not isHoldingShift then
@@ -1981,74 +1949,8 @@ function releaseShift()
     end
 end
 
--- Lightweight trail effect system
-function createAttackTrail(character, targetPlayer)
-    if not trailEnabled then return end
-    if not character or not targetPlayer or not targetPlayer.Character then return end
-    
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not rootPart or not targetRoot then return end
-    
-    -- Clean up old trails if we have too many
-    if #trailParts >= maxTrails then
-        cleanupTrails()
-    end
-    
-    -- Create a simple trail part
-    local trailPart = Instance.new("Part")
-    trailPart.Name = "AttackTrail"
-    trailPart.Anchored = true
-    trailPart.CanCollide = false
-    trailPart.Material = Enum.Material.Neon
-    trailPart.BrickColor = BrickColor.new("Bright red")
-    trailPart.Size = Vector3.new(0.2, 0.2, (rootPart.Position - targetRoot.Position).Magnitude)
-    trailPart.CFrame = CFrame.lookAt(
-        rootPart.Position + (targetRoot.Position - rootPart.Position) / 2,
-        targetRoot.Position
-    )
-    trailPart.Parent = workspace
-    
-    -- Add light effect
-    local pointLight = Instance.new("PointLight")
-    pointLight.Brightness = 2
-    pointLight.Range = 8
-    pointLight.Color = Color3.new(1, 0, 0)
-    pointLight.Parent = trailPart
-    
-    table.insert(trailParts, trailPart)
-    
-    -- Animate the trail
-    spawn(function()
-        local startTime = tick()
-        local duration = 0.3
-        
-        while tick() - startTime < duration do
-            if trailPart and trailPart.Parent then
-                local alpha = (tick() - startTime) / duration
-                trailPart.Transparency = alpha
-                pointLight.Brightness = 2 * (1 - alpha)
-            end
-            RunService.Heartbeat:Wait()
-        end
-        
-        if trailPart and trailPart.Parent then
-            trailPart:Destroy()
-        end
-    end)
-end
-
-function cleanupTrails()
-    for _, part in ipairs(trailParts) do
-        if part and part.Parent then
-            part:Destroy()
-        end
-    end
-    trailParts = {}
-end
-
--- FIXED movement functions
-function performCombatMovement(character, targetPlayer)
+-- Simple movement function
+function moveToTarget(character, targetPlayer)
     if not character or not targetPlayer or not targetPlayer.Character then return end
     
     local humanoid = character:FindFirstChild("Humanoid")
@@ -2057,24 +1959,14 @@ function performCombatMovement(character, targetPlayer)
     
     if not humanoid or not rootPart or not targetRoot then return end
     
-    local currentTime = tick()
-    if currentTime - lastMovementChange < movementCooldown then return end
+    -- Move towards target
+    humanoid:MoveTo(targetRoot.Position)
     
-    lastMovementChange = currentTime
-    
-    local distance = (rootPart.Position - targetRoot.Position).Magnitude
-    
-    if distance <= 15 then
-        -- Simple strafing movement
-        local rightVector = rootPart.CFrame.RightVector
-        local moveDirection = math.random() > 0.5 and rightVector or -rightVector
-        local movePosition = rootPart.Position + (moveDirection * 4)
-        
-        humanoid:MoveTo(movePosition)
-    end
+    -- Face the target
+    rootPart.CFrame = CFrame.new(rootPart.Position, Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z))
 end
 
--- FIXED target finding
+-- Fixed findNearestPlayer with infinite range
 function findNearestPlayer()
     local player = localPlayer
     local character = player.Character
@@ -2094,7 +1986,7 @@ function findNearestPlayer()
             if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
                 local distance = (rootPart.Position - otherRoot.Position).Magnitude
                 
-                if distance < nearestDistance and distance <= detectionRange then
+                if distance < nearestDistance then
                     nearestDistance = distance
                     nearestPlayer = otherPlayer
                 end
@@ -2105,36 +1997,7 @@ function findNearestPlayer()
     return nearestPlayer, nearestDistance
 end
 
--- FIXED movement to player
-function moveToPlayer(targetPlayer, rootPart, humanoid)
-    if not targetPlayer or not targetPlayer.Character then 
-        releaseShift()
-        return 
-    end
-    
-    local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not targetRoot then 
-        releaseShift()
-        return 
-    end
-    
-    -- Move towards target
-    humanoid:MoveTo(targetRoot.Position)
-    
-    -- Face the target
-    local lookPosition = Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z)
-    rootPart.CFrame = CFrame.new(rootPart.Position, lookPosition)
-    
-    -- Hold shift if far away
-    local distance = (rootPart.Position - targetRoot.Position).Magnitude
-    if distance > 15 then
-        holdShift()
-    else
-        releaseShift()
-    end
-end
-
--- FIXED attack routines
+-- Fixed auto attack routine
 function autoAttackRoutine()
     local character = localPlayer.Character
     if not character then 
@@ -2149,12 +2012,12 @@ function autoAttackRoutine()
         return 
     end
     
-    -- Find nearest player
+    -- Find nearest player (infinite range)
     local nearestPlayer, nearestDistance = findNearestPlayer()
     
     if nearestPlayer and nearestDistance then
         if nearestDistance <= 15 then
-            -- Player is in attack range
+            -- Player is in attack range - SPAM ATTACKS!
             releaseShift()
             
             -- Face target
@@ -2164,26 +2027,24 @@ function autoAttackRoutine()
                 rootPart.CFrame = CFrame.new(rootPart.Position, lookPosition)
             end
             
-            -- Perform combat movement
-            performCombatMovement(character, nearestPlayer)
-            
-            -- Attack with cooldown
+            -- SPAM ATTACKS (no random keys, only mouse clicks)
             local currentTime = tick()
             if currentTime - lastAttackTime >= attackCooldown then
                 performSpamAttack()
-                createAttackTrail(character, nearestPlayer)
                 lastAttackTime = currentTime
             end
             
         else
-            -- Move to player
-            moveToPlayer(nearestPlayer, rootPart, humanoid)
+            -- Player is out of range - RUN TO PLAYER!
+            holdShift()
+            moveToTarget(character, nearestPlayer)
         end
     else
         releaseShift()
     end
 end
 
+-- Fixed smart attack routine
 function smartAttackRoutine()
     local character = localPlayer.Character
     if not character then 
@@ -2198,7 +2059,7 @@ function smartAttackRoutine()
         return 
     end
     
-    -- Check for weapon
+    -- Check if player has a weapon
     local weapon = character:FindFirstChildOfClass("Tool")
     local attackRange = weapon and 20 or 15
     
@@ -2206,7 +2067,7 @@ function smartAttackRoutine()
     
     if nearestPlayer and nearestDistance then
         if nearestDistance <= attackRange then
-            -- In attack range
+            -- In attack range - SPAM ATTACKS!
             releaseShift()
             
             -- Face target
@@ -2216,87 +2077,99 @@ function smartAttackRoutine()
                 rootPart.CFrame = CFrame.new(rootPart.Position, lookPosition)
             end
             
-            -- Perform combat movement
-            performCombatMovement(character, nearestPlayer)
-            
-            -- Smart attack with cooldown
+            -- Weapon-based spam attacks (only mouse clicks)
             local currentTime = tick()
             if currentTime - lastAttackTime >= attackCooldown then
                 if weapon then
-                    spamWeaponAttack(weapon)
+                    -- Equip weapon if not equipped
+                    if weapon.Parent ~= character then
+                        humanoid:EquipTool(weapon)
+                    end
+                    spamWeaponAttack()
                 else
                     spamMeleeAttack()
                 end
-                createAttackTrail(character, nearestPlayer)
                 lastAttackTime = currentTime
             end
             
         else
-            -- Move to player
-            moveToPlayer(nearestPlayer, rootPart, humanoid)
+            -- Move to target - RUN FAST!
+            holdShift()
+            moveToTarget(character, nearestPlayer)
         end
     else
         releaseShift()
     end
 end
 
--- FIXED attack functions
+-- SPAM ATTACK FUNCTIONS - ONLY MOUSE CLICKS (No random keys)
 function performSpamAttack()
+    -- Rapid mouse clicks only
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    task.wait(0.05)
+    task.wait(0.02)
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
 end
 
-function spamWeaponAttack(weapon)
-    -- Equip weapon if not equipped
-    if weapon.Parent ~= localPlayer.Character then
-        local humanoid = localPlayer.Character:FindFirstChild("Humanoid")
-        if humanoid then
-            humanoid:EquipTool(weapon)
-        end
-    end
-    
+function spamWeaponAttack()
+    -- Rapid weapon activation - mouse clicks only
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    task.wait(0.03)
+    task.wait(0.01)
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
 end
 
 function spamMeleeAttack()
+    -- Rapid melee - mouse clicks only
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    task.wait(0.04)
+    task.wait(0.01)
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
 end
 
--- FIXED character handling
-local function setupCharacterEvents()
-    localPlayer.CharacterAdded:Connect(function(character)
-        local humanoid = character:WaitForChild("Humanoid")
-        humanoid.Died:Connect(function()
-            if isAutoAttackActive then
-                isAutoAttackActive = false
-                Library:Notify("⚔️ AUTO ATTACK", "Auto-disabled due to death", 3, "Warning")
-            end
-            if isSmartAttackActive then
-                isSmartAttackActive = false
-                Library:Notify("🎯 SMART ATTACK", "Auto-disabled due to death", 3, "Warning")
-            end
-            releaseShift()
-            cleanupTrails()
-        end)
-    end)
+-- Debug function to check if players are being detected
+local function debugPlayerDetection()
+    local nearestPlayer, nearestDistance = findNearestPlayer()
+    if nearestPlayer then
+        print("Found player:", nearestPlayer.Name, "Distance:", math.floor(nearestDistance))
+    else
+        print("No players found")
+    end
 end
 
--- Clean up
-localPlayer.CharacterRemoving:Connect(function()
-    releaseShift()
-    cleanupTrails()
+-- Add debug toggle to check player detection
+PlayerTab:NewToggle("🐛 Debug Mode", "Show detection info in console", function(state)
+    if state then
+        Library:Notify("🐛 DEBUG", "Player detection debug enabled", 2, "Info")
+        local debugLoop = RunService.Heartbeat:Connect(function()
+            if not state then debugLoop:Disconnect() return end
+            debugPlayerDetection()
+        end)
+    else
+        Library:Notify("🐛 DEBUG", "Player detection debug disabled", 2, "Info")
+    end
 end)
 
--- Initialize
-setupCharacterEvents()
+-- Fixed character event handling
+localPlayer.CharacterAdded:Connect(function(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    humanoid.Died:Connect(function()
+        if isAutoAttackActive then
+            isAutoAttackActive = false
+            Library:Notify("⚔️ AUTO ATTACK", "Auto-disabled due to death", 3, "Warning")
+        end
+        if isSmartAttackActive then
+            isSmartAttackActive = false
+            Library:Notify("🎯 SMART ATTACK", "Auto-disabled due to death", 3, "Warning")
+        end
+        releaseShift()
+    end)
+end)
+
+-- Clean up when script stops
+localPlayer.CharacterRemoving:Connect(function()
+    releaseShift()
+end)
 
 -- Initial notification
-Library:Notify("⚔️ AUTO ATTACK", "Fixed combat system with trail effects!", 4, "Info")
+Library:Notify("⚔️ AUTO ATTACK", "Fixed combat system - No visuals, no random keys!", 4, "Info")
 
 -- Auto TP Attack - Loop TP to nearest player with spam attacks
 local isAutoTPAttackActive = false
