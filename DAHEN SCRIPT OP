@@ -1869,300 +1869,393 @@ end)
 -- Initial notification
 Library:Notify("🤖 DEV ASSISTANT", "Game file explorer ready! Try 'explore workspace'", 5, "Info")
 
--- Auto Attack Script - No Visuals, No Random Keys
-local isAutoAttackActive = false
-local autoAttackLoop = nil
-local lastAttackTime = 0
-local attackCooldown = 0.1
-local isHoldingShift = false
+-- SMART ATTACK - Advanced Combat AI
+local isSmartAttackActive = false
+local smartAttackLoop = nil
+local smartAttackRange = 20
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 
--- Add the first toggle button
-PlayerTab:NewToggle("⚔️ Auto Attack", "Auto move to nearest player and attack", function(state)
-    isAutoAttackActive = state
-    
-    if state then
-        Library:Notify("⚔️ AUTO ATTACK", "ACTIVE - Hunting enemies!", 3, "Success")
-        
-        if autoAttackLoop then
-            autoAttackLoop:Disconnect()
-        end
-        
-        autoAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
-            if not isAutoAttackActive then return end
-            autoAttackRoutine()
-        end)
-        
+-- Combat variables
+local lastAttackTime = 0
+local attackCooldown = 0.08  -- Very fast attacks
+local lastDodgeTime = 0
+local dodgeCooldown = 1.5
+local combatMode = "aggressive" -- aggressive, defensive, balanced
+local movementPattern = "circle" -- circle, zigzag, random
+
+-- Add to PlayerTab only
+PlayerTab:NewTextBox("Smart Attack Range", "Set detection range (1-50 studs)", "20", function(text)
+    local newRange = tonumber(text)
+    if newRange and newRange >= 1 and newRange <= 50 then
+        smartAttackRange = newRange
+        Library:Notify("SMART ATTACK", "Range set to: " .. smartAttackRange .. " studs", 3)
     else
-        Library:Notify("⚔️ AUTO ATTACK", "INACTIVE", 3, "Warning")
-        releaseShift()
-        if autoAttackLoop then
-            autoAttackLoop:Disconnect()
-            autoAttackLoop = nil
-        end
+        Library:Notify("SMART ATTACK", "Invalid range! Use 1-50", 3)
     end
 end)
 
--- Add the second toggle button (Smart Attack)
-local isSmartAttackActive = false
-local smartAttackLoop = nil
+PlayerTab:NewDropdown("Combat Mode", "Select fighting style", {"Aggressive", "Defensive", "Balanced"}, function(option)
+    combatMode = option:lower()
+    Library:Notify("SMART ATTACK", "Combat Mode: " .. option, 3)
+end)
 
-PlayerTab:NewToggle("🎯 Smart Auto Attack", "Advanced targeting with weapon detection", function(state)
+PlayerTab:NewDropdown("Movement Pattern", "Select movement style", {"Circle", "ZigZag", "Random", "Advanced"}, function(option)
+    movementPattern = option:lower()
+    Library:Notify("SMART ATTACK", "Movement: " .. option, 3)
+end)
+
+PlayerTab:NewToggle("Smart Attack", "Advanced AI combat with professional movement", function(state)
     isSmartAttackActive = state
     
     if state then
-        Library:Notify("🎯 SMART ATTACK", "ACTIVE - Weapon-based combat!", 3, "Success")
+        Library:Notify("SMART ATTACK", "ACTIVE - AI Combat Enabled", 3)
         
         if smartAttackLoop then
             smartAttackLoop:Disconnect()
         end
         
-        smartAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
+        smartAttackLoop = RunService.Heartbeat:Connect(function()
             if not isSmartAttackActive then return end
             smartAttackRoutine()
         end)
         
     else
-        Library:Notify("🎯 SMART ATTACK", "INACTIVE", 3, "Warning")
-        releaseShift()
+        Library:Notify("SMART ATTACK", "INACTIVE", 3)
         if smartAttackLoop then
             smartAttackLoop:Disconnect()
             smartAttackLoop = nil
         end
+        releaseAllKeys()
     end
 end)
 
--- Shift holding functions
-function holdShift()
-    if not isHoldingShift then
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
-        isHoldingShift = true
-    end
+PlayerTab:NewButton("Combat Analysis", "Scan enemy threats and tactics", function()
+    local analysis = analyzeCombatSituation()
+    Library:Notify("COMBAT ANALYSIS", analysis, 5)
+end)
+
+-- Function to release all movement keys
+local function releaseAllKeys()
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, nil)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.A, false, nil)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.S, false, nil)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.D, false, nil)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, nil)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, nil)
 end
 
-function releaseShift()
-    if isHoldingShift then
-        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
-        isHoldingShift = false
-    end
+-- Function to simulate key press
+local function pressKey(key, state)
+    VirtualInputManager:SendKeyEvent(state, key, false, nil)
 end
 
--- Combat movement functions
-function performCombatMovement(character, targetPlayer)
-    if not character or not targetPlayer or not targetPlayer.Character then return end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-    
-    if not humanoid or not rootPart or not targetRoot then return end
-    
-    local distance = (rootPart.Position - targetRoot.Position).Magnitude
-    
-    -- Different movement patterns based on distance
-    if distance <= 8 then
-        -- Close range: strafe around target
-        local movementPatterns = {
-            function() strafeLeft(rootPart, targetRoot, humanoid) end,
-            function() strafeRight(rootPart, targetRoot, humanoid) end,
-            function() circleStrafe(rootPart, targetRoot, humanoid) end
-        }
+-- Advanced attack function with combo detection
+local function performSmartAttack()
+    local currentTime = tick()
+    if currentTime - lastAttackTime >= attackCooldown then
+        -- Varied attack timing to seem more human
+        local attackDelay = math.random(5, 15) / 100 -- 0.05 to 0.15 seconds
         
-        -- Random movement pattern
-        local randomPattern = movementPatterns[math.random(1, #movementPatterns)]
-        randomPattern()
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+        task.wait(attackDelay)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+        
+        lastAttackTime = currentTime
+        return true
     end
+    return false
 end
 
-function strafeLeft(rootPart, targetRoot, humanoid)
-    local rightVector = rootPart.CFrame.RightVector
-    local movePosition = rootPart.Position - (rightVector * 4)
-    humanoid:MoveTo(movePosition)
-end
-
-function strafeRight(rootPart, targetRoot, humanoid)
-    local rightVector = rootPart.CFrame.RightVector
-    local movePosition = rootPart.Position + (rightVector * 4)
-    humanoid:MoveTo(movePosition)
-end
-
-function circleStrafe(rootPart, targetRoot, humanoid)
-    local directionToTarget = (targetRoot.Position - rootPart.Position).Unit
-    local rightVector = rootPart.CFrame.RightVector
-    local circlePosition = rootPart.Position + (rightVector * 3) + (directionToTarget * 2)
-    humanoid:MoveTo(circlePosition)
-end
-
--- Shared functions for both toggles
-function autoAttackRoutine()
-    local player = game.Players.LocalPlayer
-    local character = player.Character
-    if not character then 
-        releaseShift()
-        return 
-    end
+-- Advanced enemy analysis
+local function analyzeEnemy(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character then return {} end
     
+    local analysis = {
+        health = 100,
+        distance = math.huge,
+        movementSpeed = 0,
+        isAttacking = false,
+        weaponType = "none",
+        threatLevel = 0
+    }
+    
+    local character = targetPlayer.Character
     local humanoid = character:FindFirstChild("Humanoid")
     local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not rootPart or humanoid.Health <= 0 then 
-        releaseShift()
-        return 
-    end
+    local localRoot = Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     
-    -- Find nearest player
-    local nearestPlayer, nearestDistance = findNearestPlayer()
-    
-    if nearestPlayer and nearestDistance then
-        if nearestDistance <= 10 then
-            -- Player is in attack range - SPAM ATTACKS WITH MOVEMENT!
-            releaseShift()
-            
-            -- Perform combat movement
-            performCombatMovement(character, nearestPlayer)
-            
-            -- SPAM ATTACKS
-            performSpamAttack()
-            
-        else
-            -- Player is out of range - RUN TO PLAYER!
-            holdShift()
-            moveToPlayer(nearestPlayer, rootPart, humanoid)
-        end
-    else
-        releaseShift()
-    end
-end
-
-function smartAttackRoutine()
-    local player = game.Players.LocalPlayer
-    local character = player.Character
-    if not character then 
-        releaseShift()
-        return 
-    end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not rootPart or humanoid.Health <= 0 then 
-        releaseShift()
-        return 
-    end
-    
-    -- Check if player has a weapon
-    local weapon = character:FindFirstChildOfClass("Tool")
-    local attackRange = weapon and 12 or 8
-    
-    local nearestPlayer, nearestDistance = findNearestPlayer()
-    
-    if nearestPlayer and nearestDistance then
-        if nearestDistance <= attackRange then
-            -- In attack range - SPAM ATTACKS WITH MOVEMENT!
-            releaseShift()
-            
-            -- Advanced combat movement
-            performCombatMovement(character, nearestPlayer)
-            
-            -- Weapon-based spam attacks
-            if weapon then
-                spamWeaponAttack(weapon)
-            else
-                spamMeleeAttack()
+    if humanoid and rootPart and localRoot then
+        analysis.health = humanoid.Health
+        analysis.distance = (rootPart.Position - localRoot.Position).Magnitude
+        analysis.movementSpeed = rootPart.Velocity.Magnitude
+        
+        -- Detect if enemy is attacking
+        local tool = character:FindFirstChildOfClass("Tool")
+        if tool then
+            analysis.weaponType = tool.Name
+            -- Check for attack animations or tool movement
+            if tool:FindFirstChild("Handle") and tool.Handle.Velocity.Magnitude > 25 then
+                analysis.isAttacking = true
             end
-            
-        else
-            -- Move to target - RUN FAST!
-            holdShift()
-            moveToPlayer(nearestPlayer, rootPart, humanoid)
         end
-    else
-        releaseShift()
+        
+        -- Calculate threat level (0-100)
+        analysis.threatLevel = math.clamp(
+            (100 - analysis.health) * 0.3 +                    -- Lower health = more aggressive
+            (50 - analysis.distance) * 0.4 +                   -- Closer = more threat
+            (analysis.isAttacking and 30 or 0) +               -- Actively attacking
+            (analysis.movementSpeed > 20 and 10 or 0),         -- Moving fast
+        0, 100)
     end
+    
+    return analysis
 end
 
-function findNearestPlayer()
-    local player = game.Players.LocalPlayer
+-- Smart movement patterns
+local function calculateSmartMovement(targetPosition, currentPosition, currentTime, pattern)
+    local moveDirection = (targetPosition - currentPosition).Unit
+    local rightVector = CFrame.new(currentPosition, targetPosition).RightVector
+    
+    local movement = {
+        Forward = 0,
+        Backward = 0,
+        Right = 0,
+        Left = 0
+    }
+    
+    if pattern == "circle" then
+        -- Circle strafing pattern
+        local circleIntensity = math.sin(currentTime * 5) * 2
+        movement.Right = circleIntensity
+        movement.Forward = math.max(0, moveDirection.Z * 1.5)
+        
+    elseif pattern == "zigzag" then
+        -- Zigzag pattern
+        local zigzag = math.sin(currentTime * 8) * 3
+        movement.Right = zigzag
+        movement.Forward = math.max(0, moveDirection.Z * 1.2)
+        
+    elseif pattern == "random" then
+        -- Random unpredictable movement
+        movement.Right = math.random(-2, 2)
+        movement.Forward = math.max(0, moveDirection.Z * 1 + math.random(-0.5, 0.5))
+        
+    elseif pattern == "advanced" then
+        -- Advanced adaptive movement
+        local baseMovement = math.max(0, moveDirection.Z * 1.5)
+        local strafe = math.sin(currentTime * 6) * 2 + math.cos(currentTime * 3) * 1
+        local dodge = math.random(1, 100) > 80 and math.random(-3, 3) or 0
+        
+        movement.Right = strafe + dodge
+        movement.Forward = baseMovement
+    end
+    
+    return movement
+end
+
+-- Dodge prediction and execution
+local function executeSmartDodge(enemyAnalysis, currentPosition)
+    local currentTime = tick()
+    if currentTime - lastDodgeTime < dodgeCooldown then return false end
+    
+    local shouldDodge = false
+    local dodgeDirection = Vector3.new(0, 0, 0)
+    
+    -- Dodge if enemy is attacking and close
+    if enemyAnalysis.isAttacking and enemyAnalysis.distance < 12 then
+        shouldDodge = true
+        -- Dodge perpendicular to attack direction
+        dodgeDirection = CFrame.new(currentPosition, enemyAnalysis.position).RightVector * (math.random() > 0.5 and 1 or -1)
+    end
+    
+    -- Dodge based on threat level
+    if enemyAnalysis.threatLevel > 80 and math.random(1, 100) > 60 then
+        shouldDodge = true
+        dodgeDirection = Vector3.new(math.random(-1, 1), 0, math.random(-1, 1)).Unit
+    end
+    
+    if shouldDodge then
+        -- Execute dodge with jump
+        pressKey(Enum.KeyCode.Space, true)
+        task.wait(0.1)
+        pressKey(Enum.KeyCode.Space, false)
+        
+        -- Movement dodge
+        if dodgeDirection.X > 0 then
+            pressKey(Enum.KeyCode.D, true)
+            task.wait(0.2)
+            pressKey(Enum.KeyCode.D, false)
+        else
+            pressKey(Enum.KeyCode.A, true)
+            task.wait(0.2)
+            pressKey(Enum.KeyCode.A, false)
+        end
+        
+        lastDodgeTime = currentTime
+        return true
+    end
+    
+    return false
+end
+
+-- Combat situation analysis
+local function analyzeCombatSituation()
+    local player = Players.LocalPlayer
     local character = player.Character
-    if not character then return nil, math.huge end
+    if not character then return "No character" end
     
     local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return nil, math.huge end
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not rootPart or not humanoid then return "Character not ready" end
     
-    local nearestPlayer = nil
+    local threats = 0
     local nearestDistance = math.huge
+    local totalThreatLevel = 0
     
-    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
         if otherPlayer ~= player and otherPlayer.Character then
-            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-            local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
-            
-            if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
-                local distance = (rootPart.Position - otherRoot.Position).Magnitude
-                
-                if distance < nearestDistance then
-                    nearestDistance = distance
-                    nearestPlayer = otherPlayer
+            local analysis = analyzeEnemy(otherPlayer)
+            if analysis.threatLevel > 20 then
+                threats = threats + 1
+                totalThreatLevel = totalThreatLevel + analysis.threatLevel
+                if analysis.distance < nearestDistance then
+                    nearestDistance = analysis.distance
                 end
             end
         end
     end
     
-    return nearestPlayer, nearestDistance
+    local situation = "Clear"
+    if threats == 0 then
+        situation = "No threats detected"
+    elseif threats == 1 then
+        situation = "1 enemy - " .. (totalThreatLevel > 70 and "High Threat" or "Medium Threat")
+    else
+        situation = threats .. " enemies - " .. (totalThreatLevel > 100 and "DANGER" or "Multiple Threats")
+    end
+    
+    return situation .. " | Nearest: " .. math.floor(nearestDistance) .. " studs"
 end
 
-function moveToPlayer(targetPlayer, rootPart, humanoid)
-    if not targetPlayer or not targetPlayer.Character then 
-        releaseShift()
+-- Main Smart Attack Routine
+function smartAttackRoutine()
+    local player = Players.LocalPlayer
+    local character = player.Character
+    if not character then return end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not rootPart or not humanoid or humanoid.Health <= 0 then 
+        releaseAllKeys()
         return 
     end
     
-    local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not targetRoot then 
-        releaseShift()
-        return 
+    local currentPosition = rootPart.Position
+    local currentTime = tick()
+    
+    -- Find best target
+    local bestTarget = nil
+    local bestScore = -math.huge
+    
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local analysis = analyzeEnemy(otherPlayer)
+            
+            -- Score targets based on multiple factors
+            local score = 0
+            score = score + (100 - analysis.health) * 2          -- Prefer low health
+            score = score - analysis.distance * 0.5              -- Prefer closer
+            score = score + analysis.threatLevel * 0.3           -- Consider threat
+            
+            if score > bestScore and analysis.distance <= smartAttackRange then
+                bestScore = score
+                bestTarget = otherPlayer
+            end
+        end
     end
     
-    -- Move towards target
-    humanoid:MoveTo(targetRoot.Position)
-    
-    -- Face the target
-    rootPart.CFrame = CFrame.new(rootPart.Position, Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z))
-    
-    -- Stop running if very close to target
-    local distance = (rootPart.Position - targetRoot.Position).Magnitude
-    if distance <= 8 then
-        releaseShift()
+    if not bestTarget then
+        releaseAllKeys()
+        return
     end
+    
+    local targetAnalysis = analyzeEnemy(bestTarget)
+    local targetRoot = bestTarget.Character:FindFirstChild("HumanoidRootPart")
+    
+    if not targetRoot then
+        releaseAllKeys()
+        return
+    end
+    
+    -- Execute smart dodge if needed
+    local didDodge = executeSmartDodge(targetAnalysis, currentPosition)
+    
+    -- Calculate adaptive movement based on combat mode
+    local movement = calculateSmartMovement(targetRoot.Position, currentPosition, currentTime, movementPattern)
+    
+    -- Adjust movement based on combat mode
+    if combatMode == "defensive" then
+        movement.Forward = movement.Forward * 0.7
+    elseif combatMode == "aggressive" then
+        movement.Forward = movement.Forward * 1.3
+    end
+    
+    -- Release all keys first
+    releaseAllKeys()
+    
+    -- Apply calculated movement
+    if movement.Forward > 0.2 and targetAnalysis.distance > 8 then
+        pressKey(Enum.KeyCode.W, true)
+    elseif movement.Backward > 0.2 and targetAnalysis.distance < 5 then
+        pressKey(Enum.KeyCode.S, true)
+    end
+    
+    if movement.Right > 0.3 then
+        pressKey(Enum.KeyCode.D, true)
+    elseif movement.Left > 0.3 then
+        pressKey(Enum.KeyCode.A, true)
+    end
+    
+    -- Use sprint strategically
+    if targetAnalysis.distance > 15 and movement.Forward > 0.5 then
+        pressKey(Enum.KeyCode.LeftShift, true)
+    end
+    
+    -- Smart attacking based on situation
+    if targetAnalysis.distance <= 12 and not didDodge then
+        if combatMode == "aggressive" or targetAnalysis.health < 50 then
+            -- Aggressive: Attack whenever possible
+            performSmartAttack()
+        elseif combatMode == "defensive" then
+            -- Defensive: Attack only when safe
+            if targetAnalysis.threatLevel < 60 then
+                performSmartAttack()
+            end
+        else
+            -- Balanced: Adaptive attacking
+            if math.random(1, 100) > 30 then  -- 70% chance to attack
+                performSmartAttack()
+            end
+        end
+    end
+    
+    -- Face target smoothly
+    humanoid:MoveTo(currentPosition + (targetRoot.Position - currentPosition).Unit * 2)
 end
 
--- SPAM ATTACK FUNCTIONS - ONLY MOUSE CLICKS
-function performSpamAttack()
-    -- Rapid mouse clicks only
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    wait(0.02)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-end
-
-function spamWeaponAttack(weapon)
-    -- Rapid weapon activation - mouse clicks only
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    wait(0.01)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-end
-
-function spamMeleeAttack()
-    -- Rapid melee - mouse clicks only
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    wait(0.01)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-end
-
--- Clean up when script stops
-game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
-    releaseShift()
+-- Clean up
+game.Players.LocalPlayer.CharacterRemoving:Connect(function()
+    if smartAttackLoop then
+        smartAttackLoop:Disconnect()
+        smartAttackLoop = nil
+    end
+    isSmartAttackActive = false
+    releaseAllKeys()
 end)
 
--- Initial notification
-Library:Notify("⚔️ AUTO ATTACK", "Mouse-click attacks with combat movement!", 4, "Info")
+Library:Notify("SMART ATTACK", "Advanced AI Combat Loaded!", 5)
 
 -- Auto TP Attack - Loop TP to nearest player with spam attacks
 local isAutoTPAttackActive = false
