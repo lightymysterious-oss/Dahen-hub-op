@@ -1886,7 +1886,7 @@ local combatMode = "aggressive" -- aggressive, defensive, balanced
 local movementPattern = "circle" -- circle, zigzag, random
 
 -- Add to PlayerTab only
-PlayerTab:NewTextBox("Smart Attack Range", "Set detection range (1-50 studs)", "20", function(text)
+PlayerTab:NewToggle("Smart Attack Range", "Set detection range (1-50 studs)", "20", function(text)
     local newRange = tonumber(text)
     if newRange and newRange >= 1 and newRange <= 50 then
         smartAttackRange = newRange
