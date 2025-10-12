@@ -2346,293 +2346,90 @@ end)
 -- Initial notification
 Library:Notify("🔁 KILLAURA RAGE", "Will TP to nearest player and spam attacks!", 4, "Info")
 
--- DAHENHUB Loader Button
-PlayerTab:NewButton("🎮 Killaura Legit", "Load DAHENHUB Attack GUI", function()
-    loadDAHENHUB()
+-- DAHENHUB Auto Hitbox - Toggle and Range Slider
+local isDAHENHUBActive = false
+local dahenhubLoop = nil
+local dahenhubRange = 15
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+-- Toggle button for DAHENHUB Auto Hitbox
+PlayerTab:NewToggle("🎯 KILLAURA LEGIT", "Auto spam attacks when players in range", function(state)
+    isDAHENHUBActive = state
+    
+    if state then
+        Library:Notify("🎯 KILLAURA LEGIT", "KILLAURA ACTIVE - Range: " .. dahenhubRange .. " studs", 3, "Success")
+        
+        if dahenhubLoop then
+            dahenhubLoop:Disconnect()
+        end
+        
+        dahenhubLoop = game:GetService("RunService").Heartbeat:Connect(function()
+            if not isDAHENHUBActive then return end
+            dahenhubRoutine()
+        end)
+        
+    else
+        Library:Notify("🎯 KILLAURA LEGIT", "Auto Hitbox INACTIVE", 3, "Warning")
+        if dahenhubLoop then
+            dahenhubLoop:Disconnect()
+            dahenhubLoop = nil
+        end
+    end
 end)
 
--- DAHENHUB GUI Function
-function loadDAHENHUB()
-    -- Check if GUI already exists
-    local playerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-    if playerGui:FindFirstChild("DAHENHUBGUI") then
-        playerGui.DAHENHUBGUI:Destroy()
-    end
+-- Range slider for DAHENHUB
+PlayerTab:NewSlider("🎯 KILLAURA Range", "Set auto hitbox attack range", 50, 5, function(value)
+    dahenhubRange = value
+    Library:Notify("🎯 RANGE SET", "Auto hitbox range: " .. value .. " studs", 2, "Info")
+end)
 
-    -- Create the main GUI
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "DAHENHUBGUI"
-    screenGui.Parent = playerGui
-
-    -- Create the main frame
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Size = UDim2.new(0, 300, 0, 250)
-    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -125)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    mainFrame.BorderSizePixel = 0
-    mainFrame.Parent = screenGui
-
-    -- Add corner
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
-    corner.Parent = mainFrame
-
-    -- Title
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 40)
-    title.Position = UDim2.new(0, 0, 0, 0)
-    title.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-    title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.Text = "DAHENHUB"
-    title.Font = Enum.Font.GothamBold
-    title.TextSize = 18
-    title.Parent = mainFrame
-
-    -- Toggle button
-    local toggleButton = Instance.new("TextButton")
-    toggleButton.Size = UDim2.new(0.8, 0, 0, 35)
-    toggleButton.Position = UDim2.new(0.1, 0, 0.2, 0)
-    toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
-    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggleButton.Text = "START AUTO ATTACK"
-    toggleButton.Font = Enum.Font.Gotham
-    toggleButton.TextSize = 14
-    toggleButton.Parent = mainFrame
-
-    local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(0, 6)
-    toggleCorner.Parent = toggleButton
-
-    -- Range slider label
-    local rangeLabel = Instance.new("TextLabel")
-    rangeLabel.Size = UDim2.new(0.8, 0, 0, 20)
-    rangeLabel.Position = UDim2.new(0.1, 0, 0.4, 0)
-    rangeLabel.BackgroundTransparency = 1
-    rangeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    rangeLabel.Text = "Attack Range: 10 studs"
-    rangeLabel.Font = Enum.Font.Gotham
-    rangeLabel.TextSize = 12
-    rangeLabel.Parent = mainFrame
-
-    -- Range slider
-    local rangeSlider = Instance.new("TextBox")
-    rangeSlider.Size = UDim2.new(0.8, 0, 0, 30)
-    rangeSlider.Position = UDim2.new(0.1, 0, 0.5, 0)
-    rangeSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-    rangeSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
-    rangeSlider.Text = "10"
-    rangeSlider.Font = Enum.Font.Gotham
-    rangeSlider.TextSize = 14
-    rangeSlider.PlaceholderText = "Enter range (1-50)"
-    rangeSlider.Parent = mainFrame
-
-    local sliderCorner = Instance.new("UICorner")
-    sliderCorner.CornerRadius = UDim.new(0, 4)
-    sliderCorner.Parent = rangeSlider
-
-    -- Status label
-    local statusLabel = Instance.new("TextLabel")
-    statusLabel.Size = UDim2.new(0.8, 0, 0, 20)
-    statusLabel.Position = UDim2.new(0.1, 0, 0.65, 0)
-    statusLabel.BackgroundTransparency = 1
-    statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    statusLabel.Text = "Status: Inactive"
-    statusLabel.Font = Enum.Font.Gotham
-    statusLabel.TextSize = 12
-    statusLabel.Parent = mainFrame
-
-    -- Target info label
-    local targetLabel = Instance.new("TextLabel")
-    targetLabel.Size = UDim2.new(0.8, 0, 0, 20)
-    targetLabel.Position = UDim2.new(0.1, 0, 0.75, 0)
-    targetLabel.BackgroundTransparency = 1
-    targetLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    targetLabel.Text = "Target: None"
-    targetLabel.Font = Enum.Font.Gotham
-    targetLabel.TextSize = 12
-    targetLabel.Parent = mainFrame
-
-    -- Made by label
-    local madeByLabel = Instance.new("TextLabel")
-    madeByLabel.Size = UDim2.new(1, 0, 0, 20)
-    madeByLabel.Position = UDim2.new(0, 0, 0.9, 0)
-    madeByLabel.BackgroundTransparency = 1
-    madeByLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-    madeByLabel.Text = "Made by Dahenhub"
-    madeByLabel.Font = Enum.Font.Gotham
-    madeByLabel.TextSize = 10
-    madeByLabel.Parent = mainFrame
-
-    -- Close button
-    local closeButton = Instance.new("TextButton")
-    closeButton.Size = UDim2.new(0, 25, 0, 25)
-    closeButton.Position = UDim2.new(0.9, -5, 0.02, 0)
-    closeButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    closeButton.Text = "X"
-    closeButton.Font = Enum.Font.GothamBold
-    closeButton.TextSize = 14
-    closeButton.Parent = mainFrame
-
-    local closeCorner = Instance.new("UICorner")
-    closeCorner.CornerRadius = UDim.new(0, 4)
-    closeCorner.Parent = closeButton
-
-    -- Script variables
-    local isAutoHitboxActive = false
-    local autoHitboxLoop = nil
-    local hitboxRange = 10
-    local VirtualInputManager = game:GetService("VirtualInputManager")
-
-    -- Toggle button functionality
-    toggleButton.MouseButton1Click:Connect(function()
-        isAutoHitboxActive = not isAutoHitboxActive
-        
-        if isAutoHitboxActive then
-            toggleButton.BackgroundColor3 = Color3.fromRGB(60, 200, 60)
-            toggleButton.Text = "STOP AUTO ATTACK"
-            statusLabel.Text = "Status: Active"
-            statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+-- DAHENHUB Auto Hitbox routine
+function dahenhubRoutine()
+    local player = game:GetService("Players").LocalPlayer
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart or humanoid.Health <= 0 then return end
+    
+    -- Find players in hitbox range
+    local targetInRange = false
+    
+    for _, otherPlayer in pairs(game:GetService("Players"):GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
             
-            if autoHitboxLoop then
-                autoHitboxLoop:Disconnect()
-            end
-            
-            autoHitboxLoop = game:GetService("RunService").Heartbeat:Connect(function()
-                if not isAutoHitboxActive then return end
-                autoHitboxRoutine()
-            end)
-            
-        else
-            toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
-            toggleButton.Text = "START AUTO ATTACK"
-            statusLabel.Text = "Status: Inactive"
-            statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-            targetLabel.Text = "Target: None"
-            
-            if autoHitboxLoop then
-                autoHitboxLoop:Disconnect()
-                autoHitboxLoop = nil
-            end
-        end
-    end)
-
-    -- Range slider functionality
-    rangeSlider.FocusLost:Connect(function(enterPressed)
-        if enterPressed then
-            local newRange = tonumber(rangeSlider.Text)
-            if newRange and newRange >= 1 and newRange <= 50 then
-                hitboxRange = newRange
-                rangeLabel.Text = "Attack Range: " .. hitboxRange .. " studs"
-                rangeSlider.Text = tostring(hitboxRange)
-            else
-                rangeSlider.Text = tostring(hitboxRange)
-            end
-        end
-    end)
-
-    -- Close button functionality
-    closeButton.MouseButton1Click:Connect(function()
-        if autoHitboxLoop then
-            autoHitboxLoop:Disconnect()
-            autoHitboxLoop = nil
-        end
-        screenGui:Destroy()
-    end)
-
-    -- Auto hitbox attack routine
-    function autoHitboxRoutine()
-        local player = game:GetService("Players").LocalPlayer
-        local character = player.Character
-        if not character then return end
-        
-        local humanoid = character:FindFirstChild("Humanoid")
-        local rootPart = character:FindFirstChild("HumanoidRootPart")
-        if not humanoid or not rootPart or humanoid.Health <= 0 then return end
-        
-        -- Find players in hitbox range
-        local targetInRange = false
-        local currentTarget = nil
-        
-        for _, otherPlayer in pairs(game:GetService("Players"):GetPlayers()) do
-            if otherPlayer ~= player and otherPlayer.Character then
-                local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-                local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+            if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
+                local distance = (rootPart.Position - otherRoot.Position).Magnitude
                 
-                if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
-                    local distance = (rootPart.Position - otherRoot.Position).Magnitude
-                    
-                    if distance <= hitboxRange then
-                        targetInRange = true
-                        currentTarget = otherPlayer
-                        break
-                    end
+                if distance <= dahenhubRange then
+                    targetInRange = true
+                    break
                 end
             end
         end
-        
-        if targetInRange and currentTarget then
-            -- Update target label
-            targetLabel.Text = "Target: " .. currentTarget.Name
-            targetLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-            
-            -- Spam attacks
-            performSpamAttacks()
-        else
-            targetLabel.Text = "Target: None"
-            targetLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        end
     end
+    
+    -- SPAM ATTACKS if target in range
+    if targetInRange then
+        performDahenhubSpamAttacks()
+    end
+end
 
-    -- Perform spam attacks
-    function performSpamAttacks()
-        -- Rapid mouse clicks for spam
+-- Perform SPAM attacks for DAHENHUB
+function performDahenhubSpamAttacks()
+    -- Rapid mouse clicks for spam (multiple clicks per frame)
+    for i = 1, 5 do -- 5 clicks per frame for maximum spam
         VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-        wait(0.01)
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-        
-        -- Additional rapid clicks for more spam
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-        wait(0.01)
+        wait(0.001) -- Very short delay between clicks
         VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
     end
-
-    -- Make GUI draggable
-    local dragging = false
-    local dragInput, dragStart, startPos
-
-    title.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = mainFrame.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-
-    title.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end)
-
-    game:GetService("UserInputService").InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-
-    Library:Notify("🎮 DAHENHUB", "GUI Loaded Successfully!", 3, "Success")
 end
 
 -- Initial notification
-Library:Notify("🎮 DAHENHUB", "Click 'Load DAHENHUB' to open the attack GUI!", 4, "Info")
+Library:Notify("🎯 DAHENHUB", "KILLAURA LEGIT ready! Toggle ON and set range!", 4, "Info")
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
