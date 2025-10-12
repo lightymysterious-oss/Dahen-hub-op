@@ -2346,45 +2346,50 @@ end)
 -- Initial notification
 Library:Notify("🔁 KILLAURA RAGE", "Will TP to nearest player and spam attacks!", 4, "Info")
 
--- DAHENHUB Auto Hitbox - Toggle and Range Slider
-local isDAHENHUBActive = false
-local dahenhubLoop = nil
-local dahenhubRange = 15
+-- KILLAURA LEGIT - Auto Hitbox
+local isKillAuraActive = false
+local killAuraLoop = nil
+local killAuraRange = 10 -- Default normal attack range
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
--- Toggle button for DAHENHUB Auto Hitbox
-PlayerTab:NewToggle("🎯 KILLAURA LEGIT", "Auto spam attacks when players in range", function(state)
-    isDAHENHUBActive = state
+-- Range input box
+PlayerTab:NewTextBox("🎯 KillAura Range", "Enter attack range (1-50)", function(text)
+    local newRange = tonumber(text)
+    if newRange and newRange >= 1 and newRange <= 50 then
+        killAuraRange = newRange
+        Library:Notify("🎯 RANGE SET", "KillAura range: " .. killAuraRange .. " studs", 3, "Success")
+    else
+        Library:Notify("❌ INVALID RANGE", "Please enter number between 1-50", 3, "Error")
+    end
+end)
+
+-- Toggle button for KILLAURA LEGIT
+PlayerTab:NewToggle("⚡ KILLAURA LEGIT", "Auto spam attacks when players in range", function(state)
+    isKillAuraActive = state
     
     if state then
-        Library:Notify("🎯 KILLAURA LEGIT", "KILLAURA ACTIVE - Range: " .. dahenhubRange .. " studs", 3, "Success")
+        Library:Notify("⚡ KILLAURA", "ACTIVE - Range: " .. killAuraRange .. " studs", 3, "Success")
         
-        if dahenhubLoop then
-            dahenhubLoop:Disconnect()
+        if killAuraLoop then
+            killAuraLoop:Disconnect()
         end
         
-        dahenhubLoop = game:GetService("RunService").Heartbeat:Connect(function()
-            if not isDAHENHUBActive then return end
-            dahenhubRoutine()
+        killAuraLoop = game:GetService("RunService").Heartbeat:Connect(function()
+            if not isKillAuraActive then return end
+            killAuraRoutine()
         end)
         
     else
-        Library:Notify("🎯 KILLAURA LEGIT", "Auto Hitbox INACTIVE", 3, "Warning")
-        if dahenhubLoop then
-            dahenhubLoop:Disconnect()
-            dahenhubLoop = nil
+        Library:Notify("⚡ KILLAURA", "INACTIVE", 3, "Warning")
+        if killAuraLoop then
+            killAuraLoop:Disconnect()
+            killAuraLoop = nil
         end
     end
 end)
 
--- Range slider for DAHENHUB
-PlayerTab:NewSlider("🎯 KILLAURA Range", "Set auto hitbox attack range", 50, 5, function(value)
-    dahenhubRange = value
-    Library:Notify("🎯 RANGE SET", "Auto hitbox range: " .. value .. " studs", 2, "Info")
-end)
-
--- DAHENHUB Auto Hitbox routine
-function dahenhubRoutine()
+-- KILLAURA LEGIT routine
+function killAuraRoutine()
     local player = game:GetService("Players").LocalPlayer
     local character = player.Character
     if not character then return end
@@ -2393,7 +2398,7 @@ function dahenhubRoutine()
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     if not humanoid or not rootPart or humanoid.Health <= 0 then return end
     
-    -- Find players in hitbox range
+    -- Find players in range
     local targetInRange = false
     
     for _, otherPlayer in pairs(game:GetService("Players"):GetPlayers()) do
@@ -2404,7 +2409,7 @@ function dahenhubRoutine()
             if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
                 local distance = (rootPart.Position - otherRoot.Position).Magnitude
                 
-                if distance <= dahenhubRange then
+                if distance <= killAuraRange then
                     targetInRange = true
                     break
                 end
@@ -2414,22 +2419,22 @@ function dahenhubRoutine()
     
     -- SPAM ATTACKS if target in range
     if targetInRange then
-        performDahenhubSpamAttacks()
+        performKillAuraAttacks()
     end
 end
 
--- Perform SPAM attacks for DAHENHUB
-function performDahenhubSpamAttacks()
-    -- Rapid mouse clicks for spam (multiple clicks per frame)
-    for i = 1, 5 do -- 5 clicks per frame for maximum spam
+-- Perform KILLAURA spam attacks
+function performKillAuraAttacks()
+    -- Rapid mouse clicks for spam
+    for i = 1, 3 do -- 3 clicks per frame for legit-looking spam
         VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-        wait(0.001) -- Very short delay between clicks
+        wait(0.01)
         VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
     end
 end
 
 -- Initial notification
-Library:Notify("🎯 DAHENHUB", "KILLAURA LEGIT ready! Toggle ON and set range!", 4, "Info")
+Library:Notify("⚡ KILLAURA LEGIT", "Ready! Set range and toggle ON!", 4, "Info")
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
