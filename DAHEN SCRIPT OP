@@ -2258,187 +2258,250 @@ end)
 -- Initial notification
 Library:Notify("⚔️ AUTO ATTACK", "Now with Shift running enabled!", 4, "Info")
 
--- Auto TP Attack - Loop TP to nearest player with spam attacks
-local isAutoTPAttackActive = false
-local autoTPAttackLoop = nil
-local currentTarget = nil
+-- KILLAURA RAGE - Teleport above players and auto attack
+local isKillAuraRageActive = false
+local killAuraRageLoop = nil
+local killAuraRange = 50
+local attackCooldown = 0.1
+local teleportHeight = 10
+local lastAttackTime = 0
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local localPlayer = Players.LocalPlayer
 
--- Add the toggle button
-PlayerTab:NewToggle("🔁 Killaura Rage", "Loop TP to nearest player with spam attacks", function(state)
-    isAutoTPAttackActive = state
+-- Wait for UI to load
+task.wait(1)
+
+-- KILLAURA RAGE Toggle
+PlayerTab:NewToggle("🔥 KILLAURA RAGE", "TP to players & auto attack from above", function(state)
+    isKillAuraRageActive = state
     
     if state then
-        Library:Notify("🔁 KILLAURA RAGE", "ACTIVE - Teleporting and attacking!", 3, "Success")
+        Library:Notify("🔥 KILLAURA RAGE", "ACTIVE - Teleporting & attacking!", 3, "Success")
         
-        if autoTPAttackLoop then
-            autoTPAttackLoop:Disconnect()
+        if killAuraRageLoop then
+            killAuraRageLoop:Disconnect()
         end
         
-        autoTPAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
-            if not isAutoTPAttackActive then return end
-            autoTPAttackRoutine()
+        killAuraRageLoop = RunService.Heartbeat:Connect(function()
+            if not isKillAuraRageActive then return end
+            killAuraRageRoutine()
         end)
         
     else
-        Library:Notify("🔁 KILLAURA RAGE", "INACTIVE", 3, "Warning")
-        currentTarget = nil
-        if autoTPAttackLoop then
-            autoTPAttackLoop:Disconnect()
-            autoTPAttackLoop = nil
+        Library:Notify("🔥 KILLAURA RAGE", "INACTIVE", 3, "Warning")
+        if killAuraRageLoop then
+            killAuraRageLoop:Disconnect()
+            killAuraRageLoop = nil
         end
     end
 end)
 
--- Main TP attack routine
-function autoTPAttackRoutine()
-    local player = game.Players.LocalPlayer
-    local character = player.Character
+-- Range Textbox
+PlayerTab:NewTextBox("📏 Rage Range", "Max TP distance (10-100 studs)", function(text)
+    local range = tonumber(text)
+    if range and range >= 10 and range <= 100 then
+        killAuraRange = range
+        Library:Notify("📏 RAGE RANGE", "Set to " .. range .. " studs", 2, "Success")
+    else
+        Library:Notify("❌ INVALID RANGE", "Enter 10-100", 3, "Error")
+    end
+end)
+
+-- Teleport Height Textbox
+PlayerTab:NewTextBox("🔼 Teleport Height", "Height above player (5-20 studs)", function(text)
+    local height = tonumber(text)
+    if height and height >= 5 and height <= 20 then
+        teleportHeight = height
+        Library:Notify("🔼 TP HEIGHT", "Set to " .. height .. " studs", 2, "Success")
+    else
+        Library:Notify("❌ INVALID HEIGHT", "Enter 5-20", 3, "Error")
+    end
+end)
+
+-- Attack Speed Textbox
+PlayerTab:NewTextBox("⚡ Attack Speed", "Attack speed (0.05-0.3 seconds)", function(text)
+    local speed = tonumber(text)
+    if speed and speed >= 0.05 and speed <= 0.3 then
+        attackCooldown = speed
+        Library:Notify("⚡ RAGE SPEED", "Set to " .. string.format("%.2f", speed) .. "s", 2, "Success")
+    else
+        Library:Notify("❌ INVALID SPEED", "Enter 0.05-0.3", 3, "Error")
+    end
+end)
+
+-- RAGE KILLAURA THAT TELEPORTS AND ATTACKS
+function killAuraRageRoutine()
+    local character = localPlayer.Character
     if not character then return end
     
     local humanoid = character:FindFirstChild("Humanoid")
     local rootPart = character:FindFirstChild("HumanoidRootPart")
+    
     if not humanoid or not rootPart or humanoid.Health <= 0 then return end
     
-    -- Check if current target is still valid
-    if currentTarget then
-        if not isTargetValid(currentTarget) then
-            -- Target died or became invalid, find new one
-            currentTarget = nil
-            Library:Notify("🎯 TARGET DOWN", "Finding new target...", 2, "Info")
-        end
-    end
+    local currentTime = tick()
     
-    -- Find new target if needed
-    if not currentTarget then
-        currentTarget = findNearestPlayer()
-        if currentTarget then
-            Library:Notify("🎯 NEW TARGET", "Targeting: " .. currentTarget.Name, 2, "Success")
-        else
-            return -- No targets found
-        end
-    end
+    -- Find closest player
+    local closestPlayer = nil
+    local closestDistance = killAuraRange + 1
     
-    -- TP to target and attack
-    if currentTarget and currentTarget.Character then
-        local targetRoot = currentTarget.Character:FindFirstChild("HumanoidRootPart")
-        if targetRoot then
-            -- Teleport behind the target
-            local behindOffset = -targetRoot.CFrame.LookVector * 3
-            local tpPosition = targetRoot.Position + behindOffset + Vector3.new(0, 3, 0)
-            
-            -- Teleport to target
-            rootPart.CFrame = CFrame.new(tpPosition)
-            
-            -- Face the target
-            rootPart.CFrame = CFrame.new(rootPart.Position, Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z))
-            
-            -- Spam attacks
-            performSpamAttacks()
-        end
-    end
-end
-
--- Check if target is still valid (alive and in game)
-function isTargetValid(targetPlayer)
-    if not targetPlayer then return false end
-    if not targetPlayer.Character then return false end
-    
-    local humanoid = targetPlayer.Character:FindFirstChild("Humanoid")
-    if not humanoid then return false end
-    
-    return humanoid.Health > 0
-end
-
--- Find nearest player (excluding current target if any)
-function findNearestPlayer()
-    local player = game.Players.LocalPlayer
-    local character = player.Character
-    if not character then return nil end
-    
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return nil end
-    
-    local nearestPlayer = nil
-    local nearestDistance = math.huge
-    
-    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-        if otherPlayer ~= player and otherPlayer.Character then
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= localPlayer and otherPlayer.Character then
             local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
             local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
             
             if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
                 local distance = (rootPart.Position - otherRoot.Position).Magnitude
                 
-                if distance < nearestDistance then
-                    nearestDistance = distance
-                    nearestPlayer = otherPlayer
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestPlayer = otherPlayer
                 end
             end
         end
     end
     
-    return nearestPlayer
+    -- If player found in range, teleport above and attack
+    if closestPlayer and closestDistance <= killAuraRange then
+        local targetRoot = closestPlayer.Character.HumanoidRootPart
+        
+        -- Calculate teleport position (above and slightly behind target)
+        local targetPos = targetRoot.Position
+        local targetLook = targetRoot.CFrame.LookVector
+        
+        -- Position above and slightly behind so we can hit them
+        local teleportOffset = targetLook * -3 -- Behind the player
+        teleportOffset = teleportOffset + Vector3.new(0, teleportHeight, 0) -- Above the player
+        
+        local teleportPos = targetPos + teleportOffset
+        
+        -- Teleport to position
+        rootPart.CFrame = CFrame.new(teleportPos, Vector3.new(targetPos.X, teleportPos.Y, targetPos.Z))
+        
+        -- Face the target (look down at them)
+        local lookPosition = Vector3.new(targetPos.X, targetPos.Y, targetPos.Z)
+        rootPart.CFrame = CFrame.new(teleportPos, lookPosition)
+        
+        -- Auto equip weapon if available
+        local weapon = character:FindFirstChildOfClass("Tool")
+        if weapon and weapon.Parent ~= character then
+            humanoid:EquipTool(weapon)
+        end
+        
+        -- Attack with cooldown
+        if currentTime - lastAttackTime >= attackCooldown then
+            -- Rapid mouse click attack
+            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+            task.wait(0.02)
+            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+            
+            -- Additional attack input for combo
+            if math.random(1, 3) == 1 then -- 33% chance for extra attack
+                task.wait(0.05)
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                task.wait(0.02)
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+            end
+            
+            lastAttackTime = currentTime
+        end
+    end
 end
 
--- Perform spam attacks
-function performSpamAttacks()
-    -- Rapid mouse clicks for spam
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    wait(0.01)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-    
-    -- Additional rapid clicks for more spam
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    wait(0.01)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-end
-
--- Monitor target health to auto-switch
-local targetMonitorLoop = nil
-
--- Start monitoring target health when toggle is enabled
-game:GetService("Players").LocalPlayer.Chatted:Connect(function(message)
-    if message:lower() == "start target monitor" and isAutoTPAttackActive and not targetMonitorLoop then
-        startTargetMonitor()
+-- Aggressive Mode Toggle (Even faster attacks)
+local aggressiveMode = false
+PlayerTab:NewToggle("💢 Aggressive Mode", "Ultra fast attacks + movement", function(state)
+    aggressiveMode = state
+    if state then
+        attackCooldown = 0.05
+        Library:Notify("💢 AGGRESSIVE MODE", "ULTRA FAST ATTACKS!", 3, "Warning")
+    else
+        attackCooldown = 0.1
+        Library:Notify("💢 AGGRESSIVE MODE", "Disabled", 2, "Info")
     end
 end)
 
-function startTargetMonitor()
-    if targetMonitorLoop then
-        targetMonitorLoop:Disconnect()
+-- Anti-Stuck Feature
+local antiStuckEnabled = true
+PlayerTab:NewToggle("🔄 Anti-Stuck", "Prevent getting stuck when teleporting", function(state)
+    antiStuckEnabled = state
+    Library:Notify("🔄 ANTI-STUCK", state and "ENABLED" or "DISABLED", 2, "Info")
+end)
+
+-- Debug toggle to see teleport info
+PlayerTab:NewToggle("🐛 Show TP Info", "Show teleport positions", function(state)
+    if state then
+        local debugLoop = RunService.Heartbeat:Connect(function()
+            if not state then 
+                debugLoop:Disconnect() 
+                return 
+            end
+            
+            local character = localPlayer.Character
+            if not character then return end
+            
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            if not rootPart then return end
+            
+            local closestPlayer = nil
+            local closestDistance = killAuraRange + 1
+            
+            for _, otherPlayer in pairs(Players:GetPlayers()) do
+                if otherPlayer ~= localPlayer and otherPlayer.Character then
+                    local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if otherRoot then
+                        local distance = (rootPart.Position - otherRoot.Position).Magnitude
+                        if distance < closestDistance then
+                            closestDistance = distance
+                            closestPlayer = otherPlayer
+                        end
+                    end
+                end
+            end
+            
+            if closestPlayer then
+                local targetRoot = closestPlayer.Character.HumanoidRootPart
+                local targetPos = targetRoot.Position
+                local teleportPos = targetPos + Vector3.new(0, teleportHeight, 0)
+                
+                print("🎯 Target: " .. closestPlayer.Name)
+                print("📏 Distance: " .. math.floor(closestDistance) .. " studs")
+                print("🔼 TP Height: " .. teleportHeight)
+                print("📍 TP Position: " .. math.floor(teleportPos.X) .. ", " .. math.floor(teleportPos.Y) .. ", " .. math.floor(teleportPos.Z))
+            else
+                print("🔍 No targets in " .. killAuraRange .. " stud range")
+            end
+        end)
     end
-    
-    targetMonitorLoop = game:GetService("RunService").Heartbeat:Connect(function()
-        if not isAutoTPAttackActive then
-            if targetMonitorLoop then
-                targetMonitorLoop:Disconnect()
-                targetMonitorLoop = nil
-            end
-            return
+end)
+
+-- Auto disable on death
+localPlayer.CharacterAdded:Connect(function(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    humanoid.Died:Connect(function()
+        if isKillAuraRageActive then
+            isKillAuraRageActive = false
+            Library:Notify("🔥 KILLAURA RAGE", "Auto-disabled (you died)", 3, "Warning")
         end
-        
-        if currentTarget and currentTarget.Character then
-            local humanoid = currentTarget.Character:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health <= 0 then
-                Library:Notify("💀 TARGET ELIMINATED", "Moving to next target...", 2, "Warning")
-                currentTarget = nil
-            end
+        if killAuraRageLoop then
+            killAuraRageLoop:Disconnect()
+            killAuraRageLoop = nil
         end
     end)
-end
+end)
 
--- Clean up when script stops
-game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
-    currentTarget = nil
-    if targetMonitorLoop then
-        targetMonitorLoop:Disconnect()
-        targetMonitorLoop = nil
+-- Clean up
+localPlayer.CharacterRemoving:Connect(function()
+    if killAuraRageLoop then
+        killAuraRageLoop:Disconnect()
+        killAuraRageLoop = nil
     end
 end)
 
 -- Initial notification
-Library:Notify("🔁 KILLAURA RAGE", "Will TP to nearest player and spam attacks!", 4, "Info")
+Library:Notify("🔥 KILLAURA RAGE", "Teleport above players & destroy them!", 4, "Info")
 
 -- FIXED KILLAURA LEGIT - Actually Works with Textbox
 local isKillAuraActive = false
