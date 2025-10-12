@@ -2265,11 +2265,11 @@ local currentTarget = nil
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
 -- Add the toggle button
-PlayerTab:NewToggle("🔁 Auto TP Attack", "Loop TP to nearest player with spam attacks", function(state)
+PlayerTab:NewToggle("🔁 KILLAURA RAGE", "Loop TP to nearest player with spam attacks", function(state)
     isAutoTPAttackActive = state
     
     if state then
-        Library:Notify("🔁 AUTO TP ATTACK", "ACTIVE - Teleporting and attacking!", 3, "Success")
+        Library:Notify("🔁 KILLAURA RAGE", "ACTIVE - Teleporting and attacking!", 3, "Success")
         
         if autoTPAttackLoop then
             autoTPAttackLoop:Disconnect()
@@ -2281,7 +2281,7 @@ PlayerTab:NewToggle("🔁 Auto TP Attack", "Loop TP to nearest player with spam 
         end)
         
     else
-        Library:Notify("🔁 AUTO TP ATTACK", "INACTIVE", 3, "Warning")
+        Library:Notify("🔁 KILLAURA RAGE", "INACTIVE", 3, "Warning")
         currentTarget = nil
         if autoTPAttackLoop then
             autoTPAttackLoop:Disconnect()
