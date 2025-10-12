@@ -1869,13 +1869,28 @@ end)
 -- Initial notification
 Library:Notify("🤖 DEV ASSISTANT", "Game file explorer ready! Try 'explore workspace'", 5, "Info")
 
--- Auto Attack Script - Adapted for Your UI Library
+-- Advanced Auto Attack Script - Fixed & Enhanced
 local isAutoAttackActive = false
+local isSmartAttackActive = false
 local autoAttackLoop = nil
+local smartAttackLoop = nil
 local lastAttackTime = 0
 local attackCooldown = 0.1
 local isHoldingShift = false
+local lastMovementChange = 0
+local movementCooldown = 1.5
+
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local localPlayer = Players.LocalPlayer
+
+-- Enhanced detection variables
+local lastTarget = nil
+local targetStuckTime = 0
+local lastPosition = Vector3.new(0, 0, 0)
+local stuckCheckTime = 0
 
 -- Add the first toggle button (Basic Auto Attack)
 PlayerTab:NewToggle("⚔️ Auto Attack", "Auto move to nearest player and attack", function(state)
@@ -1888,7 +1903,7 @@ PlayerTab:NewToggle("⚔️ Auto Attack", "Auto move to nearest player and attac
             autoAttackLoop:Disconnect()
         end
         
-        autoAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
+        autoAttackLoop = RunService.Heartbeat:Connect(function()
             if not isAutoAttackActive then return end
             autoAttackRoutine()
         end)
@@ -1904,20 +1919,17 @@ PlayerTab:NewToggle("⚔️ Auto Attack", "Auto move to nearest player and attac
 end)
 
 -- Add the second toggle button (Smart Attack)
-local isSmartAttackActive = false
-local smartAttackLoop = nil
-
 PlayerTab:NewToggle("🎯 Smart Auto Attack", "Advanced targeting with weapon detection", function(state)
     isSmartAttackActive = state
     
     if state then
-        Library:Notify("🎯 SMART ATTACK", "ACTIVE - Weapon-based combat!", 3, "Success")
+        Library:Notify("🎯 SMART ATTACK", "ACTIVE - Advanced combat system!", 3, "Success")
         
         if smartAttackLoop then
             smartAttackLoop:Disconnect()
         end
         
-        smartAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
+        smartAttackLoop = RunService.Heartbeat:Connect(function()
             if not isSmartAttackActive then return end
             smartAttackRoutine()
         end)
@@ -1930,6 +1942,13 @@ PlayerTab:NewToggle("🎯 Smart Auto Attack", "Advanced targeting with weapon de
             smartAttackLoop = nil
         end
     end
+end)
+
+-- Add detection range slider
+local detectionRange = 50
+PlayerTab:NewSlider("📏 Detection Range", "How far to detect enemies", 100, 20, function(value)
+    detectionRange = value
+    Library:Notify("🎯 DETECTION RANGE", "Set to " .. value .. " studs", 2, "Info")
 end)
 
 -- Shift holding functions
@@ -1947,7 +1966,7 @@ function releaseShift()
     end
 end
 
--- Combat movement functions
+-- Enhanced combat movement with obstacle detection
 function performCombatMovement(character, targetPlayer)
     if not character or not targetPlayer or not targetPlayer.Character then return end
     
@@ -1957,130 +1976,64 @@ function performCombatMovement(character, targetPlayer)
     
     if not humanoid or not rootPart or not targetRoot then return end
     
+    local currentTime = tick()
+    if currentTime - lastMovementChange < movementCooldown then return end
+    
+    lastMovementChange = currentTime
+    
     local distance = (rootPart.Position - targetRoot.Position).Magnitude
     
-    -- Different movement patterns based on distance
-    if distance <= 8 then
-        -- Close range: strafe around target
+    -- Advanced movement patterns based on distance and situation
+    if distance <= 12 then
+        -- Close range: advanced strafing with prediction
         local movementPatterns = {
-            function() strafeLeft(rootPart, targetRoot, humanoid) end,
-            function() strafeRight(rootPart, targetRoot, humanoid) end,
-            function() circleStrafe(rootPart, targetRoot, humanoid) end
+            function() advancedStrafeLeft(rootPart, targetRoot, humanoid) end,
+            function() advancedStrafeRight(rootPart, targetRoot, humanoid) end,
+            function() predictiveCircleStrafe(rootPart, targetRoot, humanoid) end,
+            function() backpedalAndStrafe(rootPart, targetRoot, humanoid) end
         }
         
-        -- Random movement pattern
-        local randomPattern = movementPatterns[math.random(1, #movementPatterns)]
-        randomPattern()
+        -- Choose movement pattern based on target behavior
+        local patternIndex = math.random(1, #movementPatterns)
+        movementPatterns[patternIndex]()
     end
 end
 
-function strafeLeft(rootPart, targetRoot, humanoid)
+function advancedStrafeLeft(rootPart, targetRoot, humanoid)
     local rightVector = rootPart.CFrame.RightVector
-    local movePosition = rootPart.Position - (rightVector * 4)
+    local toTarget = (targetRoot.Position - rootPart.Position).Unit
+    local movePosition = rootPart.Position - (rightVector * 5) + (toTarget * 2)
     humanoid:MoveTo(movePosition)
 end
 
-function strafeRight(rootPart, targetRoot, humanoid)
+function advancedStrafeRight(rootPart, targetRoot, humanoid)
     local rightVector = rootPart.CFrame.RightVector
-    local movePosition = rootPart.Position + (rightVector * 4)
+    local toTarget = (targetRoot.Position - rootPart.Position).Unit
+    local movePosition = rootPart.Position + (rightVector * 5) + (toTarget * 2)
     humanoid:MoveTo(movePosition)
 end
 
-function circleStrafe(rootPart, targetRoot, humanoid)
-    local directionToTarget = (targetRoot.Position - rootPart.Position).Unit
+function predictiveCircleStrafe(rootPart, targetRoot, humanoid)
+    -- Predict target movement
+    local targetVelocity = targetRoot.AssemblyLinearVelocity
+    local predictionOffset = targetVelocity * 0.3
+    
+    local directionToTarget = ((targetRoot.Position + predictionOffset) - rootPart.Position).Unit
     local rightVector = rootPart.CFrame.RightVector
-    local circlePosition = rootPart.Position + (rightVector * 3) + (directionToTarget * 2)
+    local circlePosition = rootPart.Position + (rightVector * 4) + (directionToTarget * 3)
     humanoid:MoveTo(circlePosition)
 end
 
--- Shared functions for both toggles
-function autoAttackRoutine()
-    local player = game.Players.LocalPlayer
-    local character = player.Character
-    if not character then 
-        releaseShift()
-        return 
-    end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not rootPart or humanoid.Health <= 0 then 
-        releaseShift()
-        return 
-    end
-    
-    -- Find nearest player
-    local nearestPlayer, nearestDistance = findNearestPlayer()
-    
-    if nearestPlayer and nearestDistance then
-        if nearestDistance <= 10 then
-            -- Player is in attack range - SPAM ATTACKS WITH MOVEMENT!
-            releaseShift()
-            
-            -- Perform combat movement
-            performCombatMovement(character, nearestPlayer)
-            
-            -- SPAM ATTACKS
-            performSpamAttack()
-            
-        else
-            -- Player is out of range - RUN TO PLAYER!
-            holdShift()
-            moveToPlayer(nearestPlayer, rootPart, humanoid)
-        end
-    else
-        releaseShift()
-    end
+function backpedalAndStrafe(rootPart, targetRoot, humanoid)
+    local toTarget = (targetRoot.Position - rootPart.Position).Unit
+    local rightVector = rootPart.CFrame.RightVector
+    local movePosition = rootPart.Position - (toTarget * 3) + (rightVector * 3)
+    humanoid:MoveTo(movePosition)
 end
 
-function smartAttackRoutine()
-    local player = game.Players.LocalPlayer
-    local character = player.Character
-    if not character then 
-        releaseShift()
-        return 
-    end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not rootPart or humanoid.Health <= 0 then 
-        releaseShift()
-        return 
-    end
-    
-    -- Check if player has a weapon
-    local weapon = character:FindFirstChildOfClass("Tool")
-    local attackRange = weapon and 12 or 8
-    
-    local nearestPlayer, nearestDistance = findNearestPlayer()
-    
-    if nearestPlayer and nearestDistance then
-        if nearestDistance <= attackRange then
-            -- In attack range - SPAM ATTACKS WITH MOVEMENT!
-            releaseShift()
-            
-            -- Advanced combat movement
-            performCombatMovement(character, nearestPlayer)
-            
-            -- Weapon-based spam attacks
-            if weapon then
-                spamWeaponAttack(weapon)
-            else
-                spamMeleeAttack()
-            end
-            
-        else
-            -- Move to target - RUN FAST!
-            holdShift()
-            moveToPlayer(nearestPlayer, rootPart, humanoid)
-        end
-    else
-        releaseShift()
-    end
-end
-
+-- Enhanced target finding with multiple criteria
 function findNearestPlayer()
-    local player = game.Players.LocalPlayer
+    local player = localPlayer
     local character = player.Character
     if not character then return nil, math.huge end
     
@@ -2089,8 +2042,9 @@ function findNearestPlayer()
     
     local nearestPlayer = nil
     local nearestDistance = math.huge
+    local bestScore = -math.huge
     
-    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
         if otherPlayer ~= player and otherPlayer.Character then
             local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
             local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
@@ -2098,9 +2052,16 @@ function findNearestPlayer()
             if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
                 local distance = (rootPart.Position - otherRoot.Position).Magnitude
                 
-                if distance < nearestDistance then
-                    nearestDistance = distance
-                    nearestPlayer = otherPlayer
+                -- Only consider players within detection range
+                if distance <= detectionRange then
+                    -- Calculate target score based on multiple factors
+                    local score = calculateTargetScore(player, otherPlayer, distance)
+                    
+                    if score > bestScore then
+                        bestScore = score
+                        nearestPlayer = otherPlayer
+                        nearestDistance = distance
+                    end
                 end
             end
         end
@@ -2109,7 +2070,84 @@ function findNearestPlayer()
     return nearestPlayer, nearestDistance
 end
 
-function moveToPlayer(targetPlayer, rootPart, humanoid)
+-- Advanced target scoring system
+function calculateTargetScore(localPlayer, targetPlayer, distance)
+    local score = 0
+    
+    -- Distance factor (closer = better)
+    score = score + (detectionRange - distance) * 2
+    
+    -- Low health target preference
+    local targetHumanoid = targetPlayer.Character:FindFirstChild("Humanoid")
+    if targetHumanoid then
+        local healthPercent = targetHumanoid.Health / targetHumanoid.MaxHealth
+        score = score + (1 - healthPercent) * 50  -- Prefer low health targets
+    end
+    
+    -- Team check (avoid teammates if possible)
+    if localPlayer.Team and targetPlayer.Team and localPlayer.Team == targetPlayer.Team then
+        score = score - 1000  -- Heavy penalty for teammates
+    end
+    
+    -- Recent target bonus (stick to current target)
+    if targetPlayer == lastTarget then
+        score = score + 30
+    end
+    
+    -- Weapon advantage consideration
+    local localWeapon = localPlayer.Character and localPlayer.Character:FindFirstChildOfClass("Tool")
+    local targetWeapon = targetPlayer.Character and targetPlayer.Character:FindFirstChildOfClass("Tool")
+    
+    if localWeapon and not targetWeapon then
+        score = score + 20  -- We have weapon, they don't
+    elseif not localWeapon and targetWeapon then
+        score = score - 20  -- They have weapon, we don't
+    end
+    
+    return score
+end
+
+-- Stuck detection and recovery
+function checkIfStuck(character)
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return false end
+    
+    local currentTime = tick()
+    local currentPosition = rootPart.Position
+    
+    -- Check if position hasn't changed much
+    if (currentPosition - lastPosition).Magnitude < 2 then
+        if currentTime - stuckCheckTime > 3 then  -- Stuck for 3 seconds
+            return true
+        end
+    else
+        stuckCheckTime = currentTime
+        lastPosition = currentPosition
+    end
+    
+    return false
+end
+
+function recoverFromStuck(character, humanoid)
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+    
+    -- Jump to try to get unstuck
+    humanoid.Jump = true
+    
+    -- Move in random direction
+    local randomDirection = Vector3.new(
+        math.random(-10, 10),
+        0,
+        math.random(-10, 10)
+    )
+    humanoid:MoveTo(rootPart.Position + randomDirection)
+    
+    Library:Notify("🔄 STUCK RECOVERY", "Attempting to get unstuck", 2, "Warning")
+end
+
+-- Enhanced movement with stuck detection
+function moveToPlayer(targetPlayer, rootPart, humanoid, character)
     if not targetPlayer or not targetPlayer.Character then 
         releaseShift()
         return 
@@ -2121,48 +2159,250 @@ function moveToPlayer(targetPlayer, rootPart, humanoid)
         return 
     end
     
-    -- Move towards target
-    humanoid:MoveTo(targetRoot.Position)
+    -- Check if stuck
+    if checkIfStuck(character) then
+        recoverFromStuck(character, humanoid)
+        return
+    end
     
-    -- Face the target
-    rootPart.CFrame = CFrame.new(rootPart.Position, Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z))
+    -- Move towards target with path prediction
+    local targetVelocity = targetRoot.AssemblyLinearVelocity
+    local predictionTime = 0.5
+    local predictedPosition = targetRoot.Position + (targetVelocity * predictionTime)
+    
+    humanoid:MoveTo(predictedPosition)
+    
+    -- Face the target smoothly
+    local lookPosition = Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z)
+    rootPart.CFrame = CFrame.new(rootPart.Position, lookPosition)
     
     -- Stop running if very close to target
     local distance = (rootPart.Position - targetRoot.Position).Magnitude
-    if distance <= 8 then
+    if distance <= 10 then
         releaseShift()
+    else
+        holdShift()
     end
 end
 
--- SPAM ATTACK FUNCTIONS - ONLY MOUSE CLICKS
+-- Enhanced attack routines
+function autoAttackRoutine()
+    local character = localPlayer.Character
+    if not character then 
+        releaseShift()
+        return 
+    end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart or humanoid.Health <= 0 then 
+        releaseShift()
+        return 
+    end
+    
+    -- Find best target using advanced scoring
+    local nearestPlayer, nearestDistance = findNearestPlayer()
+    
+    if nearestPlayer and nearestDistance then
+        lastTarget = nearestPlayer
+        
+        if nearestDistance <= 15 then
+            -- Player is in attack range
+            releaseShift()
+            
+            -- Perform advanced combat movement
+            performCombatMovement(character, nearestPlayer)
+            
+            -- SPAM ATTACKS with cooldown
+            local currentTime = tick()
+            if currentTime - lastAttackTime >= attackCooldown then
+                performSpamAttack()
+                lastAttackTime = currentTime
+            end
+            
+        else
+            -- Player is out of range - RUN TO PLAYER!
+            moveToPlayer(nearestPlayer, rootPart, humanoid, character)
+        end
+    else
+        releaseShift()
+        lastTarget = nil
+    end
+end
+
+function smartAttackRoutine()
+    local character = localPlayer.Character
+    if not character then 
+        releaseShift()
+        return 
+    end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart or humanoid.Health <= 0 then 
+        releaseShift()
+        return 
+    end
+    
+    -- Enhanced weapon detection
+    local weapon = getBestWeapon(character)
+    local attackRange = weapon and getWeaponRange(weapon) or 10
+    
+    local nearestPlayer, nearestDistance = findNearestPlayer()
+    
+    if nearestPlayer and nearestDistance then
+        lastTarget = nearestPlayer
+        
+        if nearestDistance <= attackRange then
+            -- In attack range
+            releaseShift()
+            
+            -- Advanced combat movement with weapon considerations
+            performCombatMovement(character, nearestPlayer)
+            
+            -- Weapon-based optimized attacks
+            local currentTime = tick()
+            if currentTime - lastAttackTime >= attackCooldown then
+                if weapon then
+                    smartWeaponAttack(weapon, nearestDistance)
+                else
+                    smartMeleeAttack(nearestDistance)
+                end
+                lastAttackTime = currentTime
+            end
+            
+        else
+            -- Move to target with smart pathing
+            moveToPlayer(nearestPlayer, rootPart, humanoid, character)
+        end
+    else
+        releaseShift()
+        lastTarget = nil
+    end
+end
+
+-- Enhanced weapon system
+function getBestWeapon(character)
+    local tools = character:GetChildren()
+    local bestTool = nil
+    local bestScore = 0
+    
+    for _, tool in ipairs(tools) do
+        if tool:IsA("Tool") then
+            local score = calculateWeaponScore(tool)
+            if score > bestScore then
+                bestScore = score
+                bestTool = tool
+            end
+        end
+    end
+    
+    return bestTool
+end
+
+function calculateWeaponScore(tool)
+    local score = 0
+    
+    -- Prefer tools with certain names (common weapon names)
+    local weaponNames = {"Sword", "Axe", "Gun", "Rifle", "Pistol", "Knife", "Dagger", "Bow"}
+    for _, name in ipairs(weaponNames) do
+        if string.find(tool.Name:lower(), name:lower()) then
+            score = score + 50
+            break
+        end
+    end
+    
+    -- Check for melee vs ranged
+    if tool:FindFirstChild("Handle") then
+        score = score + 30
+    end
+    
+    return score
+end
+
+function getWeaponRange(weapon)
+    -- Estimate range based on weapon type
+    local weaponName = weapon.Name:lower()
+    
+    if string.find(weaponName, "bow") or string.find(weaponName, "gun") or string.find(weaponName, "rifle") then
+        return 25  -- Ranged weapons
+    elseif string.find(weaponName, "sword") or string.find(weaponName, "axe") then
+        return 12  -- Melee weapons
+    else
+        return 10  -- Default
+    end
+end
+
+-- Enhanced attack functions
 function performSpamAttack()
-    -- Rapid mouse clicks only
+    -- Rapid mouse clicks with variation
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    task.wait(0.02)
+    task.wait(0.05 + math.random() * 0.05)  -- Random delay between 0.05-0.1 seconds
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
 end
 
-function spamWeaponAttack(weapon)
-    -- Rapid weapon activation - mouse clicks only
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    task.wait(0.01)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+function smartWeaponAttack(weapon, distance)
+    -- Equip weapon first
+    if not weapon.Parent:IsA("Backpack") then
+        local humanoid = localPlayer.Character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid:EquipTool(weapon)
+        end
+    end
+    
+    -- Different attack patterns based on distance
+    if distance > 15 then
+        -- Long range: slower, more precise attacks
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+        task.wait(0.1)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    else
+        -- Close range: rapid attacks
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+        task.wait(0.03)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    end
 end
 
-function spamMeleeAttack()
-    -- Rapid melee - mouse clicks only
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    task.wait(0.01)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+function smartMeleeAttack(distance)
+    -- Melee combat with timing based on distance
+    if distance <= 8 then
+        -- Very close: ultra fast attacks
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+        task.wait(0.02)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    else
+        -- Close but not too close: normal speed
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+        task.wait(0.05)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    end
 end
 
 -- Clean up when script stops
-game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
+localPlayer.CharacterRemoving:Connect(function()
     releaseShift()
+    lastTarget = nil
+end)
+
+-- Auto disable when player dies
+localPlayer.CharacterAdded:Connect(function(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    humanoid.Died:Connect(function()
+        if isAutoAttackActive then
+            isAutoAttackActive = false
+            Library:Notify("⚔️ AUTO ATTACK", "Auto-disabled due to death", 3, "Warning")
+        end
+        if isSmartAttackActive then
+            isSmartAttackActive = false
+            Library:Notify("🎯 SMART ATTACK", "Auto-disabled due to death", 3, "Warning")
+        end
+        releaseShift()
+    end)
 end)
 
 -- Initial notification
-Library:Notify("⚔️ AUTO ATTACK", "Mouse-click attacks with combat movement!", 4, "Info")
+Library:Notify("⚔️ AUTO ATTACK", "Enhanced combat system loaded!", 4, "Info")
 
 -- Auto TP Attack - Loop TP to nearest player with spam attacks
 local isAutoTPAttackActive = false
