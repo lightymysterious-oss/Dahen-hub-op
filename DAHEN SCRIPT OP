@@ -2966,6 +2966,275 @@ localPlayer.CharacterAdded:Connect(function()
 	end
 end)
 
+-- AUTO DODGE - Advanced Knife Detection & Auto Dodge
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+-- Auto Dodge variables
+local isAutoDodgeActive = false
+local dodgeConnection = nil
+local lastDodgeTime = 0
+local dodgeCooldown = 3 -- seconds between auto dodges
+
+-- Detection settings
+local weaponNames = {"Knife", "Dagger", "Blade", "Sword", "Weapon", "SeekerTool", "Gun", "Pistol", "Rifle"}
+local detectionRange = 50 -- studs for threat detection
+local attackRange = 15 -- studs for actual attack range
+local aimThreshold = 0.7 -- how accurately they need to be aiming at you
+
+-- Add toggle to PlayerTab
+GamwTab:NewToggle("AUTO DODGE", "Auto dodge when seekers attack", function(state)
+    isAutoDodgeActive = state
+    
+    if state then
+        Library:Notify("AUTO DODGE", "ACTIVE - Will auto press 1 when attacked", 3)
+        startDodgeDetection()
+    else
+        Library:Notify("AUTO DODGE", "INACTIVE", 3)
+        stopDodgeDetection()
+    end
+end)
+
+-- Weapon names setting
+GameTab:NewTextInput("Weapon Names", "Comma separated weapon names", "Knife,Dagger,Sword,Weapon", function(text)
+    if text and text ~= "" then
+        weaponNames = {}
+        for name in string.gmatch(text, "([^,]+)") do
+            table.insert(weaponNames, name:trim())
+        end
+        Library:Notify("AUTO DODGE", "Weapon names updated: " .. text, 3)
+    end
+end)
+
+-- Detection range setting
+GameTab:NewSlider("Detection Range", "Threat detection range (10-100)", 100, 10, function(value)
+    detectionRange = value
+    Library:Notify("AUTO DODGE", "Detection range: " .. value .. " studs", 3)
+end)
+
+-- Attack range setting
+GameTab:NewSlider("Attack Range", "Dodge when in this range (5-30)", 30, 5, function(value)
+    attackRange = value
+    Library:Notify("AUTO DODGE", "Attack range: " .. value .. " studs", 3)
+end)
+
+-- Start detection loop
+local function startDodgeDetection()
+    if dodgeConnection then
+        dodgeConnection:Disconnect()
+    end
+    
+    dodgeConnection = RunService.Heartbeat:Connect(function()
+        checkForThreats()
+    end)
+end
+
+-- Stop detection
+local function stopDodgeDetection()
+    if dodgeConnection then
+        dodgeConnection:Disconnect()
+        dodgeConnection = nil
+    end
+end
+
+-- Check if player can attack (has weapon and in range)
+local function canPlayerAttack(player, localPosition)
+    local character = player.Character
+    if not character then return false end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    if not humanoid or humanoid.Health <= 0 or not rootPart then
+        return false
+    end
+    
+    -- Check distance
+    local distance = (rootPart.Position - localPosition).Magnitude
+    if distance > attackRange then
+        return false
+    end
+    
+    -- Check if player has a weapon
+    local hasWeapon = false
+    local tool = character:FindFirstChildOfClass("Tool")
+    
+    -- Check equipped tool
+    if tool then
+        for _, weaponName in pairs(weaponNames) do
+            if string.find(tool.Name:lower(), weaponName:lower()) then
+                hasWeapon = true
+                break
+            end
+        end
+    end
+    
+    -- Check backpack for weapons (might equip soon)
+    if not hasWeapon and player:FindFirstChild("Backpack") then
+        for _, item in pairs(player.Backpack:GetChildren()) do
+            if item:IsA("Tool") then
+                for _, weaponName in pairs(weaponNames) do
+                    if string.find(item.Name:lower(), weaponName:lower()) then
+                        hasWeapon = true
+                        break
+                    end
+                end
+            end
+            if hasWeapon then break end
+        end
+    end
+    
+    return hasWeapon
+end
+
+-- Check if player is aiming at us
+local function isPlayerAiming(player, localPosition)
+    local character = player.Character
+    if not character then return false end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    local head = character:FindFirstChild("Head")
+    
+    if not rootPart then return false end
+    
+    local directionToLocal = (localPosition - rootPart.Position).Unit
+    local playerLookDirection = rootPart.CFrame.LookVector
+    
+    local aimAccuracy = directionToLocal:Dot(playerLookDirection)
+    
+    -- Check if player is moving toward us (aggressive behavior)
+    local velocity = rootPart.Velocity
+    local movingTowardUs = velocity.Magnitude > 8 and velocity.Unit:Dot(directionToLocal) > 0.6
+    
+    return aimAccuracy > aimThreshold or movingTowardUs
+end
+
+-- Check if player is attacking (tool animation, swinging, etc.)
+local function isPlayerAttacking(player)
+    local character = player.Character
+    if not character then return false end
+    
+    local tool = character:FindFirstChildOfClass("Tool")
+    if not tool then return false end
+    
+    -- Check for tool animation or movement indicating attack
+    if tool:FindFirstChild("Handle") then
+        local handle = tool.Handle
+        -- High velocity usually means swinging/attacking
+        if handle.Velocity.Magnitude > 25 then
+            return true
+        end
+    end
+    
+    -- Check humanoid animations
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
+            local trackName = track.Name:lower()
+            if string.find(trackName, "attack") or 
+               string.find(trackName, "swing") or 
+               string.find(trackName, "slash") or
+               string.find(trackName, "hit") then
+                return true
+            end
+        end
+    end
+    
+    return false
+end
+
+-- Main threat detection function
+local function checkForThreats()
+    if not isAutoDodgeActive then return end
+    
+    local currentTime = tick()
+    if currentTime - lastDodgeTime < dodgeCooldown then return end
+    
+    local localCharacter = localPlayer.Character
+    if not localCharacter then return end
+    
+    local localRoot = localCharacter:FindFirstChild("HumanoidRootPart")
+    if not localRoot then return end
+    
+    local localPosition = localRoot.Position
+    
+    -- Check all players for threats
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character then
+            local character = player.Character
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            
+            if not rootPart then continue end
+            
+            local distance = (rootPart.Position - localPosition).Magnitude
+            
+            -- Only check players within detection range
+            if distance <= detectionRange then
+                -- Check all threat conditions
+                local canAttack = canPlayerAttack(player, localPosition)
+                local isAiming = isPlayerAiming(player, localPosition)
+                local isAttacking = isPlayerAttacking(player)
+                
+                -- Trigger dodge if:
+                -- 1. Player can attack AND is aiming at us, OR
+                -- 2. Player is actively attacking, OR
+                -- 3. Player is very close with weapon
+                if (canAttack and isAiming) or isAttacking or (canAttack and distance <= 10) then
+                    performAutoDodge()
+                    lastDodgeTime = currentTime
+                    
+                    -- Optional notification
+                    Library:Notify("AUTO DODGE", "Dodged " .. player.Name, 2)
+                    break -- Only dodge once per detection
+                end
+            end
+        end
+    end
+end
+
+-- Perform the dodge by pressing 1
+local function performAutoDodge()
+    -- Press and release 1 key (dodge button)
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.One, false, nil)
+    task.wait(0.1) -- Short press
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.One, false, nil)
+    
+    print("AUTO DODGE: Pressed 1 to dodge")
+end
+
+-- Manual dodge button (for testing)
+PlayerTab:NewButton("Test Dodge", "Manually press 1 to dodge", function()
+    performAutoDodge()
+    Library:Notify("AUTO DODGE", "Manual dodge activated", 2)
+end)
+
+-- Status button
+GameTab:NewButton("Dodge Status", "Check auto dodge status", function()
+    if isAutoDodgeActive then
+        Library:Notify("AUTO DODGE", "ACTIVE - Weapons: " .. table.concat(weaponNames, ", "), 5)
+    else
+        Library:Notify("AUTO DODGE", "INACTIVE - Toggle to enable", 3)
+    end
+end)
+
+-- Handle character respawning
+localPlayer.CharacterAdded:Connect(function(character)
+    if isAutoDodgeActive then
+        task.wait(2) -- Wait for character to load
+        Library:Notify("AUTO DODGE", "Reactivated for new character", 3)
+    end
+end)
+
+-- Clean up
+localPlayer.CharacterRemoving:Connect(function()
+    stopDodgeDetection()
+end)
+
+Library:Notify("AUTO DODGE", "Loaded! Toggle ON to auto dodge seekers", 4)
+
 GameTab:NewDivider()
 
 GameTab:NewText("Jump Rope")
