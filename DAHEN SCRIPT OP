@@ -2472,6 +2472,7 @@ function openSettingsGui()
     settingsGui.Name = "KillauraSettingsGui"
     settingsGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
     settingsGui.ResetOnSpawn = false
+    settingsGui.Enabled = true  -- Explicitly enable the GUI
     
     -- Main Frame
     local frame = Instance.new("Frame")
@@ -2480,6 +2481,7 @@ function openSettingsGui()
     frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     frame.BorderSizePixel = 0
     frame.Parent = settingsGui
+    frame.Visible = true  -- Explicitly make frame visible
     
     -- Title Label
     local title = Instance.new("TextLabel")
@@ -2514,7 +2516,7 @@ function openSettingsGui()
     local toggleButton = Instance.new("TextButton")
     toggleButton.Size = UDim2.new(1, 0, 0, 40)
     toggleButton.Position = UDim2.new(0, 0, 0, 100)
-    toggleButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    toggleButton.BackgroundColor3 = isKillAuraLegitActive and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
     toggleButton.Text = isKillAuraLegitActive and "Killaura Legit: ON" or "Killaura Legit: OFF"
     toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     toggleButton.TextSize = 18
@@ -2590,6 +2592,9 @@ function openSettingsGui()
     closeButton.MouseButton1Click:Connect(function()
         settingsGui.Enabled = false
     end)
+    
+    -- Debug print to confirm GUI creation
+    print("Killaura Settings GUI created and enabled")
 end
 
 -- Function to expand hitboxes client-side (increases Head size for easier hits)
