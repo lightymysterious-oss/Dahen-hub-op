@@ -2440,7 +2440,7 @@ end)
 -- Initial notification
 Library:Notify("🔁 AUTO TP ATTACK", "Will TP to nearest player and spam attacks!", 4, "Info")
 
--- KILLAURA LEGIT - Ink Game Mobile
+-- KILLAURA LEGIT - Ink Game with Movement
 local isKillAuraActive = false
 local killAuraLoop = nil
 
@@ -2448,11 +2448,11 @@ local killAuraLoop = nil
 task.wait(2)
 
 -- KILLAURA LEGIT Toggle
-PlayerTab:NewToggle("🔪 KILLAURA LEGIT", "Auto attack in Ink Game", function(state)
+PlayerTab:NewToggle("🔪 KILLAURA LEGIT", "Move & attack with E key", function(state)
     isKillAuraActive = state
     
     if state then
-        Library:Notify("🔪 KILLAURA", "ACTIVE", 2, "Success")
+        Library:Notify("🔪 KILLAURA", "ACTIVE - Moving & attacking!", 2, "Success")
         
         if killAuraLoop then
             killAuraLoop:Disconnect()
@@ -2472,18 +2472,14 @@ PlayerTab:NewToggle("🔪 KILLAURA LEGIT", "Auto attack in Ink Game", function(s
     end
 end)
 
--- Ink Game screen tap attack
+-- E key spam attack
 function inkGameAttack()
-    -- Screen tap for mobile
-    local touchId = math.random(1, 1000)
-    local screenPosition = Vector2.new(0.5, 0.5)
-    
-    -- Send multiple taps
-    for i = 1, 2 do
-        game:GetService("VirtualInputManager"):SendTouchEvent(touchId + i, Enum.UserInputState.Begin, screenPosition)
-        task.wait(0.02)
-        game:GetService("VirtualInputManager"):SendTouchEvent(touchId + i, Enum.UserInputState.End, screenPosition)
-        task.wait(0.03)
+    -- Spam E key multiple times
+    for i = 1, 3 do
+        game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.E, false, game)
+        task.wait(0.05)
+        game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.E, false, game)
+        task.wait(0.05)
     end
 end
 
@@ -2497,7 +2493,7 @@ function findNearestEnemy()
     if not rootPart then return nil end
     
     local nearestPlayer = nil
-    local nearestDistance = 20
+    local nearestDistance = 50
     
     for _, otherPlayer in pairs(game.Players:GetPlayers()) do
         if otherPlayer ~= player and otherPlayer.Character then
@@ -2517,26 +2513,42 @@ function findNearestEnemy()
     return nearestPlayer, nearestDistance
 end
 
--- Main KillAura function
+-- Main KillAura with movement
 function inkGameKillAura()
     local player = game.Players.LocalPlayer
     local character = player.Character
     if not character then return end
     
+    local humanoid = character:FindFirstChild("Humanoid")
     local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return end
+    
+    if not humanoid or not rootPart or humanoid.Health <= 0 then return end
     
     local nearestEnemy, distance = findNearestEnemy()
     
-    if nearestEnemy and distance <= 15 then
+    if nearestEnemy then
         local enemyRoot = nearestEnemy.Character.HumanoidRootPart
         
         -- Face the enemy
         local lookPosition = Vector3.new(enemyRoot.Position.X, rootPart.Position.Y, enemyRoot.Position.Z)
         rootPart.CFrame = CFrame.new(rootPart.Position, lookPosition)
         
-        -- Attack with screen taps
-        inkGameAttack()
+        -- Move toward enemy but stop at a comfortable distance (8-15 studs)
+        if distance > 15 then
+            -- Move toward enemy if too far
+            humanoid:MoveTo(enemyRoot.Position)
+        elseif distance < 8 then
+            -- Stop moving if too close
+            humanoid:MoveTo(rootPart.Position)
+        else
+            -- Perfect distance - stop moving and attack
+            humanoid:MoveTo(rootPart.Position)
+        end
+        
+        -- Attack if in good range (8-20 studs)
+        if distance <= 20 and distance >= 8 then
+            inkGameAttack()
+        end
     end
 end
 
