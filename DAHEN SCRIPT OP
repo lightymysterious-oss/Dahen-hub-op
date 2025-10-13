@@ -2440,12 +2440,13 @@ end)
 -- Initial notification
 Library:Notify("🔁 AUTO TP ATTACK", "Will TP to nearest player and spam attacks!", 4, "Info")
 
--- FIXED KILLAURA LEGIT - You Can Move While Attacking
+-- KILLAURA LEGIT - Mobile Friendly with Key Spam
 local isKillAuraActive = false
 local killAuraLoop = nil
 local killAuraRange = 15
+local hitboxSize = 5
 local lastAttackTime = 0
-local attackCooldown = 0.2
+local attackCooldown = 0.1
 
 -- Wait for UI to load
 task.wait(2)
@@ -2455,7 +2456,7 @@ PlayerTab:NewToggle("🔪 KILLAURA LEGIT", "Auto attack players in range", funct
     isKillAuraActive = state
     
     if state then
-        Library:Notify("🔪 KILLAURA", "ACTIVE - Attacking in range!", 2, "Success")
+        Library:Notify("🔪 KILLAURA", "ACTIVE - Mobile key spam!", 2, "Success")
         
         if killAuraLoop then
             killAuraLoop:Disconnect()
@@ -2476,18 +2477,115 @@ PlayerTab:NewToggle("🔪 KILLAURA LEGIT", "Auto attack players in range", funct
 end)
 
 -- Hitbox Range TextInput
-PlayerTab:NewTextInput("🎯 Hitbox Range", "Enter range 5-50", function(text)
+PlayerTab:NewTextInput("🎯 Detection Range", "How far to detect (5-50)", function(text)
     local range = tonumber(text)
     if range and range >= 5 and range <= 50 then
         killAuraRange = range
-        Library:Notify("🎯 RANGE", "Set to " .. range .. " studs", 2, "Info")
-        print("KillAura Range set to:", range) -- Debug
+        Library:Notify("🎯 RANGE", "Detection: " .. range .. " studs", 2, "Info")
     else
-        Library:Notify("❌ ERROR", "Enter number 5-50", 2, "Error")
+        Library:Notify("❌ ERROR", "Enter 5-50", 2, "Error")
     end
 end)
 
--- Working KillAura Routine - Lets you move
+-- Hitbox Expander TextInput
+PlayerTab:NewTextInput("📏 Hitbox Size", "Hitbox multiplier (1-10)", function(text)
+    local size = tonumber(text)
+    if size and size >= 1 and size <= 10 then
+        hitboxSize = size
+        Library:Notify("📏 HITBOX", "Size: x" .. size, 2, "Info")
+    else
+        Library:Notify("❌ ERROR", "Enter 1-10", 2, "Error")
+    end
+end)
+
+-- Attack Speed TextInput
+PlayerTab:NewTextInput("⚡ Attack Speed", "Speed in seconds (0.05-0.5)", function(text)
+    local speed = tonumber(text)
+    if speed and speed >= 0.05 and speed <= 0.5 then
+        attackCooldown = speed
+        Library:Notify("⚡ SPEED", "Set to " .. speed .. "s", 2, "Info")
+    else
+        Library:Notify("❌ ERROR", "Enter 0.05-0.5", 2, "Error")
+    end
+end)
+
+-- Attack Key Dropdown
+local attackKey = "E"
+PlayerTab:NewDropdown("⌨️ Attack Key", "Key to spam for attacks", {"E", "F", "R", "Q", "X", "Z", "C", "V"}, "E", function(selected)
+    attackKey = selected
+    Library:Notify("⌨️ KEY", "Attack key: " .. selected, 2, "Info")
+end)
+
+-- Hitbox Expansion Function
+function expandHitbox(targetCharacter)
+    if not targetCharacter then return nil end
+    
+    -- Get the main parts we can hit
+    local rootPart = targetCharacter:FindFirstChild("HumanoidRootPart")
+    local head = targetCharacter:FindFirstChild("Head")
+    local torso = targetCharacter:FindFirstChild("Torso") or targetCharacter:FindFirstChild("UpperTorso")
+    
+    -- Calculate expanded hitbox position
+    local hitboxPosition = Vector3.new(0, 0, 0)
+    local partCount = 0
+    
+    if rootPart then
+        hitboxPosition = hitboxPosition + rootPart.Position
+        partCount = partCount + 1
+    end
+    
+    if head then
+        hitboxPosition = hitboxPosition + head.Position
+        partCount = partCount + 1
+    end
+    
+    if torso then
+        hitboxPosition = hitboxPosition + torso.Position
+        partCount = partCount + 1
+    end
+    
+    if partCount > 0 then
+        -- Average position of all parts
+        local averagePos = hitboxPosition / partCount
+        return averagePos
+    end
+    
+    return rootPart and rootPart.Position or nil
+end
+
+-- Key spam attack function (mobile friendly)
+function performKeySpam()
+    local keyCode = getKeyCode(attackKey)
+    if not keyCode then return end
+    
+    -- Rapid key presses for spam attacks
+    VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
+    task.wait(0.02)
+    VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
+    
+    -- Additional spam for combo
+    task.wait(0.03)
+    VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
+    task.wait(0.02)
+    VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
+end
+
+-- Convert key string to KeyCode
+function getKeyCode(key)
+    local keyCodes = {
+        E = Enum.KeyCode.E,
+        F = Enum.KeyCode.F,
+        R = Enum.KeyCode.R,
+        Q = Enum.KeyCode.Q,
+        X = Enum.KeyCode.X,
+        Z = Enum.KeyCode.Z,
+        C = Enum.KeyCode.C,
+        V = Enum.KeyCode.V
+    }
+    return keyCodes[key]
+end
+
+-- Mobile-Friendly KillAura Routine
 function killAuraRoutine()
     local player = game.Players.LocalPlayer
     local character = player.Character
@@ -2505,15 +2603,22 @@ function killAuraRoutine()
     
     for _, otherPlayer in pairs(game.Players:GetPlayers()) do
         if otherPlayer ~= player and otherPlayer.Character then
-            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
             local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
             
-            if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
-                local distance = (rootPart.Position - otherRoot.Position).Magnitude
-                
-                if distance < closestDistance and distance <= killAuraRange then
-                    closestDistance = distance
-                    closestPlayer = otherPlayer
+            if otherHumanoid and otherHumanoid.Health > 0 then
+                -- Get expanded hitbox position
+                local hitboxPos = expandHitbox(otherPlayer.Character)
+                if hitboxPos then
+                    -- Calculate distance to expanded hitbox
+                    local distance = (rootPart.Position - hitboxPos).Magnitude
+                    
+                    -- Apply hitbox size multiplier to make range effectively larger
+                    local effectiveDistance = distance / hitboxSize
+                    
+                    if effectiveDistance <= killAuraRange then
+                        closestPlayer = otherPlayer
+                        closestDistance = effectiveDistance
+                    end
                 end
             end
         end
@@ -2521,70 +2626,96 @@ function killAuraRoutine()
     
     -- Attack if player found in range
     if closestPlayer then
-        local targetRoot = closestPlayer.Character.HumanoidRootPart
+        local targetCharacter = closestPlayer.Character
+        local hitboxPos = expandHitbox(targetCharacter)
         
-        -- Quick face target (doesn't lock your camera)
-        local lookPosition = Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z)
-        rootPart.CFrame = CFrame.new(rootPart.Position, lookPosition)
-        
-        -- Attack with cooldown (so you can still move)
-        if currentTime - lastAttackTime >= attackCooldown then
-            -- Single mouse click (doesn't lock your input)
-            game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, true, game, 1)
-            task.wait(0.01)
-            game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, false, game, 1)
+        if hitboxPos then
+            -- Face the target (gentle turn for mobile)
+            local lookPosition = Vector3.new(hitboxPos.X, rootPart.Position.Y, hitboxPos.Z)
+            rootPart.CFrame = CFrame.new(rootPart.Position, lookPosition)
             
-            lastAttackTime = currentTime
+            -- Spam key attacks with cooldown
+            if currentTime - lastAttackTime >= attackCooldown then
+                performKeySpam()
+                lastAttackTime = currentTime
+            end
         end
     end
 end
 
--- Attack Speed TextInput (so you can control attack frequency)
-PlayerTab:NewTextInput("⚡ Attack Speed", "Enter speed 0.1-1.0", function(text)
-    local speed = tonumber(text)
-    if speed and speed >= 0.1 and speed <= 1.0 then
-        attackCooldown = speed
-        Library:Notify("⚡ SPEED", "Set to " .. speed .. "s", 2, "Info")
-    else
-        Library:Notify("❌ ERROR", "Enter number 0.1-1.0", 2, "Error")
-    end
+-- Multi-Key Attack Mode
+local multiKeyMode = false
+PlayerTab:NewToggle("💥 Multi-Key Mode", "Spam multiple keys at once", function(state)
+    multiKeyMode = state
+    Library:Notify("💥 MULTI-KEY", state and "ENABLED" or "DISABLED", 2, "Info")
 end)
 
--- Debug toggle to see what's happening
-PlayerTab:NewToggle("🐛 Debug Mode", "Show detection info", function(state)
+-- Enhanced key spam for multi-key mode
+function performMultiKeySpam()
+    local keys = {"E", "F", "R", "Q"}
+    
+    for _, key in ipairs(keys) do
+        local keyCode = getKeyCode(key)
+        if keyCode then
+            VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
+            task.wait(0.01)
+            VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
+        end
+    end
+end
+
+-- Update attack function for multi-key mode
+function performKeySpam()
+    if multiKeyMode then
+        performMultiKeySpam()
+    else
+        local keyCode = getKeyCode(attackKey)
+        if not keyCode then return end
+        
+        -- Rapid key presses for spam attacks
+        VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
+        task.wait(0.02)
+        VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
+        
+        -- Additional spam for combo
+        task.wait(0.03)
+        VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
+        task.wait(0.02)
+        VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
+    end
+end
+
+-- Debug Info
+PlayerTab:NewToggle("🐛 Show Info", "Display detection details", function(state)
     if state then
         local debugLoop = game:GetService("RunService").Heartbeat:Connect(function()
             if not state then debugLoop:Disconnect() return end
             
             local player = game.Players.LocalPlayer
             local character = player.Character
-            if not character then 
-                print("❌ No character") 
-                return 
-            end
+            if not character then return end
             
             local rootPart = character:FindFirstChild("HumanoidRootPart")
-            if not rootPart then 
-                print("❌ No root part") 
-                return 
-            end
+            if not rootPart then return end
             
-            local playersInRange = 0
+            local targetsFound = 0
             for _, otherPlayer in pairs(game.Players:GetPlayers()) do
                 if otherPlayer ~= player and otherPlayer.Character then
-                    local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if otherRoot then
-                        local distance = (rootPart.Position - otherRoot.Position).Magnitude
-                        if distance <= killAuraRange then
-                            playersInRange = playersInRange + 1
-                            print("🎯 " .. otherPlayer.Name .. " - " .. math.floor(distance) .. " studs")
+                    local hitboxPos = expandHitbox(otherPlayer.Character)
+                    if hitboxPos then
+                        local distance = (rootPart.Position - hitboxPos).Magnitude
+                        local effectiveDistance = distance / hitboxSize
+                        
+                        if effectiveDistance <= killAuraRange then
+                            targetsFound = targetsFound + 1
+                            print("🎯 " .. otherPlayer.Name .. " | Distance: " .. math.floor(distance) .. " | Effective: " .. math.floor(effectiveDistance) .. " | Hitbox: x" .. hitboxSize)
                         end
                     end
                 end
             end
             
-            if playersInRange == 0 then
-                print("🔍 No players in " .. killAuraRange .. " stud range")
+            if targetsFound == 0 then
+                print("🔍 No targets | Range: " .. killAuraRange .. " | Hitbox: x" .. hitboxSize .. " | Key: " .. attackKey)
             end
         end)
     end
@@ -2596,7 +2727,7 @@ game.Players.LocalPlayer.CharacterAdded:Connect(function(character)
     humanoid.Died:Connect(function()
         if isKillAuraActive then
             isKillAuraActive = false
-            Library:Notify("🔪 KILLAURA", "Auto-disabled (you died)", 2, "Warning")
+            Library:Notify("🔪 KILLAURA", "Auto-disabled", 2, "Warning")
         end
         if killAuraLoop then
             killAuraLoop:Disconnect()
@@ -2614,7 +2745,7 @@ game.Players.LocalPlayer.CharacterRemoving:Connect(function()
 end)
 
 -- Initial notification
-Library:Notify("🔪 KILLAURA LEGIT", "Type range & speed then activate!", 3, "Info")
+Library:Notify("🔪 KILLAURA LEGIT", "Mobile key spam activated!", 3, "Info")
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
