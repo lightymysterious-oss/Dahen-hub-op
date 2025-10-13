@@ -2440,20 +2440,21 @@ end)
 -- Initial notification
 Library:Notify("🔁 AUTO TP ATTACK", "Will TP to nearest player and spam attacks!", 4, "Info")
 
--- KILLAURA LEGIT - Hitbox Expander Only
+-- KILLAURA LEGIT - With Hitbox Visual
 local isKillAuraActive = false
 local killAuraLoop = nil
-local hitboxSize = 5
+local hitboxSize = 10
+local hitboxVisual = nil
 
 -- Wait for UI to load
 task.wait(2)
 
 -- KILLAURA LEGIT Toggle
-PlayerTab:NewToggle("🔪 KILLAURA LEGIT", "Auto attack players in hitbox range", function(state)
+PlayerTab:NewToggle("🔪 KILLAURA LEGIT", "Smart auto attack in hitbox range", function(state)
     isKillAuraActive = state
     
     if state then
-        Library:Notify("🔪 KILLAURA", "ACTIVE", 2, "Success")
+        Library:Notify("🔪 KILLAURA", "ACTIVE - Smart detection!", 2, "Success")
         
         if killAuraLoop then
             killAuraLoop:Disconnect()
@@ -2470,84 +2471,189 @@ PlayerTab:NewToggle("🔪 KILLAURA LEGIT", "Auto attack players in hitbox range"
             killAuraLoop:Disconnect()
             killAuraLoop = nil
         end
+        removeHitboxVisual()
     end
 end)
 
 -- Hitbox Expander TextInput
-PlayerTab:NewTextInput("📏 Hitbox Size", "Enter size 1-10", function(text)
+PlayerTab:NewTextInput("📏 Hitbox Size", "Enter size 1-50", function(text)
     local size = tonumber(text)
-    if size and size >= 1 and size <= 10 then
+    if size and size >= 1 and size <= 50 then
         hitboxSize = size
         Library:Notify("📏 SIZE", "Set to " .. size, 2, "Info")
+        updateHitboxVisual()
     end
 end)
 
--- Hitbox Expander Function
-function expandHitbox(targetCharacter)
-    if not targetCharacter then return nil end
-    
-    local rootPart = targetCharacter:FindFirstChild("HumanoidRootPart")
-    if rootPart then
-        return rootPart.Position
+-- Hitbox Visual Functions
+function createHitboxVisual()
+    if hitboxVisual then
+        hitboxVisual:Destroy()
     end
     
-    return nil
+    hitboxVisual = Instance.new("Part")
+    hitboxVisual.Name = "HitboxVisual"
+    hitboxVisual.Size = Vector3.new(hitboxSize * 2, hitboxSize * 2, hitboxSize * 2)
+    hitboxVisual.Shape = Enum.PartType.Ball
+    hitboxVisual.Material = Enum.Material.Neon
+    hitboxVisual.BrickColor = BrickColor.new("Bright red")
+    hitboxVisual.Transparency = 0.7
+    hitboxVisual.Anchored = true
+    hitboxVisual.CanCollide = false
+    hitboxVisual.CastShadow = false
+    
+    local highlight = Instance.new("Highlight")
+    highlight.FillColor = Color3.new(1, 0, 0)
+    highlight.FillTransparency = 0.8
+    highlight.OutlineColor = Color3.new(1, 0, 0)
+    highlight.OutlineTransparency = 0.3
+    highlight.Parent = hitboxVisual
+    
+    hitboxVisual.Parent = workspace
 end
 
--- KillAura Routine with Hitbox Expansion
+function updateHitboxVisual()
+    if hitboxVisual then
+        hitboxVisual.Size = Vector3.new(hitboxSize * 2, hitboxSize * 2, hitboxSize * 2)
+    else
+        createHitboxVisual()
+    end
+end
+
+function removeHitboxVisual()
+    if hitboxVisual then
+        hitboxVisual:Destroy()
+        hitboxVisual = nil
+    end
+end
+
+-- Smart Hitbox Detection
+function isInHitboxRange(localChar, targetChar)
+    if not localChar or not targetChar then return false end
+    
+    local localRoot = localChar:FindFirstChild("HumanoidRootPart")
+    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+    
+    if not localRoot or not targetRoot then return false end
+    
+    local distance = (localRoot.Position - targetRoot.Position).Magnitude
+    
+    -- Hitbox expansion: larger hitboxSize = easier to hit from farther
+    local hitboxRadius = hitboxSize * 3  -- Scale hitbox size to visible range
+    
+    return distance <= hitboxRadius
+end
+
+-- KillAura Routine with Smart Detection
 function killAuraRoutine()
     local player = game.Players.LocalPlayer
     local character = player.Character
-    if not character then return end
+    if not character then 
+        removeHitboxVisual()
+        return 
+    end
     
     local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return end
+    if not rootPart then 
+        removeHitboxVisual()
+        return 
+    end
     
-    -- Check all players
+    -- Update hitbox visual position
+    if hitboxVisual then
+        hitboxVisual.Position = rootPart.Position
+    else
+        createHitboxVisual()
+    end
+    
+    -- Smart target selection
+    local bestTarget = nil
+    local closestDistance = math.huge
+    
     for _, otherPlayer in pairs(game.Players:GetPlayers()) do
         if otherPlayer ~= player and otherPlayer.Character then
             local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
             
-            if otherHumanoid and otherHumanoid.Health > 0 then
-                -- Get hitbox position
-                local hitboxPos = expandHitbox(otherPlayer.Character)
-                if hitboxPos then
-                    local distance = (rootPart.Position - hitboxPos).Magnitude
+            if otherHumanoid and otherRoot and otherHumanoid.Health > 0 then
+                -- Check if target is in hitbox range
+                if isInHitboxRange(character, otherPlayer.Character) then
+                    local distance = (rootPart.Position - otherRoot.Position).Magnitude
                     
-                    -- Apply hitbox size to make effective range larger
-                    local effectiveDistance = distance / hitboxSize
-                    
-                    -- If player is in expanded hitbox range, attack
-                    if effectiveDistance <= 15 then
-                        -- Face the target
-                        rootPart.CFrame = CFrame.new(rootPart.Position, Vector3.new(hitboxPos.X, rootPart.Position.Y, hitboxPos.Z))
-                        
-                        -- Spam mouse click
-                        game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, true, game, 1)
-                        task.wait(0.01)
-                        game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, false, game, 1)
-                        
-                        break
+                    if distance < closestDistance then
+                        closestDistance = distance
+                        bestTarget = otherPlayer
                     end
                 end
             end
         end
     end
+    
+    -- Attack if target found
+    if bestTarget then
+        local targetRoot = bestTarget.Character.HumanoidRootPart
+        
+        -- Face the target
+        rootPart.CFrame = CFrame.new(rootPart.Position, Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z))
+        
+        -- Spam mouse clicks
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, true, game, 1)
+        task.wait(0.01)
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, false, game, 1)
+        
+        -- Additional click for more spam
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, true, game, 1)
+        task.wait(0.01)
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    end
 end
 
--- Auto disable on death
+-- Visual Toggle
+local showVisual = true
+PlayerTab:NewToggle("👁️ Show Hitbox", "Toggle hitbox visualization", function(state)
+    showVisual = state
+    if state then
+        createHitboxVisual()
+        Library:Notify("👁️ VISUAL", "Hitbox visible", 2, "Info")
+    else
+        removeHitboxVisual()
+        Library:Notify("👁️ VISUAL", "Hitbox hidden", 2, "Info")
+    end
+end)
+
+-- Auto disable when player dies
 game.Players.LocalPlayer.CharacterAdded:Connect(function(character)
     local humanoid = character:WaitForChild("Humanoid")
     humanoid.Died:Connect(function()
         if isKillAuraActive then
             isKillAuraActive = false
-            if killAuraLoop then
-                killAuraLoop:Disconnect()
-                killAuraLoop = nil
-            end
+            Library:Notify("🔪 KILLAURA", "Auto-disabled", 2, "Warning")
         end
+        if killAuraLoop then
+            killAuraLoop:Disconnect()
+            killAuraLoop = nil
+        end
+        removeHitboxVisual()
     end)
+    
+    -- Create visual when new character spawns
+    if isKillAuraActive and showVisual then
+        task.wait(1)
+        createHitboxVisual()
+    end
 end)
+
+-- Clean up
+game.Players.LocalPlayer.CharacterRemoving:Connect(function()
+    removeHitboxVisual()
+    if killAuraLoop then
+        killAuraLoop:Disconnect()
+        killAuraLoop = nil
+    end
+end)
+
+-- Initial notification
+Library:Notify("🔪 KILLAURA LEGIT", "With hitbox visualization!", 3, "Info")
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
