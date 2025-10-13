@@ -1342,56 +1342,108 @@ end)
 -- Initial notification
 Library:Notify("🌀 AUTO DASH", "Directional dodging enabled!", 4, "Info")
 
--- DAHENBOT - Fixed Game File Search
+-- DAHENBOT - Chat-Based Game File Search
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TextChatService = game:GetService("TextChatService")
 
 -- Bot state
 local isDahenBotActive = false
 local chatConnection = nil
 
 -- Add toggle to PlayerTab
-PlayerTab:NewToggle("DAHENBOT", "Enable chat search commands", function(state)
+PlayerTab:NewToggle("DAHENBOT", "Enable chat AI assistant", function(state)
     isDahenBotActive = state
     
     if state then
-        Library:Notify("DAHENBOT", "ACTIVE - Type /help in chat", 3)
+        sendChatMessage("🤖 DAHENBOT activated! Say 'dahenbot find hitbox' or 'bot help'")
         enableChatHook()
     else
-        Library:Notify("DAHENBOT", "INACTIVE", 3)
+        sendChatMessage("🤖 DAHENBOT deactivated")
         disableChatHook()
     end
 end)
 
--- Simple chat command handler
+-- Send message to Roblox chat
+local function sendChatMessage(message)
+    -- Try new TextChatService first
+    if TextChatService and TextChatService.TextChannels then
+        local generalChannel = TextChatService.TextChannels.RBXGeneral
+        if generalChannel then
+            generalChannel:SendAsync(message)
+            return
+        end
+    end
+    
+    -- Fallback: Use traditional chat if available
+    if localPlayer.Character then
+        local humanoid = localPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            game:GetService("Chat"):Chat(localPlayer.Character.Head, message, Enum.ChatColor.Blue)
+        end
+    end
+    
+    -- Final fallback: Use notification
+    Library:Notify("DAHENBOT", message, 8)
+end
+
+-- Chat message handler
 local function onChatMessage(message)
     if not isDahenBotActive then return end
     
-    message = message:lower()
+    local lowerMessage = message:lower()
     
-    -- Debug: Show we're receiving messages
-    print("DAHENBOT received:", message)
-    
-    if message:sub(1, 6) == "/find " then
-        local searchTerm = message:sub(7)
-        if searchTerm and searchTerm ~= "" then
-            local results = quickSearch(searchTerm)
-            Library:Notify("DAHENBOT", results, 10)
+    -- Check if message is for the bot
+    if string.find(lowerMessage, "dahenbot") or string.find(lowerMessage, "bot") then
+        
+        -- Find command
+        if string.find(lowerMessage, "find") then
+            local searchTerm = extractSearchTerm(lowerMessage)
+            if searchTerm then
+                local results = quickSearch(searchTerm)
+                sendChatMessage("🔍 " .. results)
+            else
+                sendChatMessage("❌ Usage: 'dahenbot find hitbox' or 'bot find sword'")
+            end
+            return
         end
-        return
+        
+        -- Hitbox command
+        if string.find(lowerMessage, "hitbox") then
+            local results = searchHitboxes()
+            sendChatMessage("🎯 " .. results)
+            return
+        end
+        
+        -- Help command
+        if string.find(lowerMessage, "help") then
+            sendChatMessage("🤖 Commands: 'dahenbot find [thing]', 'dahenbot hitbox', 'bot help'")
+            return
+        end
+        
+        -- Default response
+        sendChatMessage("🤖 Say 'find [thing]' or 'hitbox' after 'dahenbot' or 'bot'")
+    end
+end
+
+-- Extract search term from message
+local function extractSearchTerm(message)
+    local patterns = {
+        "dahenbot find (.+)",
+        "bot find (.+)",
+        "find (.+) dahenbot",
+        "find (.+) bot"
+    }
+    
+    for _, pattern in ipairs(patterns) do
+        local match = string.match(message, pattern)
+        if match then
+            return match:gsub(" dahenbot", ""):gsub(" bot", ""):trim()
+        end
     end
     
-    if message:sub(1, 7) == "/hitbox" then
-        local results = searchHitboxes()
-        Library:Notify("HITBOX SCAN", results, 10)
-        return
-    end
-    
-    if message:sub(1, 5) == "/help" then
-        Library:Notify("DAHENBOT", "Commands: /find [thing], /hitbox", 6)
-        return
-    end
+    return nil
 end
 
 -- Enable chat hook
@@ -1400,7 +1452,6 @@ local function enableChatHook()
         chatConnection:Disconnect()
     end
     chatConnection = localPlayer.Chatted:Connect(onChatMessage)
-    print("DAHENBOT: Chat hook enabled")
 end
 
 -- Disable chat hook
@@ -1409,7 +1460,6 @@ local function disableChatHook()
         chatConnection:Disconnect()
         chatConnection = nil
     end
-    print("DAHENBOT: Chat hook disabled")
 end
 
 -- Quick search function
@@ -1417,8 +1467,6 @@ local function quickSearch(searchTerm)
     searchTerm = searchTerm:lower()
     local results = {}
     local count = 0
-    
-    print("DAHENBOT: Searching for", searchTerm)
     
     -- Search in common locations
     local locations = {
@@ -1430,20 +1478,13 @@ local function quickSearch(searchTerm)
     }
     
     for _, location in pairs(locations) do
-        if count >= 10 then break end
+        if count >= 8 then break end
         
         for _, obj in pairs(location:GetDescendants()) do
-            if count >= 10 then break end
+            if count >= 8 then break end
             
-            -- Check name
+            -- Check name match
             if string.find(obj.Name:lower(), searchTerm) then
-                local info = getObjectInfo(obj)
-                table.insert(results, info)
-                count = count + 1
-            end
-            
-            -- Check class name
-            if string.find(obj.ClassName:lower(), searchTerm) then
                 local info = getObjectInfo(obj)
                 table.insert(results, info)
                 count = count + 1
@@ -1452,9 +1493,9 @@ local function quickSearch(searchTerm)
     end
     
     if #results > 0 then
-        return "Found " .. count .. " items:\n" .. table.concat(results, "\n")
+        return "Found " .. count .. " items for '" .. searchTerm .. "': " .. table.concat(results, ", ")
     else
-        return "Nothing found for: " .. searchTerm
+        return "No results for '" .. searchTerm .. "'"
     end
 end
 
@@ -1465,113 +1506,62 @@ local function searchHitboxes()
     
     local hitboxTerms = {
         "hitbox", "hit", "damage", "attack", "sword", "weapon", 
-        "tool", "handle", "part", "collision", "bounding"
+        "tool", "handle", "part", "collision", "bounding", "melee"
     }
     
-    -- Search workspace first (most common location for hitboxes)
+    -- Search workspace
     for _, obj in pairs(workspace:GetDescendants()) do
-        if count >= 15 then break end
+        if count >= 10 then break end
         
         local objName = obj.Name:lower()
         
-        -- Check if object name contains hitbox terms
+        -- Check hitbox terms
         for _, term in pairs(hitboxTerms) do
             if string.find(objName, term) then
-                local info = analyzeHitbox(obj)
-                table.insert(results, info)
+                table.insert(results, obj.Name)
                 count = count + 1
                 break
             end
         end
-        
-        -- Check for BaseParts with specific properties
-        if obj:IsA("BasePart") then
-            if obj.Size.Magnitude > 5 or not obj.CanCollide then
-                local info = analyzeHitbox(obj)
-                table.insert(results, info)
-                count = count + 1
-            end
-        end
     end
     
-    -- Search tools in backpack
+    -- Search tools
     if localPlayer:FindFirstChild("Backpack") then
         for _, tool in pairs(localPlayer.Backpack:GetChildren()) do
             if tool:IsA("Tool") then
-                table.insert(results, "🔧 TOOL: " .. tool.Name)
+                table.insert(results, "Tool: " .. tool.Name)
                 count = count + 1
-                if count >= 15 then break end
+                if count >= 10 then break end
             end
         end
     end
     
     if #results > 0 then
-        return "Hitbox objects found:\n" .. table.concat(results, "\n")
+        return "Hitbox objects: " .. table.concat(results, ", ")
     else
-        return "No hitbox objects found. Check weapons and tools."
+        return "No hitbox objects found"
     end
 end
 
 -- Get object information
 local function getObjectInfo(obj)
-    local path = getObjectPath(obj)
-    local info = obj.ClassName .. ": " .. path
+    local info = obj.Name
     
     if obj:IsA("BasePart") then
-        info = info .. " | Size: " .. math.floor(obj.Size.X) .. "," .. math.floor(obj.Size.Y) .. "," .. math.floor(obj.Size.Z)
+        info = info .. "(" .. math.floor(obj.Size.X) .. "," .. math.floor(obj.Size.Y) .. "," .. math.floor(obj.Size.Z) .. ")"
     end
     
     return info
 end
-
--- Analyze hitbox object
-local function analyzeHitbox(obj)
-    local path = getObjectPath(obj)
-    local info = ""
-    
-    if obj:IsA("BasePart") then
-        info = "🔷 " .. obj.ClassName .. ": " .. path
-        info = info .. "\n   Size: " .. math.floor(obj.Size.X) .. "," .. math.floor(obj.Size.Y) .. "," .. math.floor(obj.Size.Z)
-        info = info .. " | CanCollide: " .. tostring(obj.CanCollide)
-        
-        if obj.Size.Magnitude > 8 then
-            info = info .. " | LARGE"
-        end
-        
-        if not obj.CanCollide then
-            info = info .. " | NO-COLLISION"
-        end
-    else
-        info = "📁 " .. obj.ClassName .. ": " .. path
-    end
-    
-    return info
-end
-
--- Get object path
-local function getObjectPath(obj)
-    local path = obj.Name
-    local parent = obj.Parent
-    
-    local depth = 0
-    while parent and parent ~= game and depth < 5 do
-        path = parent.Name .. " → " .. path
-        parent = parent.Parent
-        depth = depth + 1
-    end
-    
-    return path
-end
-
--- Test button to verify the bot works
-PlayerTab:NewButton("Test DAHENBOT", "Check if bot is working", function()
-    local testResults = quickSearch("tool")
-    Library:Notify("TEST", testResults, 6)
-end)
 
 -- Help button
 PlayerTab:NewButton("DAHENBOT Help", "Show chat commands", function()
-    Library:Notify("DAHENBOT", "Chat Commands:\n/find [anything]\n/hitbox\n/help", 8)
+    sendChatMessage("🤖 DAHENBOT Commands: 'dahenbot find [thing]', 'dahenbot hitbox', 'bot help'")
+end)
+
+-- Test button
+PlayerTab:NewButton("Test DAHENBOT", "Test the bot", function()
+    sendChatMessage("🤖 DAHENBOT is working! Say 'dahenbot find tool'")
 end)
 
 -- Auto-enable if character exists
@@ -1598,8 +1588,8 @@ localPlayer.CharacterRemoving:Connect(function()
     disableChatHook()
 end)
 
-Library:Notify("DAHENBOT", "Chat search ready! Toggle ON to use.", 4)
-    
+sendChatMessage("🤖 DAHENBOT loaded! Toggle ON and say 'dahenbot help'")
+
 -- Auto Attack Script - Moves to nearest player and auto-attacks WITH RUNNING (Shift Hold)
 local isAutoAttackActive = false
 local autoAttackLoop = nil
