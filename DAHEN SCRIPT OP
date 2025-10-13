@@ -1342,88 +1342,120 @@ end)
 -- Initial notification
 Library:Notify("🌀 AUTO DASH", "Directional dodging enabled!", 4, "Info")
 
--- DAHENBOT - Chat-Based Game File Search
+-- DAHENBOT - Working Chat Command System
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TextChatService = game:GetService("TextChatService")
+local RunService = game:GetService("RunService")
 
 -- Bot state
 local isDahenBotActive = false
-local chatConnection = nil
+local lastMessageTime = 0
+local messageCooldown = 2 -- seconds between bot messages
 
 -- Add toggle to PlayerTab
-PlayerTab:NewToggle("DAHENBOT", "Enable chat AI assistant", function(state)
+PlayerTab:NewToggle("DAHENBOT", "Enable chat commands", function(state)
     isDahenBotActive = state
     
     if state then
-        sendChatMessage("🤖 DAHENBOT activated! Say 'dahenbot find hitbox' or 'bot help'")
-        enableChatHook()
+        Library:Notify("DAHENBOT", "ACTIVE - Say: find [thing], hitbox, help", 5)
+        startMessageMonitor()
     else
-        sendChatMessage("🤖 DAHENBOT deactivated")
-        disableChatHook()
+        Library:Notify("DAHENBOT", "INACTIVE", 3)
+        stopMessageMonitor()
     end
 end)
 
--- Send message to Roblox chat
-local function sendChatMessage(message)
-    -- Try new TextChatService first
-    if TextChatService and TextChatService.TextChannels then
-        local generalChannel = TextChatService.TextChannels.RBXGeneral
-        if generalChannel then
-            generalChannel:SendAsync(message)
-            return
-        end
-    end
+-- Monitor chat messages by reading the chat UI
+local chatMonitor = nil
+local function startMessageMonitor()
+    if chatMonitor then return end
     
-    -- Fallback: Use traditional chat if available
-    if localPlayer.Character then
-        local humanoid = localPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            game:GetService("Chat"):Chat(localPlayer.Character.Head, message, Enum.ChatColor.Blue)
+    chatMonitor = RunService.Heartbeat:Connect(function()
+        if not isDahenBotActive then return end
+        
+        -- Try to find chat messages in the UI
+        local success, result = pcall(function()
+            -- Method 1: Check TextChatService
+            if TextChatService and TextChatService.TextChannels then
+                local channel = TextChatService.TextChannels.RBXGeneral
+                if channel then
+                    local messages = channel:GetMessageHistory()
+                    if messages and #messages > 0 then
+                        local latest = messages[#messages]
+                        if latest and latest.Text then
+                            local text = latest.Text
+                            local timestamp = latest.Timestamp
+                            
+                            -- Check if this is a new message for our bot
+                            if timestamp > lastMessageTime and (string.find(text:lower(), "dahenbot") or string.find(text:lower(), "bot")) then
+                                lastMessageTime = timestamp
+                                processChatCommand(text)
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+        
+        -- If TextChatService method fails, try alternative method
+        if not success then
+            checkChatAlternative()
         end
-    end
-    
-    -- Final fallback: Use notification
-    Library:Notify("DAHENBOT", message, 8)
+    end)
 end
 
--- Chat message handler
-local function onChatMessage(message)
-    if not isDahenBotActive then return end
-    
-    local lowerMessage = message:lower()
-    
-    -- Check if message is for the bot
-    if string.find(lowerMessage, "dahenbot") or string.find(lowerMessage, "bot") then
-        
-        -- Find command
-        if string.find(lowerMessage, "find") then
-            local searchTerm = extractSearchTerm(lowerMessage)
-            if searchTerm then
-                local results = quickSearch(searchTerm)
-                sendChatMessage("🔍 " .. results)
-            else
-                sendChatMessage("❌ Usage: 'dahenbot find hitbox' or 'bot find sword'")
+local function stopMessageMonitor()
+    if chatMonitor then
+        chatMonitor:Disconnect()
+        chatMonitor = nil
+    end
+end
+
+-- Alternative chat checking method
+local function checkChatAlternative()
+    -- This is a backup method - we'll use the old chat system
+    local chatUI = game:GetService("CoreGui"):FindFirstChild("Chat")
+    if chatUI then
+        local channel = chatUI:FindFirstChild("ChannelWindowFrame")
+        if channel then
+            local messages = channel:GetChildren()
+            for _, msgFrame in pairs(messages) do
+                if msgFrame:IsA("Frame") and msgFrame:FindFirstChild("MessageLabel") then
+                    local label = msgFrame.MessageLabel
+                    local text = label.Text
+                    if text and (string.find(text:lower(), "dahenbot") or string.find(text:lower(), "bot")) then
+                        processChatCommand(text)
+                    end
+                end
             end
-            return
         end
-        
-        -- Hitbox command
-        if string.find(lowerMessage, "hitbox") then
-            local results = searchHitboxes()
-            sendChatMessage("🎯 " .. results)
-            return
+    end
+end
+
+-- Process chat commands
+local function processChatCommand(message)
+    local lowerMsg = message:lower()
+    
+    -- Find command
+    if string.find(lowerMsg, "find") then
+        local searchTerm = extractSearchTerm(lowerMsg)
+        if searchTerm then
+            local results = quickSearch(searchTerm)
+            sendBotResponse("🔍 " .. results)
         end
-        
-        -- Help command
-        if string.find(lowerMessage, "help") then
-            sendChatMessage("🤖 Commands: 'dahenbot find [thing]', 'dahenbot hitbox', 'bot help'")
-            return
-        end
-        
-        -- Default response
-        sendChatMessage("🤖 Say 'find [thing]' or 'hitbox' after 'dahenbot' or 'bot'")
+    end
+    
+    -- Hitbox command
+    if string.find(lowerMsg, "hitbox") and not string.find(lowerMsg, "find") then
+        local results = searchHitboxes()
+        sendBotResponse("🎯 " .. results)
+    end
+    
+    -- Help command
+    if string.find(lowerMsg, "help") then
+        sendBotResponse("🤖 Commands: 'find [thing]', 'hitbox', 'help' - Say with 'dahenbot' or 'bot'")
     end
 end
 
@@ -1439,26 +1471,30 @@ local function extractSearchTerm(message)
     for _, pattern in ipairs(patterns) do
         local match = string.match(message, pattern)
         if match then
-            return match:gsub(" dahenbot", ""):gsub(" bot", ""):trim()
+            return match:gsub(" dahenbot", ""):gsub(" bot", ""):gsub("^%s*(.-)%s*$", "%1")
         end
     end
     
     return nil
 end
 
--- Enable chat hook
-local function enableChatHook()
-    if chatConnection then
-        chatConnection:Disconnect()
-    end
-    chatConnection = localPlayer.Chatted:Connect(onChatMessage)
-end
-
--- Disable chat hook
-local function disableChatHook()
-    if chatConnection then
-        chatConnection:Disconnect()
-        chatConnection = nil
+-- Send bot response
+local function sendBotResponse(message)
+    -- Try to send in chat
+    local success = pcall(function()
+        if TextChatService and TextChatService.TextChannels then
+            local channel = TextChatService.TextChannels.RBXGeneral
+            if channel then
+                channel:SendAsync("🤖 DAHENBOT: " .. message)
+                return true
+            end
+        end
+        return false
+    end)
+    
+    -- If chat fails, use notification
+    if not success then
+        Library:Notify("DAHENBOT", message, 8)
     end
 end
 
@@ -1485,15 +1521,14 @@ local function quickSearch(searchTerm)
             
             -- Check name match
             if string.find(obj.Name:lower(), searchTerm) then
-                local info = getObjectInfo(obj)
-                table.insert(results, info)
+                table.insert(results, obj.Name)
                 count = count + 1
             end
         end
     end
     
     if #results > 0 then
-        return "Found " .. count .. " items for '" .. searchTerm .. "': " .. table.concat(results, ", ")
+        return "Found " .. count .. " items: " .. table.concat(results, ", ")
     else
         return "No results for '" .. searchTerm .. "'"
     end
@@ -1529,7 +1564,7 @@ local function searchHitboxes()
     if localPlayer:FindFirstChild("Backpack") then
         for _, tool in pairs(localPlayer.Backpack:GetChildren()) do
             if tool:IsA("Tool") then
-                table.insert(results, "Tool: " .. tool.Name)
+                table.insert(results, "Tool:" .. tool.Name)
                 count = count + 1
                 if count >= 10 then break end
             end
@@ -1543,52 +1578,29 @@ local function searchHitboxes()
     end
 end
 
--- Get object information
-local function getObjectInfo(obj)
-    local info = obj.Name
-    
-    if obj:IsA("BasePart") then
-        info = info .. "(" .. math.floor(obj.Size.X) .. "," .. math.floor(obj.Size.Y) .. "," .. math.floor(obj.Size.Z) .. ")"
+-- Manual command buttons (backup method)
+PlayerTab:NewTextInput("DAHENBOT Command", "Type commands manually", "find hitbox", function(command)
+    if command and command ~= "" then
+        processChatCommand("dahenbot " .. command)
     end
-    
-    return info
-end
+end)
 
--- Help button
-PlayerTab:NewButton("DAHENBOT Help", "Show chat commands", function()
-    sendChatMessage("🤖 DAHENBOT Commands: 'dahenbot find [thing]', 'dahenbot hitbox', 'bot help'")
+PlayerTab:NewButton("Find Hitboxes", "Search for hitbox objects", function()
+    processChatCommand("dahenbot hitbox")
+end)
+
+PlayerTab:NewButton("DAHENBOT Help", "Show commands", function()
+    sendBotResponse("Commands: Type in chat - 'dahenbot find [thing]' or 'dahenbot hitbox'")
 end)
 
 -- Test button
-PlayerTab:NewButton("Test DAHENBOT", "Test the bot", function()
-    sendChatMessage("🤖 DAHENBOT is working! Say 'dahenbot find tool'")
+PlayerTab:NewButton("Test Search", "Test the search function", function()
+    local results = quickSearch("tool")
+    sendBotResponse("TEST: " .. results)
 end)
 
--- Auto-enable if character exists
-local function initialize()
-    if localPlayer.Character then
-        if isDahenBotActive then
-            enableChatHook()
-        end
-    else
-        localPlayer.CharacterAdded:Connect(function()
-            task.wait(2)
-            if isDahenBotActive then
-                enableChatHook()
-            end
-        end)
-    end
-end
-
--- Start initialization
-initialize()
-
--- Cleanup
-localPlayer.CharacterRemoving:Connect(function()
-    disableChatHook()
-end)
-
-sendChatMessage("🤖 DAHENBOT loaded! Toggle ON and say 'dahenbot help'")
+-- Initialize
+Library:Notify("DAHENBOT", "Toggle ON and say 'dahenbot help' in chat", 5)
 
 -- Auto Attack Script - Moves to nearest player and auto-attacks WITH RUNNING (Shift Hold)
 local isAutoAttackActive = false
