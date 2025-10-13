@@ -1342,472 +1342,264 @@ end)
 -- Initial notification
 Library:Notify("🌀 AUTO DASH", "Directional dodging enabled!", 4, "Info")
 
--- DAHENBOT - Advanced Game File Search with Hitbox Detection
+-- DAHENBOT - Fixed Game File Search
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Bot state
 local isDahenBotActive = false
 local chatConnection = nil
-
--- Hitbox-related keywords for specialized search
-local hitboxKeywords = {
-    "hitbox", "hitboxes", "collision", "boundingbox", "damagebox",
-    "attackrange", "melee", "swing", "strike", "hurtbox",
-    "damage", "attack", "range", "size", "scale",
-    "part", "mesh", "weld", "attachment", "body"
-}
 
 -- Add toggle to PlayerTab
 PlayerTab:NewToggle("DAHENBOT", "Enable chat search commands", function(state)
     isDahenBotActive = state
     
     if state then
-        Library:Notify("DAHENBOT", "ACTIVE - Chat commands enabled", 3)
-        initializeChatHook()
+        Library:Notify("DAHENBOT", "ACTIVE - Type /help in chat", 3)
+        enableChatHook()
     else
-        Library:Notify("DAHENBOT", "INACTIVE - Chat commands disabled", 3)
-        if chatConnection then
-            chatConnection:Disconnect()
-            chatConnection = nil
-        end
+        Library:Notify("DAHENBOT", "INACTIVE", 3)
+        disableChatHook()
     end
 end)
 
--- Chat command handler
+-- Simple chat command handler
 local function onChatMessage(message)
     if not isDahenBotActive then return end
     
-    if string.sub(message:lower(), 1, 6) == "/find " then
-        local searchTerm = string.sub(message, 7)
+    message = message:lower()
+    
+    -- Debug: Show we're receiving messages
+    print("DAHENBOT received:", message)
+    
+    if message:sub(1, 6) == "/find " then
+        local searchTerm = message:sub(7)
         if searchTerm and searchTerm ~= "" then
-            local results = searchGameFiles(searchTerm)
+            local results = quickSearch(searchTerm)
             Library:Notify("DAHENBOT", results, 10)
         end
         return
     end
     
-    if string.sub(message:lower(), 1, 5) == "/scan" then
-        local scanType = string.sub(message:lower(), 7)
-        local results = quickScan(scanType)
-        Library:Notify("DAHENBOT", results, 8)
+    if message:sub(1, 7) == "/hitbox" then
+        local results = searchHitboxes()
+        Library:Notify("HITBOX SCAN", results, 10)
         return
     end
     
-    if message:lower() == "/hitbox" then
-        local results = findHitboxRelated()
-        Library:Notify("HITBOX ANALYSIS", results, 10)
-        return
-    end
-    
-    if message:lower() == "/help" then
-        Library:Notify("DAHENBOT", "Commands:\n/find [thing]\n/scan [type]\n/hitbox - Find attack range objects\n/help", 8)
+    if message:sub(1, 5) == "/help" then
+        Library:Notify("DAHENBOT", "Commands: /find [thing], /hitbox", 6)
         return
     end
 end
 
--- Specialized hitbox search
-local function findHitboxRelated()
-    local results = {}
-    local foundCount = 0
-    
-    -- Search locations for hitbox-related objects
-    local searchLocations = {
-        workspace,
-        game:GetService("ReplicatedStorage"),
-        game:GetService("ServerScriptService"),
-        game:GetService("ServerStorage")
-    }
-    
-    for _, location in pairs(searchLocations) do
-        if foundCount >= 20 then break end
-        
-        for _, obj in pairs(location:GetDescendants()) do
-            if foundCount >= 20 then break end
-            
-            -- Check object name for hitbox keywords
-            local objName = obj.Name:lower()
-            for _, keyword in pairs(hitboxKeywords) do
-                if string.find(objName, keyword) then
-                    local analysis = analyzeHitboxObject(obj)
-                    table.insert(results, analysis)
-                    foundCount = foundCount + 1
-                    break
-                end
-            end
-            
-            -- Check for BaseParts with specific properties (potential hitboxes)
-            if obj:IsA("BasePart") then
-                if obj.Size.Magnitude > 10 or obj.Name == "Handle" or obj.Name == "HitBox" then
-                    local analysis = analyzeHitboxObject(obj)
-                    if analysis then
-                        table.insert(results, analysis)
-                        foundCount = foundCount + 1
-                    end
-                end
-            end
-            
-            -- Check scripts for hitbox-related code
-            if obj:IsA("Script") or obj:IsA("LocalScript") then
-                local source = getScriptSource(obj)
-                if source then
-                    for _, keyword in pairs(hitboxKeywords) do
-                        if string.find(source:lower(), keyword) then
-                            table.insert(results, "📜 " .. obj.ClassName .. " - " .. getObjectPath(obj) .. " - Contains: " .. keyword)
-                            foundCount = foundCount + 1
-                            break
-                        end
-                    end
-                end
-            end
-        end
+-- Enable chat hook
+local function enableChatHook()
+    if chatConnection then
+        chatConnection:Disconnect()
     end
-    
-    if #results > 0 then
-        return "🎯 HITBOX ANALYSIS (" .. foundCount .. " found):\n\n" .. table.concat(results, "\n\n")
-    else
-        return "No hitbox-related objects found. Try checking weapon tools and scripts."
-    end
+    chatConnection = localPlayer.Chatted:Connect(onChatMessage)
+    print("DAHENBOT: Chat hook enabled")
 end
 
--- Analyze hitbox objects for attack range potential
-local function analyzeHitboxObject(obj)
-    local path = getObjectPath(obj)
-    local analysis = ""
-    
-    if obj:IsA("BasePart") then
-        -- Analyze part properties
-        local size = obj.Size
-        local position = obj.Position
-        local canCollide = obj.CanCollide
-        local anchored = obj.Anchored
-        
-        analysis = "🔷 " .. obj.ClassName .. " - " .. path ..
-                  "\n   Size: " .. math.floor(size.X) .. ", " .. math.floor(size.Y) .. ", " .. math.floor(size.Z) ..
-                  "\n   CanCollide: " .. tostring(canCollide) .. " | Anchored: " .. tostring(anchored)
-        
-        -- Check if it's likely a weapon hitbox
-        if size.Magnitude > 8 and not canCollide then
-            analysis = analysis .. "\n   ⚔️ LIKELY WEAPON HITBOX - Large size, no collision"
-        elseif obj.Name:lower():find("handle") and obj.Parent:IsA("Tool") then
-            analysis = analysis .. "\n   🛠️ TOOL HANDLE - Can be used for attack range"
-        end
-        
-    elseif obj:IsA("MeshPart") then
-        analysis = "🔶 MeshPart - " .. path ..
-                  "\n   Mesh: " .. (obj.MeshId ~= "" and "Custom" or "None") ..
-                  "\n   Size: " .. math.floor(obj.Size.X) .. ", " .. math.floor(obj.Size.Y) .. ", " .. math.floor(obj.Size.Z)
-        
-    elseif obj:IsA("Script") or obj:IsA("LocalScript") then
-        analysis = "📜 " .. obj.ClassName .. " - " .. path .. " - Contains hitbox-related code"
-        
-    elseif obj:IsA("Configuration") then
-        analysis = "⚙️ Configuration - " .. path .. " - May contain hitbox settings"
-        
-    else
-        analysis = "📁 " .. obj.ClassName .. " - " .. path
+-- Disable chat hook
+local function disableChatHook()
+    if chatConnection then
+        chatConnection:Disconnect()
+        chatConnection = nil
     end
-    
-    -- Check parent for context
-    if obj.Parent then
-        if obj.Parent:IsA("Tool") then
-            analysis = analysis .. "\n   Parent: 🔧 TOOL - " .. obj.Parent.Name
-        elseif obj.Parent:IsA("Model") then
-            analysis = analysis .. "\n   Parent: 👤 MODEL - " .. obj.Parent.Name
-        end
-    end
-    
-    return analysis
+    print("DAHENBOT: Chat hook disabled")
 end
 
--- Get script source (safely)
-local function getScriptSource(scriptObj)
-    local success, result = pcall(function()
-        return scriptObj.Source
-    end)
-    return success and result or nil
-end
-
--- Enhanced search function with related object finding
-local function searchGameFiles(searchTerm)
+-- Quick search function
+local function quickSearch(searchTerm)
     searchTerm = searchTerm:lower()
     local results = {}
-    local foundCount = 0
+    local count = 0
     
-    -- Check if this is a hitbox-related search
-    local isHitboxSearch = false
-    for _, keyword in pairs(hitboxKeywords) do
-        if string.find(searchTerm, keyword) then
-            isHitboxSearch = true
-            break
-        end
-    end
+    print("DAHENBOT: Searching for", searchTerm)
     
-    -- Search in major game locations
-    local searchLocations = {
+    -- Search in common locations
+    local locations = {
         workspace,
-        game:GetService("ReplicatedStorage"),
+        ReplicatedStorage,
         game:GetService("ServerScriptService"),
-        game:GetService("ServerStorage"),
         game:GetService("StarterPack"),
-        game:GetService("StarterPlayer"),
-        game:GetService("Lighting")
+        game:GetService("StarterPlayer")
     }
     
-    for _, location in pairs(searchLocations) do
-        if foundCount >= 15 then break end
+    for _, location in pairs(locations) do
+        if count >= 10 then break end
         
-        local found = searchInLocation(location, searchTerm, isHitboxSearch)
-        for _, item in pairs(found) do
-            table.insert(results, item)
-            foundCount = foundCount + 1
-            if foundCount >= 15 then break end
+        for _, obj in pairs(location:GetDescendants()) do
+            if count >= 10 then break end
+            
+            -- Check name
+            if string.find(obj.Name:lower(), searchTerm) then
+                local info = getObjectInfo(obj)
+                table.insert(results, info)
+                count = count + 1
+            end
+            
+            -- Check class name
+            if string.find(obj.ClassName:lower(), searchTerm) then
+                local info = getObjectInfo(obj)
+                table.insert(results, info)
+                count = count + 1
+            end
         end
     end
     
     if #results > 0 then
-        local header = "Found " .. foundCount .. " items"
-        if isHitboxSearch then
-            header = header .. " (Hitbox Related)"
-        end
-        return header .. ":\n" .. table.concat(results, "\n")
+        return "Found " .. count .. " items:\n" .. table.concat(results, "\n")
     else
-        return "No results found for: " .. searchTerm
+        return "Nothing found for: " .. searchTerm
     end
 end
 
--- Enhanced search in location
-local function searchInLocation(location, searchTerm, isHitboxSearch)
-    local found = {}
+-- Search for hitbox-related objects
+local function searchHitboxes()
+    local results = {}
+    local count = 0
     
-    local function searchRecursive(object)
-        if #found >= 10 then return end
+    local hitboxTerms = {
+        "hitbox", "hit", "damage", "attack", "sword", "weapon", 
+        "tool", "handle", "part", "collision", "bounding"
+    }
+    
+    -- Search workspace first (most common location for hitboxes)
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if count >= 15 then break end
         
-        -- Check object name
-        if string.find(object.Name:lower(), searchTerm) then
-            local path = getObjectPath(object)
-            local item = "📁 " .. path
-            
-            -- Add extra analysis for hitbox-related objects
-            if isHitboxSearch and object:IsA("BasePart") then
-                item = item .. " | Size: " .. math.floor(object.Size.X) .. "," .. math.floor(object.Size.Y) .. "," .. math.floor(object.Size.Z)
-                if object.Size.Magnitude > 10 then
-                    item = item .. " | LARGE"
-                end
+        local objName = obj.Name:lower()
+        
+        -- Check if object name contains hitbox terms
+        for _, term in pairs(hitboxTerms) do
+            if string.find(objName, term) then
+                local info = analyzeHitbox(obj)
+                table.insert(results, info)
+                count = count + 1
+                break
             end
-            
-            table.insert(found, item)
         end
         
-        -- Check object class
-        if string.find(object.ClassName:lower(), searchTerm) then
-            local path = getObjectPath(object)
-            table.insert(found, "🔧 " .. object.ClassName .. " - " .. path)
-        end
-        
-        -- Search children
-        for _, child in pairs(object:GetChildren()) do
-            searchRecursive(child)
-            if #found >= 10 then break end
+        -- Check for BaseParts with specific properties
+        if obj:IsA("BasePart") then
+            if obj.Size.Magnitude > 5 or not obj.CanCollide then
+                local info = analyzeHitbox(obj)
+                table.insert(results, info)
+                count = count + 1
+            end
         end
     end
     
-    pcall(searchRecursive, location)
-    return found
+    -- Search tools in backpack
+    if localPlayer:FindFirstChild("Backpack") then
+        for _, tool in pairs(localPlayer.Backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                table.insert(results, "🔧 TOOL: " .. tool.Name)
+                count = count + 1
+                if count >= 15 then break end
+            end
+        end
+    end
+    
+    if #results > 0 then
+        return "Hitbox objects found:\n" .. table.concat(results, "\n")
+    else
+        return "No hitbox objects found. Check weapons and tools."
+    end
+end
+
+-- Get object information
+local function getObjectInfo(obj)
+    local path = getObjectPath(obj)
+    local info = obj.ClassName .. ": " .. path
+    
+    if obj:IsA("BasePart") then
+        info = info .. " | Size: " .. math.floor(obj.Size.X) .. "," .. math.floor(obj.Size.Y) .. "," .. math.floor(obj.Size.Z)
+    end
+    
+    return info
+end
+
+-- Analyze hitbox object
+local function analyzeHitbox(obj)
+    local path = getObjectPath(obj)
+    local info = ""
+    
+    if obj:IsA("BasePart") then
+        info = "🔷 " .. obj.ClassName .. ": " .. path
+        info = info .. "\n   Size: " .. math.floor(obj.Size.X) .. "," .. math.floor(obj.Size.Y) .. "," .. math.floor(obj.Size.Z)
+        info = info .. " | CanCollide: " .. tostring(obj.CanCollide)
+        
+        if obj.Size.Magnitude > 8 then
+            info = info .. " | LARGE"
+        end
+        
+        if not obj.CanCollide then
+            info = info .. " | NO-COLLISION"
+        end
+    else
+        info = "📁 " .. obj.ClassName .. ": " .. path
+    end
+    
+    return info
 end
 
 -- Get object path
-local function getObjectPath(object)
-    local path = object.Name
-    local parent = object.Parent
+local function getObjectPath(obj)
+    local path = obj.Name
+    local parent = obj.Parent
     
-    while parent and parent ~= game do
+    local depth = 0
+    while parent and parent ~= game and depth < 5 do
         path = parent.Name .. " → " .. path
         parent = parent.Parent
+        depth = depth + 1
     end
     
     return path
 end
 
--- Quick scan for common categories
-local function quickScan(scanType)
-    if scanType == "" then
-        return "Scan types: scripts, gui, weapons, tools, sounds, lights, hitboxes"
-    end
-    
-    local results = {}
-    
-    if scanType == "scripts" then
-        results = scanForScripts()
-    elseif scanType == "gui" then
-        results = scanForGUI()
-    elseif scanType == "weapons" then
-        results = scanForWeapons()
-    elseif scanType == "tools" then
-        results = scanForTools()
-    elseif scanType == "sounds" then
-        results = scanForSounds()
-    elseif scanType == "lights" then
-        results = scanForLights()
-    elseif scanType == "hitboxes" then
-        return findHitboxRelated()
-    else
-        return "Unknown scan type. Use: scripts, gui, weapons, tools, sounds, lights, hitboxes"
-    end
-    
-    if #results > 0 then
-        return scanType:upper() .. " found:\n" .. table.concat(results, "\n")
-    else
-        return "No " .. scanType .. " found"
-    end
-end
+-- Test button to verify the bot works
+PlayerTab:NewButton("Test DAHENBOT", "Check if bot is working", function()
+    local testResults = quickSearch("tool")
+    Library:Notify("TEST", testResults, 6)
+end)
 
--- Specific scanners
-local function scanForScripts()
-    local scripts = {}
-    local locations = {workspace, game:GetService("ReplicatedStorage")}
-    
-    for _, location in pairs(locations) do
-        for _, obj in pairs(location:GetDescendants()) do
-            if obj:IsA("Script") or obj:IsA("LocalScript") then
-                table.insert(scripts, obj.ClassName .. ": " .. getObjectPath(obj))
-                if #scripts >= 10 then break end
-            end
-        end
-        if #scripts >= 10 then break end
-    end
-    
-    return scripts
-end
+-- Help button
+PlayerTab:NewButton("DAHENBOT Help", "Show chat commands", function()
+    Library:Notify("DAHENBOT", "Chat Commands:\n/find [anything]\n/hitbox\n/help", 8)
+end)
 
-local function scanForGUI()
-    local guiElements = {}
-    local locations = {workspace, game:GetService("StarterGui")}
-    
-    for _, location in pairs(locations) do
-        for _, obj in pairs(location:GetDescendants()) do
-            if obj:IsA("GuiObject") or obj:IsA("ScreenGui") or obj:IsA("SurfaceGui") then
-                table.insert(guiElements, obj.ClassName .. ": " .. obj.Name)
-                if #guiElements >= 10 then break end
-            end
-        end
-        if #guiElements >= 10 then break end
-    end
-    
-    return guiElements
-end
-
-local function scanForWeapons()
-    local weapons = {}
-    local weaponNames = {"Sword", "Gun", "Weapon", "Blade", "Katana", "Rifle", "Pistol", "Bow", "Axe", "Hammer"}
-    
-    for _, weaponName in pairs(weaponNames) do
-        local found = workspace:FindFirstChild(weaponName, true)
-        if found then
-            table.insert(weapons, weaponName .. ": " .. getObjectPath(found))
-            if #weapons >= 10 then break end
-        end
-    end
-    
-    return weapons
-end
-
-local function scanForTools()
-    local tools = {}
-    
-    -- Check backpack
-    if localPlayer:FindFirstChild("Backpack") then
-        for _, tool in pairs(localPlayer.Backpack:GetChildren()) do
-            if tool:IsA("Tool") then
-                -- Check for hitbox parts in tool
-                local hitboxInfo = ""
-                for _, part in pairs(tool:GetDescendants()) do
-                    if part:IsA("BasePart") and (part.Size.Magnitude > 5 or part.Name:lower():find("hit")) then
-                        hitboxInfo = " | Hitbox: " .. math.floor(part.Size.Magnitude)
-                        break
-                    end
-                end
-                table.insert(tools, "Tool: " .. tool.Name .. hitboxInfo)
-                if #tools >= 10 then break end
-            end
-        end
-    end
-    
-    return tools
-end
-
-local function scanForSounds()
-    local sounds = {}
-    
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Sound") then
-            table.insert(sounds, "Sound: " .. obj.Name .. " (" .. obj.SoundId .. ")")
-            if #sounds >= 10 then break end
-        end
-    end
-    
-    return sounds
-end
-
-local function scanForLights()
-    local lights = {}
-    local lightTypes = {"PointLight", "SpotLight", "SurfaceLight"}
-    
-    for _, lightType in pairs(lightTypes) do
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA(lightType) then
-                table.insert(lights, lightType .. ": " .. getObjectPath(obj))
-                if #lights >= 10 then break end
-            end
-        end
-        if #lights >= 10 then break end
-    end
-    
-    return lights
-end
-
--- Hook into chat
-local function initializeChatHook()
-    if chatConnection then
-        chatConnection:Disconnect()
-    end
-    chatConnection = localPlayer.Chatted:Connect(onChatMessage)
-end
-
--- Initialize when player joins if toggle is on
-local function setupBot()
+-- Auto-enable if character exists
+local function initialize()
     if localPlayer.Character then
         if isDahenBotActive then
-            initializeChatHook()
+            enableChatHook()
         end
     else
         localPlayer.CharacterAdded:Connect(function()
-            task.wait(1)
+            task.wait(2)
             if isDahenBotActive then
-                initializeChatHook()
+                enableChatHook()
             end
         end)
     end
 end
 
--- Setup when script loads
-setupBot()
+-- Start initialization
+initialize()
 
--- Add help button
-PlayerTab:NewButton("DAHENBOT Help", "Show search commands", function()
-    Library:Notify("DAHENBOT", "Chat Commands:\n/find [thing]\n/scan [type]\n/hitbox - Find attack range objects\n/help", 8)
+-- Cleanup
+localPlayer.CharacterRemoving:Connect(function()
+    disableChatHook()
 end)
 
--- Clean up when script stops
-game.Players.LocalPlayer.CharacterRemoving:Connect(function()
-    if chatConnection then
-        chatConnection:Disconnect()
-        chatConnection = nil
-    end
-end)
-
-Library:Notify("DAHENBOT", "Advanced search loaded! Type /hitbox for attack range analysis", 4)
-
+Library:Notify("DAHENBOT", "Chat search ready! Toggle ON to use.", 4)
+    
 -- Auto Attack Script - Moves to nearest player and auto-attacks WITH RUNNING (Shift Hold)
 local isAutoAttackActive = false
 local autoAttackLoop = nil
