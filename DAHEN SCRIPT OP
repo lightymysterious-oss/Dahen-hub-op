@@ -1342,532 +1342,471 @@ end)
 -- Initial notification
 Library:Notify("🌀 AUTO DASH", "Directional dodging enabled!", 4, "Info")
 
--- Advanced AI Assistant - Game File Explorer
-local isAIActive = false
-local AIBotConnection = nil
+-- DAHENBOT - Advanced Game File Search with Hitbox Detection
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
 
--- Add the toggle button
-PlayerTab:NewToggle("🤖 DAHENBOT", "AI that explores game files for development", function(state)
-    isAIActive = state
+-- Bot state
+local isDahenBotActive = false
+local chatConnection = nil
+
+-- Hitbox-related keywords for specialized search
+local hitboxKeywords = {
+    "hitbox", "hitboxes", "collision", "boundingbox", "damagebox",
+    "attackrange", "melee", "swing", "strike", "hurtbox",
+    "damage", "attack", "range", "size", "scale",
+    "part", "mesh", "weld", "attachment", "body"
+}
+
+-- Add toggle to PlayerTab
+PlayerTab:NewToggle("DAHENBOT", "Enable chat search commands", function(state)
+    isDahenBotActive = state
     
     if state then
-        Library:Notify("🤖 DAHENBOT", "Activated - Game file explorer ready!", 4, "Success")
-        
-        if AIBotConnection then
-            AIBotConnection:Disconnect()
-        end
-        
-        -- Listen for chat messages
-        AIBotConnection = game:GetService("Players").LocalPlayer.Chatted:Connect(function(message)
-            if isAIActive then
-                processDevMessage(message)
-            end
-        end)
-        
+        Library:Notify("DAHENBOT", "ACTIVE - Chat commands enabled", 3)
+        initializeChatHook()
     else
-        Library:Notify("🤖 DAHEN BOT", "Deactivated", 3, "Warning")
-        if AIBotConnection then
-            AIBotConnection:Disconnect()
-            AIBotConnection = nil
+        Library:Notify("DAHENBOT", "INACTIVE - Chat commands disabled", 3)
+        if chatConnection then
+            chatConnection:Disconnect()
+            chatConnection = nil
         end
     end
 end)
 
--- Enhanced AI Response Function for Development
-function processDevMessage(message)
-    local lowerMessage = message:lower()
+-- Chat command handler
+local function onChatMessage(message)
+    if not isDahenBotActive then return end
     
-    -- Check if message is for the bot
-    if lowerMessage:find("dahenbot") or lowerMessage:find("dev") or lowerMessage:find("script") or lowerMessage:find("file") or lowerMessage:find("explore") then
-        
-        -- Game File Exploration Commands
-        if lowerMessage:find("explore") or lowerMessage:find("files") or lowerMessage:find("what's in") then
-            exploreGameFiles(message)
-            
-        -- Find specific objects
-        elseif lowerMessage:find("find") or lowerMessage:find("where is") or lowerMessage:find("locate") then
-            findInGameFiles(message)
-            
-        -- Script analysis
-        elseif lowerMessage:find("script") or lowerMessage:find("code") then
-            analyzeScripts(message)
-            
-        -- Service information
-        elseif lowerMessage:find("service") or lowerMessage:find("workspace") or lowerMessage:find("players") then
-            showServiceInfo(message)
-            
-        -- Object properties
-        elseif lowerMessage:find("property") or lowerMessage:find("properties") or lowerMessage:find("what does") then
-            showObjectProperties(message)
-            
-        -- Game structure
-        elseif lowerMessage:find("structure") or lowerMessage:find("hierarchy") then
-            showGameStructure()
-            
-        -- Help for developers
-        elseif lowerMessage:find("help") or lowerMessage:find("commands") then
-            showDevHelp()
-            
-        else
-            -- Enhanced response with file exploration
-            local enhancedResponse = enhanceDevResponse(message)
-            if enhancedResponse then
-                sendAIResponse(enhancedResponse)
-            else
-                sendAIResponse("I can help you explore game files! Try: 'find scripts', 'explore workspace', or 'show services'")
-            end
+    if string.sub(message:lower(), 1, 6) == "/find " then
+        local searchTerm = string.sub(message, 7)
+        if searchTerm and searchTerm ~= "" then
+            local results = searchGameFiles(searchTerm)
+            Library:Notify("DAHENBOT", results, 10)
         end
-    end
-end
-
--- Explore game files based on query
-function exploreGameFiles(message)
-    local lowerMessage = message:lower()
-    
-    if lowerMessage:find("workspace") then
-        exploreWorkspace()
-    elseif lowerMessage:find("lighting") then
-        exploreLighting()
-    elseif lowerMessage:find("players") then
-        explorePlayers()
-    elseif lowerMessage:find("replicated") then
-        exploreReplicatedStorage()
-    elseif lowerMessage:find("server") then
-        exploreServerStorage()
-    elseif lowerMessage:find("starter") then
-        exploreStarterPack()
-    else
-        -- General exploration
-        sendAIResponse("📁 Game Structure:\n" .. getGameStructure())
-    end
-end
-
--- Find specific objects in game files
-function findInGameFiles(message)
-    local searchTerm = extractSearchTerm(message)
-    if not searchTerm then
-        sendAIResponse("What would you like me to find? Example: 'find sword' or 'locate scripts'")
         return
     end
     
-    local results = {}
+    if string.sub(message:lower(), 1, 5) == "/scan" then
+        local scanType = string.sub(message:lower(), 7)
+        local results = quickScan(scanType)
+        Library:Notify("DAHENBOT", results, 8)
+        return
+    end
     
-    -- Search in major services
-    local servicesToSearch = {
+    if message:lower() == "/hitbox" then
+        local results = findHitboxRelated()
+        Library:Notify("HITBOX ANALYSIS", results, 10)
+        return
+    end
+    
+    if message:lower() == "/help" then
+        Library:Notify("DAHENBOT", "Commands:\n/find [thing]\n/scan [type]\n/hitbox - Find attack range objects\n/help", 8)
+        return
+    end
+end
+
+-- Specialized hitbox search
+local function findHitboxRelated()
+    local results = {}
+    local foundCount = 0
+    
+    -- Search locations for hitbox-related objects
+    local searchLocations = {
         workspace,
         game:GetService("ReplicatedStorage"),
-        game:GetService("ServerStorage"),
-        game:GetService("StarterPack"),
-        game:GetService("StarterPlayer"):FindFirstChild("StarterPlayerScripts"),
-        game:GetService("StarterPlayer"):FindFirstChild("StarterCharacterScripts")
+        game:GetService("ServerScriptService"),
+        game:GetService("ServerStorage")
     }
     
-    for _, service in pairs(servicesToSearch) do
-        if service then
-            local found = searchInService(service, searchTerm)
-            for _, item in ipairs(found) do
-                table.insert(results, item)
+    for _, location in pairs(searchLocations) do
+        if foundCount >= 20 then break end
+        
+        for _, obj in pairs(location:GetDescendants()) do
+            if foundCount >= 20 then break end
+            
+            -- Check object name for hitbox keywords
+            local objName = obj.Name:lower()
+            for _, keyword in pairs(hitboxKeywords) do
+                if string.find(objName, keyword) then
+                    local analysis = analyzeHitboxObject(obj)
+                    table.insert(results, analysis)
+                    foundCount = foundCount + 1
+                    break
+                end
+            end
+            
+            -- Check for BaseParts with specific properties (potential hitboxes)
+            if obj:IsA("BasePart") then
+                if obj.Size.Magnitude > 10 or obj.Name == "Handle" or obj.Name == "HitBox" then
+                    local analysis = analyzeHitboxObject(obj)
+                    if analysis then
+                        table.insert(results, analysis)
+                        foundCount = foundCount + 1
+                    end
+                end
+            end
+            
+            -- Check scripts for hitbox-related code
+            if obj:IsA("Script") or obj:IsA("LocalScript") then
+                local source = getScriptSource(obj)
+                if source then
+                    for _, keyword in pairs(hitboxKeywords) do
+                        if string.find(source:lower(), keyword) then
+                            table.insert(results, "📜 " .. obj.ClassName .. " - " .. getObjectPath(obj) .. " - Contains: " .. keyword)
+                            foundCount = foundCount + 1
+                            break
+                        end
+                    end
+                end
             end
         end
     end
     
     if #results > 0 then
-        local response = "🔍 Found '" .. searchTerm .. "' in:\n"
-        for i, result in ipairs(results) do
-            if i <= 10 then -- Limit to 10 results
-                response = response .. "• " .. result .. "\n"
-            end
-        end
-        if #results > 10 then
-            response = response .. "... and " .. (#results - 10) .. " more items"
-        end
-        sendAIResponse(response)
+        return "🎯 HITBOX ANALYSIS (" .. foundCount .. " found):\n\n" .. table.concat(results, "\n\n")
     else
-        sendAIResponse("❌ No results found for '" .. searchTerm .. "'")
+        return "No hitbox-related objects found. Try checking weapon tools and scripts."
     end
 end
 
--- Search in a specific service
-function searchInService(service, searchTerm, path)
-    path = path or service.Name
+-- Analyze hitbox objects for attack range potential
+local function analyzeHitboxObject(obj)
+    local path = getObjectPath(obj)
+    local analysis = ""
+    
+    if obj:IsA("BasePart") then
+        -- Analyze part properties
+        local size = obj.Size
+        local position = obj.Position
+        local canCollide = obj.CanCollide
+        local anchored = obj.Anchored
+        
+        analysis = "🔷 " .. obj.ClassName .. " - " .. path ..
+                  "\n   Size: " .. math.floor(size.X) .. ", " .. math.floor(size.Y) .. ", " .. math.floor(size.Z) ..
+                  "\n   CanCollide: " .. tostring(canCollide) .. " | Anchored: " .. tostring(anchored)
+        
+        -- Check if it's likely a weapon hitbox
+        if size.Magnitude > 8 and not canCollide then
+            analysis = analysis .. "\n   ⚔️ LIKELY WEAPON HITBOX - Large size, no collision"
+        elseif obj.Name:lower():find("handle") and obj.Parent:IsA("Tool") then
+            analysis = analysis .. "\n   🛠️ TOOL HANDLE - Can be used for attack range"
+        end
+        
+    elseif obj:IsA("MeshPart") then
+        analysis = "🔶 MeshPart - " .. path ..
+                  "\n   Mesh: " .. (obj.MeshId ~= "" and "Custom" or "None") ..
+                  "\n   Size: " .. math.floor(obj.Size.X) .. ", " .. math.floor(obj.Size.Y) .. ", " .. math.floor(obj.Size.Z)
+        
+    elseif obj:IsA("Script") or obj:IsA("LocalScript") then
+        analysis = "📜 " .. obj.ClassName .. " - " .. path .. " - Contains hitbox-related code"
+        
+    elseif obj:IsA("Configuration") then
+        analysis = "⚙️ Configuration - " .. path .. " - May contain hitbox settings"
+        
+    else
+        analysis = "📁 " .. obj.ClassName .. " - " .. path
+    end
+    
+    -- Check parent for context
+    if obj.Parent then
+        if obj.Parent:IsA("Tool") then
+            analysis = analysis .. "\n   Parent: 🔧 TOOL - " .. obj.Parent.Name
+        elseif obj.Parent:IsA("Model") then
+            analysis = analysis .. "\n   Parent: 👤 MODEL - " .. obj.Parent.Name
+        end
+    end
+    
+    return analysis
+end
+
+-- Get script source (safely)
+local function getScriptSource(scriptObj)
+    local success, result = pcall(function()
+        return scriptObj.Source
+    end)
+    return success and result or nil
+end
+
+-- Enhanced search function with related object finding
+local function searchGameFiles(searchTerm)
+    searchTerm = searchTerm:lower()
     local results = {}
+    local foundCount = 0
     
-    for _, item in pairs(service:GetChildren()) do
-        local itemPath = path .. " > " .. item.Name
-        
-        -- Check if item matches search
-        if item.Name:lower():find(searchTerm:lower()) then
-            table.insert(results, itemPath .. " (" .. item.ClassName .. ")")
-        end
-        
-        -- Recursively search children
-        if #item:GetChildren() > 0 then
-            local childResults = searchInService(item, searchTerm, itemPath)
-            for _, result in ipairs(childResults) do
-                table.insert(results, result)
-            end
+    -- Check if this is a hitbox-related search
+    local isHitboxSearch = false
+    for _, keyword in pairs(hitboxKeywords) do
+        if string.find(searchTerm, keyword) then
+            isHitboxSearch = true
+            break
         end
     end
     
-    return results
-end
-
--- Explore Workspace
-function exploreWorkspace()
-    local workspaceInfo = "🏗️ Workspace Contents:\n"
-    local categories = {}
-    
-    for _, item in pairs(workspace:GetChildren()) do
-        local class = item.ClassName
-        if not categories[class] then
-            categories[class] = {}
-        end
-        table.insert(categories[class], item.Name)
-    end
-    
-    for class, items in pairs(categories) do
-        workspaceInfo = workspaceInfo .. "📦 " .. class .. " (" .. #items .. "):\n"
-        for i, item in ipairs(items) do
-            if i <= 5 then
-                workspaceInfo = workspaceInfo .. "  • " .. item .. "\n"
-            end
-        end
-        if #items > 5 then
-            workspaceInfo = workspaceInfo .. "  ... and " .. (#items - 5) .. " more\n"
-        end
-    end
-    
-    sendAIResponse(workspaceInfo)
-end
-
--- Explore ReplicatedStorage
-function exploreReplicatedStorage()
-    local repStorage = game:GetService("ReplicatedStorage")
-    local info = "🔁 ReplicatedStorage:\n"
-    
-    if #repStorage:GetChildren() == 0 then
-        info = info .. "Empty"
-    else
-        for _, item in pairs(repStorage:GetChildren()) do
-            info = info .. "• " .. item.Name .. " (" .. item.ClassName .. ")\n"
-        end
-    end
-    
-    sendAIResponse(info)
-end
-
--- Show service information
-function showServiceInfo(message)
-    local lowerMessage = message:lower()
-    local response = "🔧 Services:\n"
-    
-    local services = game:GetServices()
-    for _, service in pairs(services) do
-        local serviceName = service.Name
-        if lowerMessage:find(serviceName:lower()) or lowerMessage:find("all") then
-            response = response .. "• " .. serviceName .. ": " .. countChildren(service) .. " items\n"
-        end
-    end
-    
-    if response == "🔧 Services:\n" then
-        response = "Available services: Workspace, Lighting, Players, ReplicatedStorage, ServerStorage, etc."
-    end
-    
-    sendAIResponse(response)
-end
-
--- Analyze scripts
-function analyzeScripts(message)
-    local lowerMessage = message:lower()
-    local scriptsFound = {}
-    
-    -- Search for scripts in major containers
-    local containers = {
+    -- Search in major game locations
+    local searchLocations = {
         workspace,
         game:GetService("ReplicatedStorage"),
+        game:GetService("ServerScriptService"),
         game:GetService("ServerStorage"),
         game:GetService("StarterPack"),
-        game:GetService("StarterPlayer"):FindFirstChild("StarterPlayerScripts"),
-        game:GetService("StarterPlayer"):FindFirstChild("StarterCharacterScripts")
+        game:GetService("StarterPlayer"),
+        game:GetService("Lighting")
     }
     
-    for _, container in pairs(containers) do
-        if container then
-            findScriptsInContainer(container, scriptsFound)
+    for _, location in pairs(searchLocations) do
+        if foundCount >= 15 then break end
+        
+        local found = searchInLocation(location, searchTerm, isHitboxSearch)
+        for _, item in pairs(found) do
+            table.insert(results, item)
+            foundCount = foundCount + 1
+            if foundCount >= 15 then break end
         end
     end
     
-    if #scriptsFound > 0 then
-        local response = "📜 Scripts Found (" .. #scriptsFound .. "):\n"
-        for i, scriptInfo in ipairs(scriptsFound) do
-            if i <= 8 then
-                response = response .. "• " .. scriptInfo .. "\n"
+    if #results > 0 then
+        local header = "Found " .. foundCount .. " items"
+        if isHitboxSearch then
+            header = header .. " (Hitbox Related)"
+        end
+        return header .. ":\n" .. table.concat(results, "\n")
+    else
+        return "No results found for: " .. searchTerm
+    end
+end
+
+-- Enhanced search in location
+local function searchInLocation(location, searchTerm, isHitboxSearch)
+    local found = {}
+    
+    local function searchRecursive(object)
+        if #found >= 10 then return end
+        
+        -- Check object name
+        if string.find(object.Name:lower(), searchTerm) then
+            local path = getObjectPath(object)
+            local item = "📁 " .. path
+            
+            -- Add extra analysis for hitbox-related objects
+            if isHitboxSearch and object:IsA("BasePart") then
+                item = item .. " | Size: " .. math.floor(object.Size.X) .. "," .. math.floor(object.Size.Y) .. "," .. math.floor(object.Size.Z)
+                if object.Size.Magnitude > 10 then
+                    item = item .. " | LARGE"
+                end
+            end
+            
+            table.insert(found, item)
+        end
+        
+        -- Check object class
+        if string.find(object.ClassName:lower(), searchTerm) then
+            local path = getObjectPath(object)
+            table.insert(found, "🔧 " .. object.ClassName .. " - " .. path)
+        end
+        
+        -- Search children
+        for _, child in pairs(object:GetChildren()) do
+            searchRecursive(child)
+            if #found >= 10 then break end
+        end
+    end
+    
+    pcall(searchRecursive, location)
+    return found
+end
+
+-- Get object path
+local function getObjectPath(object)
+    local path = object.Name
+    local parent = object.Parent
+    
+    while parent and parent ~= game do
+        path = parent.Name .. " → " .. path
+        parent = parent.Parent
+    end
+    
+    return path
+end
+
+-- Quick scan for common categories
+local function quickScan(scanType)
+    if scanType == "" then
+        return "Scan types: scripts, gui, weapons, tools, sounds, lights, hitboxes"
+    end
+    
+    local results = {}
+    
+    if scanType == "scripts" then
+        results = scanForScripts()
+    elseif scanType == "gui" then
+        results = scanForGUI()
+    elseif scanType == "weapons" then
+        results = scanForWeapons()
+    elseif scanType == "tools" then
+        results = scanForTools()
+    elseif scanType == "sounds" then
+        results = scanForSounds()
+    elseif scanType == "lights" then
+        results = scanForLights()
+    elseif scanType == "hitboxes" then
+        return findHitboxRelated()
+    else
+        return "Unknown scan type. Use: scripts, gui, weapons, tools, sounds, lights, hitboxes"
+    end
+    
+    if #results > 0 then
+        return scanType:upper() .. " found:\n" .. table.concat(results, "\n")
+    else
+        return "No " .. scanType .. " found"
+    end
+end
+
+-- Specific scanners
+local function scanForScripts()
+    local scripts = {}
+    local locations = {workspace, game:GetService("ReplicatedStorage")}
+    
+    for _, location in pairs(locations) do
+        for _, obj in pairs(location:GetDescendants()) do
+            if obj:IsA("Script") or obj:IsA("LocalScript") then
+                table.insert(scripts, obj.ClassName .. ": " .. getObjectPath(obj))
+                if #scripts >= 10 then break end
             end
         end
-        if #scriptsFound > 8 then
-            response = response .. "... and " .. (#scriptsFound - 8) .. " more scripts"
-        end
-        sendAIResponse(response)
-    else
-        sendAIResponse("❌ No scripts found in game structure")
+        if #scripts >= 10 then break end
     end
+    
+    return scripts
 end
 
--- Find scripts in a container
-function findScriptsInContainer(container, scriptsFound, path)
-    path = path or container.Name
+local function scanForGUI()
+    local guiElements = {}
+    local locations = {workspace, game:GetService("StarterGui")}
     
-    for _, item in pairs(container:GetChildren()) do
-        if item:IsA("Script") or item:IsA("LocalScript") or item:IsA("ModuleScript") then
-            table.insert(scriptsFound, item.Name .. " (" .. item.ClassName .. " in " .. path .. ")")
-        end
-        
-        -- Recursively search children
-        if #item:GetChildren() > 0 then
-            findScriptsInContainer(item, scriptsFound, path .. " > " .. item.Name)
-        end
-    end
-end
-
--- Show object properties
-function showObjectProperties(message)
-    local searchTerm = extractSearchTerm(message)
-    if not searchTerm then
-        sendAIResponse("Which object's properties? Example: 'properties of Part'")
-        return
-    end
-    
-    local foundObjects = {}
-    
-    -- Search for object
-    local services = {workspace, game:GetService("ReplicatedStorage")}
-    for _, service in pairs(services) do
-        local object = findObjectByName(service, searchTerm)
-        if object then
-            table.insert(foundObjects, object)
-        end
-    end
-    
-    if #foundObjects > 0 then
-        local object = foundObjects[1]
-        local response = "📋 Properties of " .. object.Name .. " (" .. object.ClassName .. "):\n"
-        
-        -- Show important properties
-        local importantProps = {"Position", "Size", "Color", "Material", "Transparency", "Anchored", "CanCollide"}
-        
-        for _, propName in pairs(importantProps) do
-            local success, value = pcall(function()
-                return object[propName]
-            end)
-            if success and value ~= nil then
-                response = response .. "• " .. propName .. ": " .. tostring(value) .. "\n"
+    for _, location in pairs(locations) do
+        for _, obj in pairs(location:GetDescendants()) do
+            if obj:IsA("GuiObject") or obj:IsA("ScreenGui") or obj:IsA("SurfaceGui") then
+                table.insert(guiElements, obj.ClassName .. ": " .. obj.Name)
+                if #guiElements >= 10 then break end
             end
         end
-        
-        sendAIResponse(response)
-    else
-        sendAIResponse("❌ Object '" .. searchTerm .. "' not found")
-    end
-end
-
--- Show game structure overview
-function showGameStructure()
-    local structure = "🎮 Game Structure Overview:\n"
-    
-    local services = {
-        "Workspace", "Lighting", "Players", "ReplicatedStorage", 
-        "ServerStorage", "StarterPack", "StarterPlayer"
-    }
-    
-    for _, serviceName in pairs(services) do
-        local service = game:GetService(serviceName)
-        if service then
-            structure = structure .. "• " .. serviceName .. ": " .. countChildren(service) .. " items\n"
-        end
+        if #guiElements >= 10 then break end
     end
     
-    sendAIResponse(structure)
+    return guiElements
 end
 
--- Helper function to extract search term from message
-function extractSearchTerm(message)
-    local patterns = {
-        "find%s+(.+)",
-        "where%s+is%s+(.+)",
-        "locate%s+(.+)",
-        "properties%s+of%s+(.+)",
-        "what%s+is%s+(.+)"
-    }
+local function scanForWeapons()
+    local weapons = {}
+    local weaponNames = {"Sword", "Gun", "Weapon", "Blade", "Katana", "Rifle", "Pistol", "Bow", "Axe", "Hammer"}
     
-    for _, pattern in ipairs(patterns) do
-        local match = message:match(pattern)
-        if match then
-            return match
-        end
-    end
-    
-    return nil
-end
-
--- Helper function to count children recursively
-function countChildren(object)
-    local count = #object:GetChildren()
-    for _, child in pairs(object:GetChildren()) do
-        count = count + countChildren(child)
-    end
-    return count
-end
-
--- Find object by name recursively
-function findObjectByName(container, name)
-    for _, item in pairs(container:GetChildren()) do
-        if item.Name:lower() == name:lower() then
-            return item
-        end
-        
-        local found = findObjectByName(item, name)
+    for _, weaponName in pairs(weaponNames) do
+        local found = workspace:FindFirstChild(weaponName, true)
         if found then
-            return found
+            table.insert(weapons, weaponName .. ": " .. getObjectPath(found))
+            if #weapons >= 10 then break end
         end
     end
-    return nil
+    
+    return weapons
 end
 
--- Get general game structure
-function getGameStructure()
-    local structure = ""
+local function scanForTools()
+    local tools = {}
     
-    local majorServices = {
-        workspace,
-        game:GetService("Lighting"),
-        game:GetService("ReplicatedStorage"),
-        game:GetService("ServerStorage"),
-        game:GetService("StarterPack")
-    }
-    
-    for _, service in pairs(majorServices) do
-        structure = structure .. "• " .. service.Name .. ": " .. countChildren(service) .. " items\n"
-    end
-    
-    return structure
-end
-
--- Enhanced development responses
-function enhanceDevResponse(message)
-    local lowerMessage = message:lower()
-    
-    if lowerMessage:find("how many") and lowerMessage:find("script") then
-        return "I found " .. countScripts() .. " scripts in your game"
-        
-    elseif lowerMessage:find("what services") then
-        return "Available services: " .. table.concat(getServiceNames(), ", ")
-        
-    elseif lowerMessage:find("game info") then
-        return "Game Place ID: " .. game.PlaceId .. ", Players: " .. #game:GetService("Players"):GetPlayers()
-        
-    elseif lowerMessage:find("help me develop") then
-        return "I can help you explore scripts, find objects, analyze structure, and understand your game's architecture!"
-    end
-    
-    return nil
-end
-
--- Count total scripts in game
-function countScripts()
-    local count = 0
-    local containers = {
-        workspace,
-        game:GetService("ReplicatedStorage"),
-        game:GetService("ServerStorage"),
-        game:GetService("StarterPack")
-    }
-    
-    for _, container in pairs(containers) do
-        count = count + countScriptsInContainer(container)
-    end
-    
-    return count
-end
-
--- Count scripts in container recursively
-function countScriptsInContainer(container)
-    local count = 0
-    
-    for _, item in pairs(container:GetChildren()) do
-        if item:IsA("Script") or item:IsA("LocalScript") or item:IsA("ModuleScript") then
-            count = count + 1
+    -- Check backpack
+    if localPlayer:FindFirstChild("Backpack") then
+        for _, tool in pairs(localPlayer.Backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                -- Check for hitbox parts in tool
+                local hitboxInfo = ""
+                for _, part in pairs(tool:GetDescendants()) do
+                    if part:IsA("BasePart") and (part.Size.Magnitude > 5 or part.Name:lower():find("hit")) then
+                        hitboxInfo = " | Hitbox: " .. math.floor(part.Size.Magnitude)
+                        break
+                    end
+                end
+                table.insert(tools, "Tool: " .. tool.Name .. hitboxInfo)
+                if #tools >= 10 then break end
+            end
         end
-        count = count + countScriptsInContainer(item)
     end
     
-    return count
+    return tools
 end
 
--- Get service names
-function getServiceNames()
-    local names = {}
-    local services = game:GetServices()
-    for _, service in pairs(services) do
-        table.insert(names, service.Name)
-    end
-    return names
-end
-
--- Show development help
-function showDevHelp()
-    local helpText = [[
-🤖 DEVELOPMENT COMMANDS:
-
-🔍 EXPLORATION:
-• "explore workspace" - Show workspace contents
-• "find [name]" - Find objects by name
-• "show services" - List all services
-• "game structure" - Overview of game hierarchy
-
-📜 SCRIPT ANALYSIS:
-• "analyze scripts" - Find all scripts
-• "find scripts" - Locate script files
-• "properties of [object]" - Show object properties
-
-🎮 GAME INFO:
-• "player count" - How many players
-• "script count" - Total scripts in game
-• "service info" - Detailed service information
-
-Try: "find sword" or "explore replicatedstorage"
-]]
-    sendAIResponse(helpText)
-end
-
--- Send AI response to chat
-function sendAIResponse(response)
-    wait(math.random(0.5, 1.5))
+local function scanForSounds()
+    local sounds = {}
     
-    local success = pcall(function()
-        game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer("🤖 " .. response, "All")
-    end)
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Sound") then
+            table.insert(sounds, "Sound: " .. obj.Name .. " (" .. obj.SoundId .. ")")
+            if #sounds >= 10 then break end
+        end
+    end
     
-    if not success then
-        game:GetService("TextChatService").TextChannels.RBXGeneral:SendAsync("🤖 " .. response)
+    return sounds
+end
+
+local function scanForLights()
+    local lights = {}
+    local lightTypes = {"PointLight", "SpotLight", "SurfaceLight"}
+    
+    for _, lightType in pairs(lightTypes) do
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA(lightType) then
+                table.insert(lights, lightType .. ": " .. getObjectPath(obj))
+                if #lights >= 10 then break end
+            end
+        end
+        if #lights >= 10 then break end
+    end
+    
+    return lights
+end
+
+-- Hook into chat
+local function initializeChatHook()
+    if chatConnection then
+        chatConnection:Disconnect()
+    end
+    chatConnection = localPlayer.Chatted:Connect(onChatMessage)
+end
+
+-- Initialize when player joins if toggle is on
+local function setupBot()
+    if localPlayer.Character then
+        if isDahenBotActive then
+            initializeChatHook()
+        end
+    else
+        localPlayer.CharacterAdded:Connect(function()
+            task.wait(1)
+            if isDahenBotActive then
+                initializeChatHook()
+            end
+        end)
     end
 end
 
--- Quick commands for developers
-PlayerTab:NewButton("🔍 Quick Explore", "Quick game structure analysis", function()
-    sendAIResponse("🔍 Quick Analysis:\n" .. getGameStructure())
+-- Setup when script loads
+setupBot()
+
+-- Add help button
+PlayerTab:NewButton("DAHENBOT Help", "Show search commands", function()
+    Library:Notify("DAHENBOT", "Chat Commands:\n/find [thing]\n/scan [type]\n/hitbox - Find attack range objects\n/help", 8)
 end)
 
-PlayerTab:NewButton("📜 Script Count", "Count all scripts in game", function()
-    sendAIResponse("📜 Total Scripts: " .. countScripts())
+-- Clean up when script stops
+game.Players.LocalPlayer.CharacterRemoving:Connect(function()
+    if chatConnection then
+        chatConnection:Disconnect()
+        chatConnection = nil
+    end
 end)
 
-PlayerTab:NewButton("🎮 Service Info", "Show all services", function()
-    local services = getServiceNames()
-    sendAIResponse("🔧 Services: " .. table.concat(services, ", "))
-end)
-
--- Initial notification
-Library:Notify("🤖 DEV ASSISTANT", "Game file explorer ready! Try 'explore workspace'", 5, "Info")
+Library:Notify("DAHENBOT", "Advanced search loaded! Type /hitbox for attack range analysis", 4)
 
 -- Auto Attack Script - Moves to nearest player and auto-attacks WITH RUNNING (Shift Hold)
 local isAutoAttackActive = false
