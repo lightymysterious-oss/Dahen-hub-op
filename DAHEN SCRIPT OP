@@ -2469,18 +2469,19 @@ end)
 -- Initial notification
 Library:Notify("🔁 AUTO TP ATTACK", "Will TP to nearest player and spam attacks!", 4, "Info")
 
--- Hitbox Expander using Metatable Hooking
+-- Hitbox Expander using Metatable Hooking - 40x MAX
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
 -- Hitbox variables
 local isHitboxExpanderActive = false
-local hitboxMultiplier = 2.0
+local hitboxMultiplier = 10.0
 local originalMagnitude = nil
+local hookedModules = {}
 
 -- Add toggle to PlayerTab
-PlayerTab:NewToggle("KILLAURA", "Expand hitbox using metatable hooking", function(state)
+PlayerTab:NewToggle("Hitbox Expander", "Expand hitbox using metatable hooking", function(state)
     isHitboxExpanderActive = state
     
     if state then
@@ -2490,14 +2491,14 @@ PlayerTab:NewToggle("KILLAURA", "Expand hitbox using metatable hooking", functio
     end
 end)
 
--- Multiplier input
-PlayerTab:NewTextInput("Hitbox Multiplier", "Set expansion multiplier (1-10)", "2.0", function(text)
+-- Multiplier input - MAX 40x
+PlayerTab:NewTextInput("Hitbox Multiplier", "Set expansion multiplier (1-40)", "10.0", function(text)
     local newMultiplier = tonumber(text)
-    if newMultiplier and newMultiplier >= 1 and newMultiplier <= 10 then
+    if newMultiplier and newMultiplier >= 1 and newMultiplier <= 40 then
         hitboxMultiplier = newMultiplier
         Library:Notify("HITBOX", "Multiplier set to: " .. hitboxMultiplier .. "x", 3)
     else
-        Library:Notify("HITBOX", "Invalid multiplier! Use 1-10", 3)
+        Library:Notify("HITBOX", "Invalid multiplier! Use 1-40", 3)
     end
 end)
 
@@ -2508,22 +2509,26 @@ local function enableHitboxExpander()
     -- Store original magnitude function
     originalMagnitude = Vector3.Magnitude
     
-    -- Hook the magnitude function
+    -- Hook the magnitude function for maximum expansion
     local __index
     __index = hookmetamethod(game, "__index", function(t, k)
         if not isHitboxExpanderActive then
             return __index(t, k)
         end
         
-        if k == "Magnitude" and checkIfPlayerIsTarget(t) then
+        if k == "Magnitude" and checkIfCombatDistance(t) then
             local original = originalMagnitude(t)
+            -- Apply massive reduction to make distances seem tiny
             return original / hitboxMultiplier
         end
         
         return __index(t, k)
     end)
     
-    Library:Notify("KILLAURA", "LEGIT enabled - " .. hitboxMultiplier .. "x", 3)
+    -- Also hook math functions
+    hookMathFunctions()
+    
+    Library:Notify("HITBOX", "Expander enabled - " .. hitboxMultiplier .. "x MAX", 3)
 end
 
 -- Disable the hitbox expander
@@ -2534,11 +2539,19 @@ local function disableHitboxExpander()
         originalMagnitude = nil
     end
     
-    Library:Notify("KILLAURA", "LEGIT disabled", 3)
+    -- Restore math functions
+    if getgenv().originalSqrt then
+        math.sqrt = getgenv().originalSqrt
+    end
+    
+    -- Clear hooked modules
+    hookedModules = {}
+    
+    Library:Notify("HITBOX", "Expander disabled", 3)
 end
 
--- Check if the vector is targeting a player (distance check)
-local function checkIfPlayerIsTarget(vector)
+-- Check if this is a combat-related distance calculation
+local function checkIfCombatDistance(vector)
     if not isHitboxExpanderActive then return false end
     
     local character = localPlayer.Character
@@ -2547,15 +2560,16 @@ local function checkIfPlayerIsTarget(vector)
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     if not rootPart then return false end
     
-    -- Check if this magnitude calculation involves our character
-    -- This is a simplified check - you may need to adjust based on your game
-    local localPos = rootPart.Position
-    
-    -- Check if the vector represents a distance to our character
-    -- This is a heuristic approach since we can't directly know the context
+    -- More aggressive detection - assume most vectors near player are combat-related
     if typeof(vector) == "Vector3" then
-        local distanceToChar = (localPos - vector).Magnitude
-        if distanceToChar < 50 then -- If this vector is close to our character
+        local distanceToChar = (rootPart.Position - vector).Magnitude
+        if distanceToChar < 100 then -- Increased range for detection
+            return true
+        end
+        
+        -- Also check if vector magnitude itself is in combat range
+        local mag = originalMagnitude(vector)
+        if mag > 0 and mag < 50 then
             return true
         end
     end
@@ -2563,41 +2577,79 @@ local function checkIfPlayerIsTarget(vector)
     return false
 end
 
--- Alternative approach: Hook specific combat functions
-local function hookCombatFunctions()
+-- Hook math functions for extreme expansion
+local function hookMathFunctions()
     if not isHitboxExpanderActive then return end
     
-    -- Try to find combat modules
-    for _, module in pairs(game:GetDescendants()) do
-        if module:IsA("ModuleScript") then
-            if string.find(module.Name:lower(), "combat") or 
-               string.find(module.Name:lower(), "damage") or
-               string.find(module.Name:lower(), "hit") then
-               
-                local success, result = pcall(function()
-                    return require(module)
-                end)
-                
-                if success and type(result) == "table" then
-                    -- Hook distance checking functions in the module
-                    for funcName, func in pairs(result) do
-                        if type(func) == "function" then
-                            -- Check if this function might be for distance calculation
-                            if string.find(funcName:lower(), "distance") or
-                               string.find(funcName:lower(), "range") or
-                               string.find(funcName:lower(), "check") then
-                               
-                                result[funcName] = function(...)
-                                    local args = {...}
-                                    -- Modify distance arguments if found
-                                    for i, arg in pairs(args) do
-                                        if type(arg) == "number" and arg > 0 and arg < 100 then
-                                            args[i] = arg * hitboxMultiplier -- Increase range
-                                        end
-                                    end
-                                    return func(unpack(args))
+    -- Store original
+    getgenv().originalSqrt = math.sqrt
+    local isAttacking = false
+    
+    -- Track attack state more aggressively
+    local function trackAttackState()
+        local character = localPlayer.Character
+        if not character then return end
+        
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            -- Check for ANY animations or tool usage
+            for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
+                isAttacking = true
+                delay(2, function() isAttacking = false end)
+                break
+            end
+            
+            -- Check if holding tool
+            local tool = character:FindFirstChildOfClass("Tool")
+            if tool then
+                isAttacking = true
+            end
+        end
+    end
+    
+    -- Monitor more frequently
+    RunService.Heartbeat:Connect(trackAttackState)
+    
+    -- Hook sqrt function with maximum effect
+    getgenv().math.sqrt = function(x)
+        if isHitboxExpanderActive and (isAttacking or true) then -- Always active when enabled
+            -- Extreme distance reduction
+            return getgenv().originalSqrt(x / (hitboxMultiplier * hitboxMultiplier))
+        end
+        return getgenv().originalSqrt(x)
+    end
+end
+
+-- Extreme combat module hooking
+local function hookAllCombatModules()
+    if not isHitboxExpanderActive then return end
+    
+    -- Scan entire game for any modules that might handle combat
+    for _, obj in pairs(game:GetDescendants()) do
+        if obj:IsA("ModuleScript") and not hookedModules[obj] then
+            local success, module = pcall(require, obj)
+            if success and type(module) == "table" then
+                -- Hook ANY function that might be related to distance/range
+                for funcName, func in pairs(module) do
+                    if type(func) == "function" then
+                        hookedModules[obj] = hookedModules[obj] or {}
+                        
+                        -- Store original
+                        hookedModules[obj][funcName] = func
+                        
+                        -- Replace with expanded version
+                        module[funcName] = function(...)
+                            local args = {...}
+                            -- Modify ANY number arguments that could be distances
+                            for i, arg in pairs(args) do
+                                if type(arg) == "number" and arg > 0 and arg < 100 then
+                                    args[i] = arg * hitboxMultiplier -- Massive range increase
+                                elseif type(arg) == "Vector3" then
+                                    -- Also modify Vector3 arguments
+                                    args[i] = arg / hitboxMultiplier
                                 end
                             end
+                            return func(unpack(args))
                         end
                     end
                 end
@@ -2606,75 +2658,54 @@ local function hookCombatFunctions()
     end
 end
 
--- Advanced: Hook math functions for distance calculations
-local function hookMathFunctions()
-    if not isHitboxExpanderActive then return end
-    
-    local originalSqrt = math.sqrt
-    local isInCombat = false
-    
-    -- Track when player is attacking
-    local function trackCombatState()
-        local character = localPlayer.Character
-        if not character then return end
-        
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            -- Check for attack animations
-            for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
-                local name = track.Name:lower()
-                if string.find(name, "attack") or string.find(name, "swing") or string.find(name, "hit") then
-                    isInCombat = true
-                    delay(1, function() isInCombat = false end) -- Reset after 1 second
-                    break
-                end
-            end
-        end
-    end
-    
-    -- Monitor combat state
-    RunService.Heartbeat:Connect(trackCombatState)
-    
-    -- Hook sqrt function (used in magnitude calculations)
-    getgenv().math.sqrt = function(x)
-        if isHitboxExpanderActive and isInCombat then
-            -- Modify distance calculations during combat
-            return originalSqrt(x / (hitboxMultiplier * hitboxMultiplier))
-        end
-        return originalSqrt(x)
-    end
-end
-
--- Status button
-PlayerTab:NewButton("Hitbox Status", "Check current settings", function()
+-- Maximum expansion button
+PlayerTab:NewButton("MAX EXPANSION", "Set to maximum 40x range", function()
+    hitboxMultiplier = 40.0
     if isHitboxExpanderActive then
-        Library:Notify("HITBOX", "Active - " .. hitboxMultiplier .. "x multiplier", 4)
-    else
-        Library:Notify("HITBOX", "Inactive", 3)
+        disableHitboxExpander()
+        enableHitboxExpander()
     end
+    Library:Notify("HITBOX", "MAXIMUM 40x EXPANSION ACTIVATED", 5)
 end)
 
--- Manual hooking button for combat modules
-PlayerTab:NewButton("Hook Combat Modules", "Try to hook game combat functions", function()
+-- Aggressive hooking button
+PlayerTab:NewButton("AGGRESSIVE HOOK", "Hook all possible combat functions", function()
     if isHitboxExpanderActive then
-        hookCombatFunctions()
-        Library:Notify("HITBOX", "Combat modules hooked", 3)
+        hookAllCombatModules()
+        Library:Notify("HITBOX", "AGGRESSIVE HOOKING ACTIVATED", 4)
     else
         Library:Notify("HITBOX", "Enable expander first", 3)
     end
 end)
 
--- Clean up when script stops
+-- Status button
+PlayerTab:NewButton("Hitbox Status", "Check current expansion", function()
+    if isHitboxExpanderActive then
+        Library:Notify("HITBOX", "ACTIVE - " .. hitboxMultiplier .. "x MAXIMUM", 5)
+    else
+        Library:Notify("HITBOX", "INACTIVE", 3)
+    end
+end)
+
+-- Auto-hook when enabled
+localPlayer.CharacterAdded:Connect(function()
+    if isHitboxExpanderActive then
+        task.wait(2)
+        enableHitboxExpander()
+        hookAllCombatModules()
+    end
+end)
+
+-- Clean up
 localPlayer.CharacterRemoving:Connect(function()
     disableHitboxExpander()
 end)
 
--- Auto-disable when leaving game
 game:BindToClose(function()
     disableHitboxExpander()
 end)
 
-Library:Notify("HITBOX", "Metatable hitbox expander loaded!", 4)
+Library:Notify("HITBOX", "40x MAX Hitbox Expander Loaded!", 5)
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
