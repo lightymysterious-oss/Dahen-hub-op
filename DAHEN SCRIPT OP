@@ -2469,187 +2469,157 @@ end)
 -- Initial notification
 Library:Notify("🔁 AUTO TP ATTACK", "Will TP to nearest player and spam attacks!", 4, "Info")
 
--- Hitbox Expander using Metatable Hooking - 40x MAX
+-- Raycast Hitbox Expander
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
 -- Hitbox variables
 local isHitboxExpanderActive = false
-local hitboxMultiplier = 10.0
-local originalMagnitude = nil
-local hookedModules = {}
+local raycastRange = 50
+local originalRaycast = nil
+local isAttacking = false
 
 -- Add toggle to PlayerTab
-PlayerTab:NewToggle("Hitbox Expander", "Expand hitbox using metatable hooking", function(state)
+PlayerTab:NewToggle("Raycast Expander", "Extend attack range using raycasts", function(state)
     isHitboxExpanderActive = state
     
     if state then
-        enableHitboxExpander()
+        enableRaycastExpansion()
+        Library:Notify("RAYCAST", "Enabled - Range: " .. raycastRange, 3)
     else
-        disableHitboxExpander()
+        disableRaycastExpansion()
+        Library:Notify("RAYCAST", "Disabled", 3)
     end
 end)
 
--- Multiplier input - MAX 40x
-PlayerTab:NewTextInput("Hitbox Multiplier", "Set expansion multiplier (1-40)", "10.0", function(text)
-    local newMultiplier = tonumber(text)
-    if newMultiplier and newMultiplier >= 1 and newMultiplier <= 40 then
-        hitboxMultiplier = newMultiplier
-        Library:Notify("HITBOX", "Multiplier set to: " .. hitboxMultiplier .. "x", 3)
+-- Range input
+PlayerTab:NewTextInput("Raycast Range", "Set range (10-100)", "50", function(text)
+    local newRange = tonumber(text)
+    if newRange and newRange >= 10 and newRange <= 100 then
+        raycastRange = newRange
+        Library:Notify("RAYCAST", "Range: " .. raycastRange, 3)
     else
-        Library:Notify("HITBOX", "Invalid multiplier! Use 1-40", 3)
+        Library:Notify("RAYCAST", "Use 10-100", 3)
     end
 end)
 
--- Enable the hitbox expander
-local function enableHitboxExpander()
-    if originalMagnitude then return end -- Already hooked
+-- Hook raycast functions
+local function enableRaycastExpansion()
+    if originalRaycast then return end
     
-    -- Store original magnitude function
-    originalMagnitude = Vector3.Magnitude
+    -- Store original raycast function
+    originalRaycast = workspace.Raycast
     
-    -- Hook the magnitude function for maximum expansion
-    local __index
-    __index = hookmetamethod(game, "__index", function(t, k)
-        if not isHitboxExpanderActive then
-            return __index(t, k)
+    -- Hook the raycast method
+    workspace.Raycast = function(workspace, origin, direction, params, ...)
+        if isHitboxExpanderActive and isAttacking then
+            -- Extend the raycast range
+            local extendedDirection = direction.Unit * raycastRange
+            return originalRaycast(workspace, origin, extendedDirection, params, ...)
         end
         
-        if k == "Magnitude" and checkIfCombatDistance(t) then
-            local original = originalMagnitude(t)
-            -- Apply massive reduction to make distances seem tiny
-            return original / hitboxMultiplier
+        return originalRaycast(workspace, origin, direction, params, ...)
+    end
+    
+    -- Also hook Ray.new for additional coverage
+    local originalRayNew = Ray.new
+    Ray.new = function(origin, direction)
+        if isHitboxExpanderActive and isAttacking then
+            local extendedDirection = direction.Unit * raycastRange
+            return originalRayNew(origin, extendedDirection)
         end
-        
-        return __index(t, k)
-    end)
-    
-    -- Also hook math functions
-    hookMathFunctions()
-    
-    Library:Notify("HITBOX", "Expander enabled - " .. hitboxMultiplier .. "x MAX", 3)
+        return originalRayNew(origin, direction)
+    end
 end
 
--- Disable the hitbox expander
-local function disableHitboxExpander()
-    if originalMagnitude then
-        -- Restore original function
-        Vector3.Magnitude = originalMagnitude
-        originalMagnitude = nil
+-- Restore original functions
+local function disableRaycastExpansion()
+    if originalRaycast then
+        workspace.Raycast = originalRaycast
+        originalRaycast = nil
     end
-    
-    -- Restore math functions
-    if getgenv().originalSqrt then
-        math.sqrt = getgenv().originalSqrt
-    end
-    
-    -- Clear hooked modules
-    hookedModules = {}
-    
-    Library:Notify("HITBOX", "Expander disabled", 3)
 end
 
--- Check if this is a combat-related distance calculation
-local function checkIfCombatDistance(vector)
-    if not isHitboxExpanderActive then return false end
-    
+-- Track when player is attacking
+local function trackAttackState()
     local character = localPlayer.Character
-    if not character then return false end
+    if not character then return end
     
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return false end
-    
-    -- More aggressive detection - assume most vectors near player are combat-related
-    if typeof(vector) == "Vector3" then
-        local distanceToChar = (rootPart.Position - vector).Magnitude
-        if distanceToChar < 100 then -- Increased range for detection
-            return true
-        end
-        
-        -- Also check if vector magnitude itself is in combat range
-        local mag = originalMagnitude(vector)
-        if mag > 0 and mag < 50 then
-            return true
-        end
+    -- Check for tool usage (attacking)
+    local tool = character:FindFirstChildOfClass("Tool")
+    if tool then
+        -- Check for mouse clicks or attack inputs
+        isAttacking = true
+        delay(0.5, function() isAttacking = false end)
     end
     
-    return false
-end
-
--- Hook math functions for extreme expansion
-local function hookMathFunctions()
-    if not isHitboxExpanderActive then return end
-    
-    -- Store original
-    getgenv().originalSqrt = math.sqrt
-    local isAttacking = false
-    
-    -- Track attack state more aggressively
-    local function trackAttackState()
-        local character = localPlayer.Character
-        if not character then return end
-        
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            -- Check for ANY animations or tool usage
-            for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
+    -- Check animations
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
+            local name = track.Name:lower()
+            if string.find(name, "attack") or string.find(name, "swing") or string.find(name, "hit") then
                 isAttacking = true
-                delay(2, function() isAttacking = false end)
+                delay(1, function() isAttacking = false end)
                 break
             end
-            
-            -- Check if holding tool
-            local tool = character:FindFirstChildOfClass("Tool")
-            if tool then
-                isAttacking = true
-            end
         end
-    end
-    
-    -- Monitor more frequently
-    RunService.Heartbeat:Connect(trackAttackState)
-    
-    -- Hook sqrt function with maximum effect
-    getgenv().math.sqrt = function(x)
-        if isHitboxExpanderActive and (isAttacking or true) then -- Always active when enabled
-            -- Extreme distance reduction
-            return getgenv().originalSqrt(x / (hitboxMultiplier * hitboxMultiplier))
-        end
-        return getgenv().originalSqrt(x)
     end
 end
 
--- Extreme combat module hooking
-local function hookAllCombatModules()
+-- Monitor attack state
+RunService.Heartbeat:Connect(trackAttackState)
+
+-- Manual attack detection for mobile
+local function setupMobileAttackDetection()
+    -- Listen for screen taps (mobile attacks)
+    local UIS = game:GetService("UserInputService")
+    
+    UIS.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        
+        if input.UserInputType == Enum.UserInputType.Touch then
+            isAttacking = true
+            delay(0.5, function() isAttacking = false end)
+        elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isAttacking = true
+            delay(0.5, function() isAttacking = false end)
+        end
+    end)
+end
+
+setupMobileAttackDetection()
+
+-- Enhanced: Hook specific combat modules that use raycasts
+local function hookCombatModules()
     if not isHitboxExpanderActive then return end
     
-    -- Scan entire game for any modules that might handle combat
+    -- Search for combat-related modules
     for _, obj in pairs(game:GetDescendants()) do
-        if obj:IsA("ModuleScript") and not hookedModules[obj] then
+        if obj:IsA("ModuleScript") then
             local success, module = pcall(require, obj)
             if success and type(module) == "table" then
-                -- Hook ANY function that might be related to distance/range
+                -- Look for functions that might use raycasts
                 for funcName, func in pairs(module) do
                     if type(func) == "function" then
-                        hookedModules[obj] = hookedModules[obj] or {}
-                        
-                        -- Store original
-                        hookedModules[obj][funcName] = func
-                        
-                        -- Replace with expanded version
-                        module[funcName] = function(...)
-                            local args = {...}
-                            -- Modify ANY number arguments that could be distances
-                            for i, arg in pairs(args) do
-                                if type(arg) == "number" and arg > 0 and arg < 100 then
-                                    args[i] = arg * hitboxMultiplier -- Massive range increase
-                                elseif type(arg) == "Vector3" then
-                                    -- Also modify Vector3 arguments
-                                    args[i] = arg / hitboxMultiplier
+                        -- Check if function name suggests raycast usage
+                        if string.find(funcName:lower(), "raycast") or
+                           string.find(funcName:lower(), "cast") or
+                           string.find(funcName:lower(), "checkhit") then
+                           
+                            module[funcName] = function(...)
+                                local args = {...}
+                                -- Modify raycast parameters in the arguments
+                                for i, arg in pairs(args) do
+                                    if type(arg) == "number" and arg > 0 and arg < 100 then
+                                        -- This might be a raycast distance
+                                        args[i] = arg * (raycastRange / 50)
+                                    end
                                 end
+                                return func(unpack(args))
                             end
-                            return func(unpack(args))
                         end
                     end
                 end
@@ -2658,54 +2628,73 @@ local function hookAllCombatModules()
     end
 end
 
--- Maximum expansion button
-PlayerTab:NewButton("MAX EXPANSION", "Set to maximum 40x range", function()
-    hitboxMultiplier = 40.0
-    if isHitboxExpanderActive then
-        disableHitboxExpander()
-        enableHitboxExpander()
+-- Test function to verify raycast expansion
+local function testRaycastExpansion()
+    local character = localPlayer.Character
+    if not character then return end
+    
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    -- Perform a test raycast
+    local origin = root.Position
+    local direction = root.CFrame.LookVector
+    
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    params.FilterDescendantsInstances = {character}
+    
+    local result = workspace:Raycast(origin, direction * raycastRange, params)
+    
+    if result then
+        Library:Notify("RAYCAST TEST", "Hit: " .. result.Instance.Name, 4)
+    else
+        Library:Notify("RAYCAST TEST", "No hit at " .. raycastRange .. " studs", 4)
     end
-    Library:Notify("HITBOX", "MAXIMUM 40x EXPANSION ACTIVATED", 5)
+end
+
+-- Manual combat module hooking
+PlayerTab:NewButton("Hook Combat Modules", "Hook game combat systems", function()
+    if isHitboxExpanderActive then
+        hookCombatModules()
+        Library:Notify("RAYCAST", "Combat modules hooked", 3)
+    else
+        Library:Notify("RAYCAST", "Enable expander first", 3)
+    end
 end)
 
--- Aggressive hooking button
-PlayerTab:NewButton("AGGRESSIVE HOOK", "Hook all possible combat functions", function()
-    if isHitboxExpanderActive then
-        hookAllCombatModules()
-        Library:Notify("HITBOX", "AGGRESSIVE HOOKING ACTIVATED", 4)
-    else
-        Library:Notify("HITBOX", "Enable expander first", 3)
-    end
+-- Test button
+PlayerTab:NewButton("Test Raycast", "Test current raycast range", function()
+    testRaycastExpansion()
 end)
 
 -- Status button
-PlayerTab:NewButton("Hitbox Status", "Check current expansion", function()
+PlayerTab:NewButton("Raycast Status", "Check current settings", function()
     if isHitboxExpanderActive then
-        Library:Notify("HITBOX", "ACTIVE - " .. hitboxMultiplier .. "x MAXIMUM", 5)
+        Library:Notify("RAYCAST", "Active - Range: " .. raycastRange, 4)
     else
-        Library:Notify("HITBOX", "INACTIVE", 3)
+        Library:Notify("RAYCAST", "Inactive", 3)
     end
 end)
 
--- Auto-hook when enabled
+-- Handle character changes
 localPlayer.CharacterAdded:Connect(function()
     if isHitboxExpanderActive then
         task.wait(2)
-        enableHitboxExpander()
-        hookAllCombatModules()
+        hookCombatModules()
     end
 end)
 
 -- Clean up
 localPlayer.CharacterRemoving:Connect(function()
-    disableHitboxExpander()
+    disableRaycastExpansion()
 end)
 
 game:BindToClose(function()
-    disableHitboxExpander()
+    disableRaycastExpansion()
 end)
 
-Library:Notify("HITBOX", "40x MAX Hitbox Expander Loaded!", 5)
+Library:Notify("RAYCAST", "Raycast Expander Loaded!", 4)    
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
