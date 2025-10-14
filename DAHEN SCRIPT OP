@@ -725,34 +725,330 @@ end)
 PlayerTab:NewDivider()
 
 PlayerTab:NewButton("Hitbox multiplier", function()
-	if game.Workspace.Values.HitboxMultiplier.Value == 10 then
+	if game.Workspace.Values.HitboxMultiplier.Value == 50 then
 		Library:Notify("[HITBOX]", "is 1x", 4, "Info")
 		game.Workspace.Values.HitboxMultiplier.Value = 1
 	else
-		Library:Notify("[HITBOX]", "is 10x", 4, "Info")
-		game.Workspace.Values.HitboxMultiplier.Value = 10
+		Library:Notify("[HITBOX]", "is 50x", 4, "Info")
+		game.Workspace.Values.HitboxMultiplier.Value = 50
 	end
 end)
 
--- Hitbox Expander Toggle
-PlayerTab:NewToggle("🔴 Hitbox Expander", "Expand your hitbox range", function(state)
+-- HITBOX EXPANDER - Extended Attack Range with Visuals
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+-- Hitbox Expander variables
+local isHitboxExpanderActive = false
+local expandedHitboxes = {}
+local visualHitboxes = {}
+local hitboxSize = 15
+local hitboxRange = 30
+local attackCooldown = 0.2
+local lastAttackTime = 0
+
+-- Add toggle to PlayerTab
+PlayerTab:NewToggle("Hitbox Expander", "Extend attack range with invisible hitboxes", function(state)
+    isHitboxExpanderActive = state
+    
     if state then
-        Library:Notify("🔴 HITBOX EXPANDER", "Loading hitbox expander...", 3, "Info")
-        
-        -- Execute the hitbox expander script
-        local success, error = pcall(function()
-            loadstring(game:HttpGet("https://pastebin.com/raw/tE9CCGqe", true))()
-        end)
-        
-        if success then
-            Library:Notify("🟢 HITBOX EXPANDER", "Successfully loaded!", 3, "Success")
-        else
-            Library:Notify("🔴 HITBOX EXPANDER", "Failed to load: " .. error, 5, "Error")
-        end
-        
+        createExpandedHitboxes()
     else
-        Library:Notify("🔴 HITBOX EXPANDER", "Disabled - May require game rejoin", 3, "Warning")
+        removeExpandedHitboxes()
     end
+end)
+
+-- Range input
+PlayerTab:NewTextInput("Hitbox Range", "Set hitbox range (1-100)", "30", function(text)
+    local newRange = tonumber(text)
+    if newRange and newRange >= 1 and newRange <= 100 then
+        hitboxRange = newRange
+        if isHitboxExpanderActive then
+            removeExpandedHitboxes()
+            createExpandedHitboxes()
+        end
+        Library:Notify("HITBOX EXPANDER", "Range set to: " .. hitboxRange .. " studs", 3)
+    else
+        Library:Notify("HITBOX EXPANDER", "Invalid range! Use 1-100", 3)
+    end
+end)
+
+-- Create expanded hitboxes around player
+local function createExpandedHitboxes()
+    removeExpandedHitboxes()
+    
+    local character = localPlayer.Character
+    if not character then return end
+    
+    -- Create hitboxes in all directions
+    local hitboxPositions = {
+        Vector3.new(0, 0, hitboxRange),  -- Front
+        Vector3.new(hitboxRange, 0, 0),  -- Right
+        Vector3.new(-hitboxRange, 0, 0), -- Left
+        Vector3.new(0, 0, -hitboxRange), -- Back
+        Vector3.new(0, hitboxRange, 0),  -- Top
+    }
+    
+    for i, offset in ipairs(hitboxPositions) do
+        local hitbox = createSingleHitbox(character, offset, "Hitbox_" .. i)
+        table.insert(expandedHitboxes, hitbox)
+        
+        -- Create visual indicator
+        local visual = createVisualHitbox(character, offset, "Visual_" .. i)
+        table.insert(visualHitboxes, visual)
+    end
+    
+    -- Create rotating sphere for 360 coverage
+    local sphereHitbox = createSphereHitbox(character)
+    table.insert(expandedHitboxes, sphereHitbox)
+    
+    -- Create visual for rotating sphere
+    local sphereVisual = createSphereVisual(character)
+    table.insert(visualHitboxes, sphereVisual)
+end
+
+-- Create a single hitbox part
+local function createSingleHitbox(character, offset, name)
+    local hitbox = Instance.new("Part")
+    hitbox.Name = name
+    hitbox.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+    hitbox.Transparency = 1
+    hitbox.CanCollide = false
+    hitbox.Anchored = false
+    hitbox.Massless = true
+    
+    -- Create TouchTransmitter
+    local touchInterest = Instance.new("TouchTransmitter")
+    touchInterest.Parent = hitbox
+    
+    -- Weld to character
+    local weld = Instance.new("Weld")
+    weld.Part0 = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head") or character.PrimaryPart
+    weld.Part1 = hitbox
+    weld.C0 = CFrame.new(offset)
+    weld.Parent = hitbox
+    
+    hitbox.Parent = character
+    
+    -- Connect touched event
+    hitbox.Touched:Connect(function(otherPart)
+        onHitboxTouched(otherPart)
+    end)
+    
+    return hitbox
+end
+
+-- Create visual indicator for hitbox
+local function createVisualHitbox(character, offset, name)
+    local visual = Instance.new("Part")
+    visual.Name = name
+    visual.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+    visual.Material = Enum.Material.Neon
+    visual.BrickColor = BrickColor.new("Bright red")
+    visual.Transparency = 0.7
+    visual.CanCollide = false
+    visual.Anchored = false
+    visual.Massless = true
+    
+    -- Weld to character
+    local weld = Instance.new("Weld")
+    weld.Part0 = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head") or character.PrimaryPart
+    weld.Part1 = visual
+    weld.C0 = CFrame.new(offset)
+    weld.Parent = visual
+    
+    visual.Parent = character
+    
+    return visual
+end
+
+-- Create sphere hitbox that rotates around player
+local function createSphereHitbox(character)
+    local sphere = Instance.new("Part")
+    sphere.Name = "RotatingSphereHitbox"
+    sphere.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+    sphere.Transparency = 1
+    sphere.CanCollide = false
+    sphere.Anchored = false
+    sphere.Massless = true
+    
+    -- Create TouchTransmitter
+    local touchInterest = Instance.new("TouchTransmitter")
+    touchInterest.Parent = sphere
+    
+    -- Weld with rotation
+    local weld = Instance.new("Weld")
+    weld.Part0 = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head") or character.PrimaryPart
+    weld.Part1 = sphere
+    weld.Parent = sphere
+    
+    sphere.Parent = character
+    
+    -- Connect touched event
+    sphere.Touched:Connect(function(otherPart)
+        onHitboxTouched(otherPart)
+    end)
+    
+    -- Make it rotate
+    if isHitboxExpanderActive then
+        coroutine.wrap(function()
+            local angle = 0
+            while isHitboxExpanderActive and sphere and sphere.Parent do
+                angle = angle + 0.1
+                local x = math.cos(angle) * hitboxRange
+                local z = math.sin(angle) * hitboxRange
+                weld.C0 = CFrame.new(x, 0, z)
+                RunService.Heartbeat:Wait()
+            end
+        end)()
+    end
+    
+    return sphere
+end
+
+-- Create visual for rotating sphere
+local function createSphereVisual(character)
+    local visual = Instance.new("Part")
+    visual.Name = "RotatingSphereVisual"
+    visual.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+    visual.Material = Enum.Material.Neon
+    visual.BrickColor = BrickColor.new("Bright blue")
+    visual.Transparency = 0.7
+    visual.CanCollide = false
+    visual.Anchored = false
+    visual.Massless = true
+    
+    -- Weld with rotation
+    local weld = Instance.new("Weld")
+    weld.Part0 = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head") or character.PrimaryPart
+    weld.Part1 = visual
+    weld.Parent = visual
+    
+    visual.Parent = character
+    
+    -- Make it rotate
+    if isHitboxExpanderActive then
+        coroutine.wrap(function()
+            local angle = 0
+            while isHitboxExpanderActive and visual and visual.Parent do
+                angle = angle + 0.1
+                local x = math.cos(angle) * hitboxRange
+                local z = math.sin(angle) * hitboxRange
+                weld.C0 = CFrame.new(x, 0, z)
+                RunService.Heartbeat:Wait()
+            end
+        end)()
+    end
+    
+    return visual
+end
+
+-- Handle when hitbox touches something
+local function onHitboxTouched(otherPart)
+    if not isHitboxExpanderActive then return end
+    
+    local currentTime = tick()
+    if currentTime - lastAttackTime < attackCooldown then return end
+    
+    -- Check if touched part belongs to a player
+    local touchedPlayer = getPlayerFromPart(otherPart)
+    if touchedPlayer and touchedPlayer ~= localPlayer then
+        -- Check if player is alive
+        local character = touchedPlayer.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                -- Perform attack
+                performAttack()
+                lastAttackTime = currentTime
+                
+                -- Flash the hitbox that was touched
+                flashHitboxVisual(otherPart)
+            end
+        end
+    end
+end
+
+-- Flash hitbox visual when it hits something
+local function flashHitboxVisual(touchedPart)
+    for _, visual in pairs(visualHitboxes) do
+        if visual and visual.Parent then
+            local originalColor = visual.BrickColor
+            visual.BrickColor = BrickColor.new("Bright green")
+            
+            -- Reset color after short delay
+            delay(0.2, function()
+                if visual and visual.Parent then
+                    if visual.Name == "RotatingSphereVisual" then
+                        visual.BrickColor = BrickColor.new("Bright blue")
+                    else
+                        visual.BrickColor = BrickColor.new("Bright red")
+                    end
+                end
+            end)
+        end
+    end
+end
+
+-- Get player from touched part
+local function getPlayerFromPart(part)
+    local character = part:FindFirstAncestorOfClass("Model")
+    if character then
+        return Players:GetPlayerFromCharacter(character)
+    end
+    return nil
+end
+
+-- Perform attack (mobile-friendly)
+local function performAttack()
+    local currentTime = tick()
+    if currentTime - lastAttackTime >= attackCooldown then
+        -- Use screen tap for mobile compatibility
+        local screenCenter = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2)
+        
+        VirtualInputManager:SendTouchEvent(0, screenCenter, Enum.TouchState.Began, nil, 0, 0)
+        task.wait(0.05)
+        VirtualInputManager:SendTouchEvent(0, screenCenter, Enum.TouchState.Ended, nil, 0, 0)
+        
+        lastAttackTime = currentTime
+    end
+end
+
+-- Remove all expanded hitboxes
+local function removeExpandedHitboxes()
+    for _, hitbox in pairs(expandedHitboxes) do
+        if hitbox and hitbox.Parent then
+            hitbox:Destroy()
+        end
+    end
+    expandedHitboxes = {}
+    
+    for _, visual in pairs(visualHitboxes) do
+        if visual and visual.Parent then
+            visual:Destroy()
+        end
+    end
+    visualHitboxes = {}
+end
+
+-- Handle character respawning
+localPlayer.CharacterAdded:Connect(function(character)
+    if isHitboxExpanderActive then
+        task.wait(1)
+        createExpandedHitboxes()
+    end
+end)
+
+-- Clean up when character is removed
+localPlayer.CharacterRemoving:Connect(function()
+    removeExpandedHitboxes()
+end)
+
+-- Status button to show current range
+PlayerTab:NewButton("Hitbox Status", "Show current hitbox range", function()
+    Library:Notify("HITBOX EXPANDER", "Current range: " .. hitboxRange .. " studs", 4)
 end)
 
 PlayerTab:NewToggle("Infinite Jump", false, function(value)
