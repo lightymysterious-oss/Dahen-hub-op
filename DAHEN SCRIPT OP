@@ -2469,159 +2469,212 @@ end)
 -- Initial notification
 Library:Notify("🔁 AUTO TP ATTACK", "Will TP to nearest player and spam attacks!", 4, "Info")
 
--- KILLAURA LEGIT - Ink Game with Movement
-local isKillAuraActive = false
-local killAuraLoop = nil
+-- Hitbox Expander using Metatable Hooking
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
 
--- Wait for UI to load
-task.wait(2)
+-- Hitbox variables
+local isHitboxExpanderActive = false
+local hitboxMultiplier = 2.0
+local originalMagnitude = nil
 
--- KILLAURA LEGIT Toggle
-PlayerTab:NewToggle("🔪 KILLAURA LEGIT", "Move & attack with E key", function(state)
-    isKillAuraActive = state
+-- Add toggle to PlayerTab
+PlayerTab:NewToggle("KILLAURA", "Expand hitbox using metatable hooking", function(state)
+    isHitboxExpanderActive = state
     
     if state then
-        Library:Notify("🔪 KILLAURA", "ACTIVE - Moving & attacking!", 2, "Success")
-        
-        if killAuraLoop then
-            killAuraLoop:Disconnect()
-        end
-        
-        killAuraLoop = game:GetService("RunService").Heartbeat:Connect(function()
-            if not isKillAuraActive then return end
-            inkGameKillAura()
-        end)
-        
+        enableHitboxExpander()
     else
-        Library:Notify("🔪 KILLAURA", "INACTIVE", 2, "Warning")
-        if killAuraLoop then
-            killAuraLoop:Disconnect()
-            killAuraLoop = nil
-        end
+        disableHitboxExpander()
     end
 end)
 
--- E key spam attack
-function inkGameAttack()
-    -- Spam E key multiple times
-    for i = 1, 3 do
-        game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.E, false, game)
-        task.wait(0.05)
-        game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.E, false, game)
-        task.wait(0.05)
+-- Multiplier input
+PlayerTab:NewTextInput("Hitbox Multiplier", "Set expansion multiplier (1-10)", "2.0", function(text)
+    local newMultiplier = tonumber(text)
+    if newMultiplier and newMultiplier >= 1 and newMultiplier <= 10 then
+        hitboxMultiplier = newMultiplier
+        Library:Notify("HITBOX", "Multiplier set to: " .. hitboxMultiplier .. "x", 3)
+    else
+        Library:Notify("HITBOX", "Invalid multiplier! Use 1-10", 3)
+    end
+end)
+
+-- Enable the hitbox expander
+local function enableHitboxExpander()
+    if originalMagnitude then return end -- Already hooked
+    
+    -- Store original magnitude function
+    originalMagnitude = Vector3.Magnitude
+    
+    -- Hook the magnitude function
+    local __index
+    __index = hookmetamethod(game, "__index", function(t, k)
+        if not isHitboxExpanderActive then
+            return __index(t, k)
+        end
+        
+        if k == "Magnitude" and checkIfPlayerIsTarget(t) then
+            local original = originalMagnitude(t)
+            return original / hitboxMultiplier
+        end
+        
+        return __index(t, k)
+    end)
+    
+    Library:Notify("KILLAURA", "LEGIT enabled - " .. hitboxMultiplier .. "x", 3)
+end
+
+-- Disable the hitbox expander
+local function disableHitboxExpander()
+    if originalMagnitude then
+        -- Restore original function
+        Vector3.Magnitude = originalMagnitude
+        originalMagnitude = nil
+    end
+    
+    Library:Notify("KILLAURA", "LEGIT disabled", 3)
+end
+
+-- Check if the vector is targeting a player (distance check)
+local function checkIfPlayerIsTarget(vector)
+    if not isHitboxExpanderActive then return false end
+    
+    local character = localPlayer.Character
+    if not character then return false end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return false end
+    
+    -- Check if this magnitude calculation involves our character
+    -- This is a simplified check - you may need to adjust based on your game
+    local localPos = rootPart.Position
+    
+    -- Check if the vector represents a distance to our character
+    -- This is a heuristic approach since we can't directly know the context
+    if typeof(vector) == "Vector3" then
+        local distanceToChar = (localPos - vector).Magnitude
+        if distanceToChar < 50 then -- If this vector is close to our character
+            return true
+        end
+    end
+    
+    return false
+end
+
+-- Alternative approach: Hook specific combat functions
+local function hookCombatFunctions()
+    if not isHitboxExpanderActive then return end
+    
+    -- Try to find combat modules
+    for _, module in pairs(game:GetDescendants()) do
+        if module:IsA("ModuleScript") then
+            if string.find(module.Name:lower(), "combat") or 
+               string.find(module.Name:lower(), "damage") or
+               string.find(module.Name:lower(), "hit") then
+               
+                local success, result = pcall(function()
+                    return require(module)
+                end)
+                
+                if success and type(result) == "table" then
+                    -- Hook distance checking functions in the module
+                    for funcName, func in pairs(result) do
+                        if type(func) == "function" then
+                            -- Check if this function might be for distance calculation
+                            if string.find(funcName:lower(), "distance") or
+                               string.find(funcName:lower(), "range") or
+                               string.find(funcName:lower(), "check") then
+                               
+                                result[funcName] = function(...)
+                                    local args = {...}
+                                    -- Modify distance arguments if found
+                                    for i, arg in pairs(args) do
+                                        if type(arg) == "number" and arg > 0 and arg < 100 then
+                                            args[i] = arg * hitboxMultiplier -- Increase range
+                                        end
+                                    end
+                                    return func(unpack(args))
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
     end
 end
 
--- Find nearest enemy
-function findNearestEnemy()
-    local player = game.Players.LocalPlayer
-    local character = player.Character
-    if not character then return nil end
+-- Advanced: Hook math functions for distance calculations
+local function hookMathFunctions()
+    if not isHitboxExpanderActive then return end
     
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return nil end
+    local originalSqrt = math.sqrt
+    local isInCombat = false
     
-    local nearestPlayer = nil
-    local nearestDistance = 50
-    
-    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-        if otherPlayer ~= player and otherPlayer.Character then
-            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-            local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
-            
-            if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
-                local distance = (rootPart.Position - otherRoot.Position).Magnitude
-                if distance < nearestDistance then
-                    nearestDistance = distance
-                    nearestPlayer = otherPlayer
+    -- Track when player is attacking
+    local function trackCombatState()
+        local character = localPlayer.Character
+        if not character then return end
+        
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            -- Check for attack animations
+            for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
+                local name = track.Name:lower()
+                if string.find(name, "attack") or string.find(name, "swing") or string.find(name, "hit") then
+                    isInCombat = true
+                    delay(1, function() isInCombat = false end) -- Reset after 1 second
+                    break
                 end
             end
         end
     end
     
-    return nearestPlayer, nearestDistance
-end
-
--- Main KillAura with movement
-function inkGameKillAura()
-    local player = game.Players.LocalPlayer
-    local character = player.Character
-    if not character then return end
+    -- Monitor combat state
+    RunService.Heartbeat:Connect(trackCombatState)
     
-    local humanoid = character:FindFirstChild("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    
-    if not humanoid or not rootPart or humanoid.Health <= 0 then return end
-    
-    local nearestEnemy, distance = findNearestEnemy()
-    
-    if nearestEnemy then
-        local enemyRoot = nearestEnemy.Character.HumanoidRootPart
-        
-        -- Face the enemy
-        local lookPosition = Vector3.new(enemyRoot.Position.X, rootPart.Position.Y, enemyRoot.Position.Z)
-        rootPart.CFrame = CFrame.new(rootPart.Position, lookPosition)
-        
-        -- Move toward enemy but stop at a comfortable distance (8-15 studs)
-        if distance > 15 then
-            -- Move toward enemy if too far
-            humanoid:MoveTo(enemyRoot.Position)
-        elseif distance < 8 then
-            -- Stop moving if too close
-            humanoid:MoveTo(rootPart.Position)
-        else
-            -- Perfect distance - stop moving and attack
-            humanoid:MoveTo(rootPart.Position)
+    -- Hook sqrt function (used in magnitude calculations)
+    getgenv().math.sqrt = function(x)
+        if isHitboxExpanderActive and isInCombat then
+            -- Modify distance calculations during combat
+            return originalSqrt(x / (hitboxMultiplier * hitboxMultiplier))
         end
-        
-        -- Attack if in good range (8-20 studs)
-        if distance <= 20 and distance >= 8 then
-            inkGameAttack()
-        end
+        return originalSqrt(x)
     end
 end
 
--- Auto disable when player dies
-game.Players.LocalPlayer.CharacterAdded:Connect(function(character)
-    local humanoid = character:WaitForChild("Humanoid")
-    humanoid.Died:Connect(function()
-        if isKillAuraActive then
-            isKillAuraActive = false
-        end
-        if killAuraLoop then
-            killAuraLoop:Disconnect()
-            killAuraLoop = nil
-        end
-    end)
-end)
-
--- Clean up
-game.Players.LocalPlayer.CharacterRemoving:Connect(function()
-    if killAuraLoop then
-        killAuraLoop:Disconnect()
-        killAuraLoop = nil
-    end
-end)
-
-PlayerTab:NewToggle("🔴 KILLAURA RANGE", "Expand your hitbox range", function(state)
-    if state then
-        Library:Notify("🔴 KILLAURA RANEG", "Loading hitbox expander...", 3, "Info")
-        
-        -- Execute the hitbox expander script
-        local success, error = pcall(function()
-            loadstring(game:HttpGet("https://pastebin.com/raw/tE9CCGqe", true))()
-        end)
-        
-        if success then
-            Library:Notify("🟢 KILLAURA RANGE", "Successfully loaded!", 3, "Success")
-        else
-            Library:Notify("🔴 HITBOX EXPANDER", "Failed to load: " .. error, 5, "Error")
-        end
-        
+-- Status button
+PlayerTab:NewButton("Hitbox Status", "Check current settings", function()
+    if isHitboxExpanderActive then
+        Library:Notify("HITBOX", "Active - " .. hitboxMultiplier .. "x multiplier", 4)
     else
-        Library:Notify("🔴 HITBOX EXPANDER", "Disabled - May require game rejoin", 3, "Warning")
+        Library:Notify("HITBOX", "Inactive", 3)
     end
 end)
+
+-- Manual hooking button for combat modules
+PlayerTab:NewButton("Hook Combat Modules", "Try to hook game combat functions", function()
+    if isHitboxExpanderActive then
+        hookCombatFunctions()
+        Library:Notify("HITBOX", "Combat modules hooked", 3)
+    else
+        Library:Notify("HITBOX", "Enable expander first", 3)
+    end
+end)
+
+-- Clean up when script stops
+localPlayer.CharacterRemoving:Connect(function()
+    disableHitboxExpander()
+end)
+
+-- Auto-disable when leaving game
+game:BindToClose(function()
+    disableHitboxExpander()
+end)
+
+Library:Notify("HITBOX", "Metatable hitbox expander loaded!", 4)
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
