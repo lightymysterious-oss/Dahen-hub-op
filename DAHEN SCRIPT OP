@@ -22,7 +22,7 @@ end
 -- Create main window with Luna UI
 local Window = Luna:CreateWindow({
     Name = "DAHEN HUB INK GAME",
-    Subtitle = "DAHEN HUB TESTING | INK GAMES",
+    Subtitle = "DAHEN HUB | INK GAMES",
     LoadingEnabled = true,
     KeySystem = false,
 })
