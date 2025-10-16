@@ -2469,232 +2469,63 @@ end)
 -- Initial notification
 Library:Notify("🔁 AUTO TP ATTACK", "Will TP to nearest player and spam attacks!", 4, "Info")
 
--- Raycast Hitbox Expander
+-- Magnitude Hitbox Expander
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 
 -- Hitbox variables
 local isHitboxExpanderActive = false
-local raycastRange = 50
-local originalRaycast = nil
-local isAttacking = false
+local magnitudeMultiplier = 2.0
+local originalMagnitude = nil
 
 -- Add toggle to PlayerTab
-PlayerTab:NewToggle("Raycast Expander", "Extend attack range using raycasts", function(state)
+PlayerTab:NewToggle("KILLAURA", "Extend attack range", function(state)
     isHitboxExpanderActive = state
     
     if state then
-        enableRaycastExpansion()
-        Library:Notify("RAYCAST", "Enabled - Range: " .. raycastRange, 3)
+        enableMagnitudeExpansion()
     else
-        disableRaycastExpansion()
-        Library:Notify("RAYCAST", "Disabled", 3)
+        disableMagnitudeExpansion()
     end
 end)
 
--- Range input
-PlayerTab:NewTextInput("Raycast Range", "Set range (10-100)", "50", function(text)
-    local newRange = tonumber(text)
-    if newRange and newRange >= 10 and newRange <= 100 then
-        raycastRange = newRange
-        Library:Notify("RAYCAST", "Range: " .. raycastRange, 3)
-    else
-        Library:Notify("RAYCAST", "Use 10-100", 3)
+-- Multiplier input
+PlayerTab:NewTextInput("KILLAURA RANGE", "Set multiplier (1-10)", "2.0", function(text)
+    local newMultiplier = tonumber(text)
+    if newMultiplier and newMultiplier >= 1 and newMultiplier <= 10 then
+        magnitudeMultiplier = newMultiplier
     end
 end)
 
--- Hook raycast functions
-local function enableRaycastExpansion()
-    if originalRaycast then return end
+-- Hook magnitude function
+local function enableMagnitudeExpansion()
+    if originalMagnitude then return end
     
-    -- Store original raycast function
-    originalRaycast = workspace.Raycast
+    -- Store original magnitude function
+    originalMagnitude = Vector3.Magnitude
     
-    -- Hook the raycast method
-    workspace.Raycast = function(workspace, origin, direction, params, ...)
-        if isHitboxExpanderActive and isAttacking then
-            -- Extend the raycast range
-            local extendedDirection = direction.Unit * raycastRange
-            return originalRaycast(workspace, origin, extendedDirection, params, ...)
+    -- Replace with modified version
+    Vector3.Magnitude = function(self)
+        local result = originalMagnitude(self)
+        if isHitboxExpanderActive then
+            return result / magnitudeMultiplier
         end
-        
-        return originalRaycast(workspace, origin, direction, params, ...)
-    end
-    
-    -- Also hook Ray.new for additional coverage
-    local originalRayNew = Ray.new
-    Ray.new = function(origin, direction)
-        if isHitboxExpanderActive and isAttacking then
-            local extendedDirection = direction.Unit * raycastRange
-            return originalRayNew(origin, extendedDirection)
-        end
-        return originalRayNew(origin, direction)
+        return result
     end
 end
 
--- Restore original functions
-local function disableRaycastExpansion()
-    if originalRaycast then
-        workspace.Raycast = originalRaycast
-        originalRaycast = nil
+-- Restore original function
+local function disableMagnitudeExpansion()
+    if originalMagnitude then
+        Vector3.Magnitude = originalMagnitude
+        originalMagnitude = nil
     end
 end
 
--- Track when player is attacking
-local function trackAttackState()
-    local character = localPlayer.Character
-    if not character then return end
-    
-    -- Check for tool usage (attacking)
-    local tool = character:FindFirstChildOfClass("Tool")
-    if tool then
-        -- Check for mouse clicks or attack inputs
-        isAttacking = true
-        delay(0.5, function() isAttacking = false end)
-    end
-    
-    -- Check animations
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
-            local name = track.Name:lower()
-            if string.find(name, "attack") or string.find(name, "swing") or string.find(name, "hit") then
-                isAttacking = true
-                delay(1, function() isAttacking = false end)
-                break
-            end
-        end
-    end
-end
-
--- Monitor attack state
-RunService.Heartbeat:Connect(trackAttackState)
-
--- Manual attack detection for mobile
-local function setupMobileAttackDetection()
-    -- Listen for screen taps (mobile attacks)
-    local UIS = game:GetService("UserInputService")
-    
-    UIS.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
-        
-        if input.UserInputType == Enum.UserInputType.Touch then
-            isAttacking = true
-            delay(0.5, function() isAttacking = false end)
-        elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
-            isAttacking = true
-            delay(0.5, function() isAttacking = false end)
-        end
-    end)
-end
-
-setupMobileAttackDetection()
-
--- Enhanced: Hook specific combat modules that use raycasts
-local function hookCombatModules()
-    if not isHitboxExpanderActive then return end
-    
-    -- Search for combat-related modules
-    for _, obj in pairs(game:GetDescendants()) do
-        if obj:IsA("ModuleScript") then
-            local success, module = pcall(require, obj)
-            if success and type(module) == "table" then
-                -- Look for functions that might use raycasts
-                for funcName, func in pairs(module) do
-                    if type(func) == "function" then
-                        -- Check if function name suggests raycast usage
-                        if string.find(funcName:lower(), "raycast") or
-                           string.find(funcName:lower(), "cast") or
-                           string.find(funcName:lower(), "checkhit") then
-                           
-                            module[funcName] = function(...)
-                                local args = {...}
-                                -- Modify raycast parameters in the arguments
-                                for i, arg in pairs(args) do
-                                    if type(arg) == "number" and arg > 0 and arg < 100 then
-                                        -- This might be a raycast distance
-                                        args[i] = arg * (raycastRange / 50)
-                                    end
-                                end
-                                return func(unpack(args))
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-end
-
--- Test function to verify raycast expansion
-local function testRaycastExpansion()
-    local character = localPlayer.Character
-    if not character then return end
-    
-    local root = character:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    
-    -- Perform a test raycast
-    local origin = root.Position
-    local direction = root.CFrame.LookVector
-    
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Blacklist
-    params.FilterDescendantsInstances = {character}
-    
-    local result = workspace:Raycast(origin, direction * raycastRange, params)
-    
-    if result then
-        Library:Notify("RAYCAST TEST", "Hit: " .. result.Instance.Name, 4)
-    else
-        Library:Notify("RAYCAST TEST", "No hit at " .. raycastRange .. " studs", 4)
-    end
-end
-
--- Manual combat module hooking
-PlayerTab:NewButton("Hook Combat Modules", "Hook game combat systems", function()
-    if isHitboxExpanderActive then
-        hookCombatModules()
-        Library:Notify("RAYCAST", "Combat modules hooked", 3)
-    else
-        Library:Notify("RAYCAST", "Enable expander first", 3)
-    end
-end)
-
--- Test button
-PlayerTab:NewButton("Test Raycast", "Test current raycast range", function()
-    testRaycastExpansion()
-end)
-
--- Status button
-PlayerTab:NewButton("Raycast Status", "Check current settings", function()
-    if isHitboxExpanderActive then
-        Library:Notify("RAYCAST", "Active - Range: " .. raycastRange, 4)
-    else
-        Library:Notify("RAYCAST", "Inactive", 3)
-    end
-end)
-
--- Handle character changes
-localPlayer.CharacterAdded:Connect(function()
-    if isHitboxExpanderActive then
-        task.wait(2)
-        hookCombatModules()
-    end
-end)
-
--- Clean up
+-- Clean up when character is removed
 localPlayer.CharacterRemoving:Connect(function()
-    disableRaycastExpansion()
+    disableMagnitudeExpansion()
 end)
-
-game:BindToClose(function()
-    disableRaycastExpansion()
-end)
-
-Library:Notify("RAYCAST", "Raycast Expander Loaded!", 4)    
 
 -- GAME TAB CONTENT
 GameTab:NewText("=== GAME TELEPORTS ===")
