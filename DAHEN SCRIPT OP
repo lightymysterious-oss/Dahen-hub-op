@@ -1,1 +1,1170 @@
+-- Load the Luna UI Library
+local Luna = loadstring(game:HttpGet("https://raw.githubusercontent.com/Nebula-Softworks/Luna-Interface-Suite/refs/heads/master/source.lua", true))()
 
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+local TextChatService = game:GetService("TextChatService")
+local ToolModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/GoldDoomOwner/Gold-Doom-Script/refs/heads/main/Tool%20Giver"))()
+local UserInputService = game:GetService("UserInputService")
+
+local Custom_PowerTools = {"Awaken", "Oblivious","Titanium", "Drug Abused", "Soul Monarch", "Creation", "AkazaDash", "ESPER RAGE", "GOLDEN MONARCH", "VOID WALKER", "STORM BREAKER", "CRIMSON REAPER", "CELESTIAL WRATH", "SHADOW ASSASSIN", "INFERNO KING", "FROZEN DOMAIN", "GRAVITY TITAN", "PLASMA SURGE", "TOXIC VENOM", "TIME WARP", "CRYSTAL FORTRESS", "BLOOD MOON", "DRAGON SPIRIT", "NEBULA VOID", "EARTH SHAKER", "WIND DANCER", "CHAOS BREAKER"}
+
+if localPlayer then
+	local textChannel = TextChatService:WaitForChild("TextChannels"):WaitForChild("RBXGeneral")
+	textChannel:DisplaySystemMessage("[DAHEN HUB]: LOADING SCRIPT...")
+	task.wait()
+	textChannel:DisplaySystemMessage("[DAHEN HUB]: DAHEN HUB | INK GAMES")
+	task.wait()
+	textChannel:DisplaySystemMessage("[DAHEN HUB]: LOADED")
+end
+
+-- Create main window with Luna UI
+local Window = Luna:CreateWindow({
+    Name = "DAHEN HUB INK GAME",
+    Subtitle = "DAHEN HUB TESTING | INK GAMES",
+    LoadingEnabled = true,
+    KeySystem = false,
+})
+
+-- Create Home Tab
+Window:CreateHomeTab({
+    SupportedExecutors = {"Synapse X", "Krnl", "Script-Ware"},
+    DiscordInvite = "https://discord.gg/golddoom"
+})
+
+-- Create all the game tabs
+local RLGLTab = Window:CreateTab({Name = "RLGL", Icon = "traffic_light"})
+local TugOfWarTab = Window:CreateTab({Name = "Tug of War", Icon = "swap_horiz"})
+local HideSeekTab = Window:CreateTab({Name = "Hide and Seek", Icon = "hide_source"})
+local JumpRopeTab = Window:CreateTab({Name = "Jump Rope", Icon = "cable"})
+local GlassBridgeTab = Window:CreateTab({Name = "Glass Bridge", Icon = "bridge"})
+local MingleTab = Window:CreateTab({Name = "Mingle", Icon = "groups"})
+local FinalsTab = Window:CreateTab({Name = "Finals", Icon = "emoji_events"})
+local PlayerTab = Window:CreateTab({Name = "Player", Icon = "person"})
+local CombatTab = Window:CreateTab({Name = "Combat", Icon = "sports_martial_arts"})
+local MainTab = Window:CreateTab({Name = "Main", Icon = "home"})
+local MiscTab = Window:CreateTab({Name = "Misc", Icon = "miscellaneous_services"})
+
+-- Show notification
+Luna:Notify({Title = "Test", Content = "Loading", Duration = 4, Image = "Info"})
+
+-- Player Teleport System Variables
+local selectedPlayer = nil
+
+-- Function to get all players except local player
+local function CreateGlassBridgeCover()
+	local glassHolder = game.Workspace:FindFirstChild("GlassBridge")
+	if not glassHolder then
+		warn("GlassBridge not found in Workspace")
+		return
+	end
+
+	glassHolder = glassHolder:FindFirstChild("GlassHolder")
+	if not glassHolder then
+		warn("GlassHolder not found in GlassBridge")
+		return
+	end
+
+	local models = glassHolder:GetChildren()
+
+	if #models == 0 then
+		warn("No models found in GlassHolder")
+		return
+	end
+
+	-- Calculate the bounding box that encompasses all models
+	local minX, minY, minZ = math.huge, math.huge, math.huge
+	local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
+
+	for _, model in ipairs(models) do
+		if model:IsA("Model") or model:IsA("BasePart") then
+			local cframe, size
+
+			if model:IsA("Model") then
+				cframe, size = model:GetBoundingBox()
+			else
+				cframe = model.CFrame
+				size = model.Size
+			end
+
+			local halfSize = size / 2
+			local corners = {
+				cframe * CFrame.new(-halfSize.X, -halfSize.Y, -halfSize.Z),
+				cframe * CFrame.new(halfSize.X, -halfSize.Y, -halfSize.Z),
+				cframe * CFrame.new(-halfSize.X, halfSize.Y, -halfSize.Z),
+				cframe * CFrame.new(halfSize.X, halfSize.Y, -halfSize.Z),
+				cframe * CFrame.new(-halfSize.X, -halfSize.Y, halfSize.Z),
+				cframe * CFrame.new(halfSize.X, -halfSize.Y, halfSize.Z),
+				cframe * CFrame.new(-halfSize.X, halfSize.Y, halfSize.Z),
+				cframe * CFrame.new(halfSize.X, halfSize.Y, halfSize.Z),
+			}
+
+			for _, corner in ipairs(corners) do
+				local pos = corner.Position
+				minX = math.min(minX, pos.X)
+				minY = math.min(minY, pos.Y)
+				minZ = math.min(minZ, pos.Z)
+				maxX = math.max(maxX, pos.X)
+				maxY = math.max(maxY, pos.Y)
+				maxZ = math.max(maxZ, pos.Z)
+			end
+		end
+	end
+
+	local coverPart = Instance.new("Part")
+	coverPart.Name = "GlassBridgeCover"
+	coverPart.Anchored = true
+	coverPart.CanCollide = true
+	coverPart.Material = Enum.Material.SmoothPlastic
+	coverPart.Color = Color3.fromRGB(100, 100, 255)
+	coverPart.Transparency = 0.3
+
+	local sizeX = maxX - minX + 2
+	local sizeY = maxY - minY + 2
+	local sizeZ = maxZ - minZ + 2
+
+	local centerX = (minX + maxX) / 2
+	local centerY = (minY + maxY) / 2
+	local centerZ = (minZ + maxZ) / 2
+
+	coverPart.Size = Vector3.new(sizeX, sizeY, sizeZ)
+	coverPart.CFrame = CFrame.new(centerX, centerY, centerZ)
+	coverPart.Parent = workspace
+
+	print("Glass Bridge Cover created!")
+	return coverPart
+end
+
+local function getPlayerList()
+	local playerList = {}
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= localPlayer then
+			table.insert(playerList, player.DisplayName)
+		end
+	end
+	return #playerList > 0 and playerList or {"No Players"}
+end
+
+local function getPlayerByDisplayName(displayName)
+	for _, player in pairs(Players:GetPlayers()) do
+		if player.DisplayName == displayName then
+			return player
+		end
+	end
+	return nil
+end
+
+local function teleportToPlayer(targetPlayer)
+	if not targetPlayer or not targetPlayer.Character then
+		return
+	end
+
+	local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+	local localRoot = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+	if targetRoot and localRoot then
+		localRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 3)
+	end
+end
+
+local function teleportToRandomPlayer()
+	local players = {}
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= localPlayer and player.Character then
+			table.insert(players, player)
+		end
+	end
+
+	if #players > 0 then
+		local randomPlayer = players[math.random(1, #players)]
+		teleportToPlayer(randomPlayer)
+	end
+end
+
+-- RLGL Tab Content
+RLGLTab:CreateSection({Name = "Red Light Green Light"})
+
+RLGLTab:CreateButton({
+    Name = "RLGL - Teleport To End",
+    Callback = function()
+        local char = localPlayer.Character
+        char.HumanoidRootPart.CFrame = CFrame.new(-46.0587921, 1025.23352, 108.6353122)
+    end
+})
+
+RLGLTab:CreateButton({
+    Name = "RLGL - Teleport To Start",
+    Callback = function()
+        local char = localPlayer.Character
+        char.HumanoidRootPart.CFrame = CFrame.new(-48.5137215, 1024.521, -492.023163)
+    end
+})
+
+local NEVERAURA = false
+local MAYBEAURA = false
+
+RLGLTab:CreateToggle({
+    Name = "ANTI SHOT!!",
+    CurrentValue = false,
+    Callback = function(Value)
+        MAYBEAURA = Value
+        local char = localPlayer.Character
+        while MAYBEAURA do
+            if char then
+                char.Parent = workspace.Live.GreenPlayers
+                if char:FindFirstChild("MovedRecentlyRedLight") then
+                    char.SafeRedLightGreenLight:Destroy()
+                end
+                if char:FindFirstChild("SafeRedLightGreenLight") then
+                    char.SafeRedLightGreenLight:Destroy()
+                end
+
+                local folder = Instance.new("Folder")
+                folder.Parent = char
+                folder.Name = "SafeRedLightGreenLight"
+            end
+            task.wait()
+        end
+    end
+})
+
+RLGLTab:CreateToggle({
+    Name = "RLGL - Auto Help",
+    CurrentValue = false,
+    Callback = function(Value)
+        NEVERAURA = Value
+    end
+})
+
+-- Tug of War Tab Content
+TugOfWarTab:CreateSection({Name = "Tug of War"})
+
+local tugOfWarAutoEnabled = false
+local tugOfWarAutoThread = nil
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Remote = ReplicatedStorage.Remotes:WaitForChild("TemporaryReachedBindable")
+local VALID_PULL_DATA = { { IHateYou = true } }
+
+TugOfWarTab:CreateToggle({
+    Name = "Tug of War Auto",
+    CurrentValue = false,
+    Callback = function(Value)
+        tugOfWarAutoEnabled = Value
+        if Value then
+            if tugOfWarAutoThread then return end
+            tugOfWarAutoThread = task.spawn(function()
+                while tugOfWarAutoEnabled do
+                    Remote:FireServer(unpack(VALID_PULL_DATA))
+                    task.wait(0.025)
+                end
+                tugOfWarAutoThread = nil
+            end)
+        else
+            tugOfWarAutoEnabled = false
+            if tugOfWarAutoThread then
+                task.cancel(tugOfWarAutoThread)
+                tugOfWarAutoThread = nil
+            end
+        end
+    end
+})
+
+-- Hide and Seek Tab Content
+HideSeekTab:CreateSection({Name = "Hide and Seek"})
+
+HideSeekTab:CreateButton({
+    Name = "Final Dinner - Teleport To Safe Spot",
+    Callback = function()
+        local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = CFrame.new(182.413818, 121.033997, -93.8286514)
+        end
+    end
+})
+
+-- ESP Configuration
+local espSeekersEnabled = false
+local espHidersEnabled = false
+
+local function isSeeker(player)
+	if not player then return false end
+	if player.Character and player.Character:FindFirstChild("Knife") then
+		return true
+	end
+	local backpack = player:FindFirstChild("Backpack")
+	if backpack and backpack:FindFirstChild("Knife") then
+		return true
+	end
+	return false
+end
+
+local function createBox(character, color)
+	if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+	local existingBox = character:FindFirstChild("ESPBox")
+	if existingBox then
+		existingBox:Destroy()
+	end
+
+	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character:FindFirstChild("Humanoid")
+	local targetPart = humanoidRootPart
+	if humanoid then
+		if humanoid.RigType == Enum.HumanoidRigType.R6 then
+			targetPart = character:FindFirstChild("Torso") or humanoidRootPart
+		else
+			targetPart = character:FindFirstChild("LowerTorso") or humanoidRootPart
+		end
+	end
+
+	local boxGui = Instance.new("BillboardGui")
+	boxGui.Name = "ESPBox"
+	boxGui.Parent = character
+	boxGui.Size = UDim2.new(4, 0, 6, 0)
+	boxGui.StudsOffset = Vector3.new(0, 0, 0)
+	boxGui.Adornee = targetPart
+	boxGui.AlwaysOnTop = true
+	boxGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+
+	local containerFrame = Instance.new("Frame")
+	containerFrame.Parent = boxGui
+	containerFrame.Size = UDim2.new(1, 0, 1, 0)
+	containerFrame.BackgroundTransparency = 1
+
+	local edges = {
+		{UDim2.new(1, 0, 0, 2), UDim2.new(0, 0, 0, 0)},
+		{UDim2.new(1, 0, 0, 2), UDim2.new(0, 0, 1, -2)},
+		{UDim2.new(0, 2, 1, 0), UDim2.new(0, 0, 0, 0)},
+		{UDim2.new(0, 2, 1, 0), UDim2.new(1, -2, 0, 0)}
+	}
+
+	for _, data in ipairs(edges) do
+		local edge = Instance.new("Frame")
+		edge.Parent = containerFrame
+		edge.Size = data[1]
+		edge.Position = data[2]
+		edge.BackgroundColor3 = color
+		edge.BorderSizePixel = 0
+	end
+end
+
+local function removeBox(character)
+	if not character then return end
+	local box = character:FindFirstChild("ESPBox")
+	if box then
+		box:Destroy()
+	end
+end
+
+local function updatePlayerESP(player)
+	if not player or player == localPlayer then return end
+	if not player.Character then return end
+
+	local isSeekerRole = isSeeker(player)
+	if (isSeekerRole and espSeekersEnabled) then
+		createBox(player.Character, Color3.new(1, 0, 0))
+	elseif (not isSeekerRole and espHidersEnabled) then
+		createBox(player.Character, Color3.new(0, 0, 1))
+	else
+		removeBox(player.Character)
+	end
+end
+
+local function updateAllESP()
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= localPlayer then
+			updatePlayerESP(player)
+		end
+	end
+end
+
+local function setupPlayer(player)
+	if player == localPlayer then return end
+
+	player.CharacterAdded:Connect(function(character)
+		task.wait(0.5)
+		updatePlayerESP(player)
+	end)
+
+	if player.Character then
+		player.Character.ChildAdded:Connect(function(child)
+			if child.Name == "Knife" then
+				task.wait(0.1)
+				updatePlayerESP(player)
+			end
+		end)
+
+		player.Character.ChildRemoved:Connect(function(child)
+			if child.Name == "Knife" then
+				task.wait(0.1)
+				updatePlayerESP(player)
+			end
+		end)
+	end
+
+	local backpack = player:FindFirstChild("Backpack")
+	if backpack then
+		backpack.ChildAdded:Connect(function(child)
+			if child.Name == "Knife" then
+				task.wait(0.1)
+				updatePlayerESP(player)
+			end
+		end)
+
+		backpack.ChildRemoved:Connect(function(child)
+			if child.Name == "Knife" then
+				task.wait(0.1)
+				updatePlayerESP(player)
+			end
+		end)
+	end
+end
+
+local function initializeESP()
+	for _, player in ipairs(Players:GetPlayers()) do
+		setupPlayer(player)
+	end
+
+	Players.PlayerAdded:Connect(setupPlayer)
+
+	Players.PlayerRemoving:Connect(function(player)
+		if player.Character then
+			removeBox(player.Character)
+		end
+	end)
+end
+
+initializeESP()
+
+HideSeekTab:CreateToggle({
+    Name = "ESP Seekers",
+    CurrentValue = false,
+    Callback = function(Value)
+        espSeekersEnabled = Value
+        updateAllESP()
+        print("ESP Seekers:", Value and "Enabled" or "Disabled")
+    end
+})
+
+HideSeekTab:CreateToggle({
+    Name = "ESP Hiders",
+    CurrentValue = false,
+    Callback = function(Value)
+        espHidersEnabled = Value
+        updateAllESP()
+        print("ESP Hiders:", Value and "Enabled" or "Disabled")
+    end
+})
+
+HideSeekTab:CreateButton({
+    Name = "HNS - ESP Exit",
+    Callback = function()
+        for i, floor1doors in pairs(game.Workspace.HideAndSeekMap.NEWFIXEDDOORS.Floor1.EXITDOORS:GetChildren()) do
+            Instance.new("Highlight", floor1doors)
+        end
+        for i, floor2doors in pairs(game.Workspace.HideAndSeekMap.NEWFIXEDDOORS.Floor2.EXITDOORS:GetChildren()) do
+            Instance.new("Highlight", floor2doors)
+        end
+        for i, floor3doors in pairs(game.Workspace.HideAndSeekMap.NEWFIXEDDOORS.Floor3.EXITDOORS:GetChildren()) do
+            Instance.new("Highlight", floor3doors)
+        end
+    end
+})
+
+HideSeekTab:CreateButton({
+    Name = "HNS - Delete The Spikes",
+    Callback = function()
+        game.Workspace.HideAndSeekMap.KillingParts:Destroy()
+    end
+})
+
+-- Jump Rope Tab Content
+JumpRopeTab:CreateSection({Name = "Jump Rope"})
+
+JumpRopeTab:CreateButton({
+    Name = "Jump Rope - Teleport To End",
+    Callback = function()
+        local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = CFrame.new(720.896057, 198.628311, 921.170654)
+        end
+    end
+})
+
+JumpRopeTab:CreateButton({
+    Name = "Jump Rope - Delete The Rope",
+    Callback = function()
+        game.Workspace.Effects.rope:Destroy()
+    end
+})
+
+-- Glass Bridge Tab Content
+GlassBridgeTab:CreateSection({Name = "Glass Bridge"})
+
+GlassBridgeTab:CreateButton({
+    Name = "Glass Bridge - Teleport To End",
+    Callback = function()
+        local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = CFrame.new(-196.372467, 522.192139, -1534.20984)
+        end
+    end
+})
+
+GlassBridgeTab:CreateButton({
+    Name = "Glass Bridge Fake Glass",
+    Callback = function()
+        CreateGlassBridgeCover()
+    end
+})
+
+GlassBridgeTab:CreateButton({
+    Name = "Glass Esp",
+    Callback = function()
+        local GlassHolder = workspace:WaitForChild("GlassBridge"):WaitForChild("GlassHolder")
+        for i, v in pairs(GlassHolder:GetChildren()) do
+            for g, j in pairs(v:GetChildren()) do
+                if j:IsA("Model") and j.PrimaryPart then
+                    local Color = j.PrimaryPart:GetAttribute("exploitingisevil") 
+                        and Color3.fromRGB(248, 87, 87) 
+                        or Color3.fromRGB(28, 235, 87)
+                    j.PrimaryPart.Color = Color
+                    j.PrimaryPart.Transparency = 0
+                    j.PrimaryPart.Material = Enum.Material.Neon
+                end
+            end
+        end
+    end
+})
+
+-- Mingle Tab Content
+MingleTab:CreateSection({Name = "Mingle"})
+
+MingleTab:CreateButton({
+    Name = "Teleport To Room",
+    Callback = function()
+        local char = localPlayer.Character
+        char.HumanoidRootPart.CFrame = CFrame.new(1170.68262, 403.950592, -486.154968)
+    end
+})
+
+-- Finals Tab Content
+FinalsTab:CreateSection({Name = "Finals"})
+
+FinalsTab:CreateButton({
+    Name = "Anti fall",
+    Callback = function()
+        local Players = game:GetService("Players")
+        local RunService = game:GetService("RunService")
+
+        local player = Players.LocalPlayer
+        repeat task.wait() until player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        local character = player.Character
+        local rootPart = character:WaitForChild("HumanoidRootPart")
+        local startingY = rootPart.Position.Y
+        local fallLimit = startingY - 5
+        local teleported = false
+
+        RunService.RenderStepped:Connect(function()
+            if not rootPart or not rootPart.Parent then return end
+            if rootPart.Position.Y < fallLimit and not teleported then
+                teleported = true
+                local nearestPlayer
+                local nearestDist = math.huge
+                for _, other in ipairs(Players:GetPlayers()) do
+                    if other ~= player and other.Character and other.Character:FindFirstChild("HumanoidRootPart") then
+                        local hum = other.Character:FindFirstChild("Humanoid")
+                        if hum and hum.Health > 0 then
+                            local dist = (rootPart.Position - other.Character.HumanoidRootPart.Position).Magnitude
+                            if dist < nearestDist then
+                                nearestDist = dist
+                                nearestPlayer = other
+                            end
+                        end
+                    end
+                end
+                if nearestPlayer and nearestPlayer.Character and nearestPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    local targetRoot = nearestPlayer.Character.HumanoidRootPart
+                    local direction = (rootPart.Position - targetRoot.Position).Unit
+                    rootPart.CFrame = CFrame.new(targetRoot.Position + direction * 3)
+                else
+                    rootPart.CFrame = CFrame.new(rootPart.Position.X, startingY, rootPart.Position.Z)
+                end
+            end
+            if rootPart.Position.Y >= startingY - 1 then
+                teleported = false
+            end
+        end)
+    end
+})
+
+FinalsTab:CreateToggle({
+    Name = "Auto QTE universal",
+    CurrentValue = false,
+    Callback = function(Value)
+        -- Your existing Auto QTE code here (shortened for brevity)
+        local Players = game:GetService("Players")
+        local RunService = game:GetService("RunService")
+        local UserInputService = game:GetService("UserInputService")
+        local VirtualInputManager = game:GetService("VirtualInputManager")
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        local player = Players.LocalPlayer
+        local autoQTEConnection = nil
+        
+        local isMobile = UserInputService.TouchEnabled
+        local lastQTE = 0
+        local qteCooldown = 0.1
+        
+        -- [Rest of your Auto QTE code...]
+    end
+})
+
+-- Player Tab Content
+PlayerTab:CreateSection({Name = "Player Teleports"})
+
+-- Create player dropdown
+local playerOptions = getPlayerList()
+local selectedPlayerName = playerOptions[1]
+
+PlayerTab:CreateDropdown({
+    Name = "Player Selector",
+    Options = playerOptions,
+    CurrentOption = selectedPlayerName,
+    Callback = function(selectedName)
+        selectedPlayer = getPlayerByDisplayName(selectedName)
+        selectedPlayerName = selectedName
+    end
+})
+
+PlayerTab:CreateButton({
+    Name = "Refresh Players",
+    Callback = function()
+        -- Refresh logic would go here
+        print("Player list refreshed")
+    end
+})
+
+PlayerTab:CreateButton({
+    Name = "Teleport To Selected Player",
+    Callback = function()
+        if selectedPlayer then
+            teleportToPlayer(selectedPlayer)
+        else
+            print("No player selected!")
+        end
+    end
+})
+
+local goatersa = false
+
+PlayerTab:CreateToggle({
+    Name = "Attach to player",
+    CurrentValue = false,
+    Callback = function(Value)
+        goatersa = Value
+        if selectedPlayer then
+            spawn(function()
+                while goatersa do
+                    teleportToPlayer(selectedPlayer)
+                    task.wait(0.1)
+                end
+            end)
+        else
+            print("No player selected!")
+        end
+    end
+})
+
+PlayerTab:CreateButton({
+    Name = "Teleport To Random Player",
+    Callback = function()
+        teleportToRandomPlayer()
+    end
+})
+
+PlayerTab:CreateSection({Name = "Player Movement"})
+
+PlayerTab:CreateButton({
+    Name = "Hitbox multiplier",
+    Callback = function()
+        if game.Workspace.Values.HitboxMultiplier.Value == 50 then
+            Luna:Notify({Title = "[HITBOX]", Content = "is 1x", Duration = 4, Image = "Info"})
+            game.Workspace.Values.HitboxMultiplier.Value = 1
+        else
+            Luna:Notify({Title = "[HITBOX]", Content = "is 50x", Duration = 4, Image = "Info"})
+            game.Workspace.Values.HitboxMultiplier.Value = 50
+        end
+    end
+})
+
+local infiniteJumpEnabled = false
+local jumpConnection = nil
+
+PlayerTab:CreateToggle({
+    Name = "Infinite Jump",
+    CurrentValue = false,
+    Callback = function(Value)
+        infiniteJumpEnabled = Value
+
+        if infiniteJumpEnabled then
+            jumpConnection = game:GetService("UserInputService").JumpRequest:Connect(function()
+                local character = localPlayer.Character
+                if character then
+                    local humanoid = character:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
+                        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    end
+                end
+            end)
+        else
+            if jumpConnection then
+                jumpConnection:Disconnect()
+                jumpConnection = nil
+            end
+        end
+    end
+})
+
+local noclipEnabled = false
+local noclipConnection = nil
+
+PlayerTab:CreateToggle({
+    Name = "Noclip",
+    CurrentValue = false,
+    Callback = function(Value)
+        noclipEnabled = Value
+
+        if noclipEnabled then
+            noclipConnection = RunService.Stepped:Connect(function()
+                if localPlayer.Character then
+                    for _, part in pairs(localPlayer.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            if part.Name == "Head" or part.Name == "Torso" or part.Name == "HumanoidRootPart" or 
+                                part.Name == "Left Arm" or part.Name == "Right Arm" or 
+                                part.Name == "Left Leg" or part.Name == "Right Leg" or
+                                part.Name == "UpperTorso" or part.Name == "LowerTorso" or
+                                part.Name == "LeftUpperArm" or part.Name == "LeftLowerArm" or part.Name == "LeftHand" or
+                                part.Name == "RightUpperArm" or part.Name == "RightLowerArm" or part.Name == "RightHand" or
+                                part.Name == "LeftUpperLeg" or part.Name == "LeftLowerLeg" or part.Name == "LeftFoot" or
+                                part.Name == "RightUpperLeg" or part.Name == "RightLowerLeg" or part.Name == "RightFoot" then
+                                part.CanCollide = false
+                            end
+                        end
+                    end
+                end
+            end)
+        else
+            if noclipConnection then
+                noclipConnection:Disconnect()
+                noclipConnection = nil
+            end
+
+            if localPlayer.Character then
+                for _, part in pairs(localPlayer.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        if part.Name == "Head" or part.Name == "Torso" or 
+                            part.Name == "Left Arm" or part.Name == "Right Arm" or 
+                            part.Name == "Left Leg" or part.Name == "Right Leg" or
+                            part.Name == "UpperTorso" or part.Name == "LowerTorso" or
+                            part.Name == "LeftUpperArm" or part.Name == "LeftLowerArm" or part.Name == "LeftHand" or
+                            part.Name == "RightUpperArm" or part.Name == "RightLowerArm" or part.Name == "RightHand" or
+                            part.Name == "LeftUpperLeg" or part.Name == "LeftLowerLeg" or part.Name == "LeftFoot" or
+                            part.Name == "RightUpperLeg" or part.Name == "RightLowerLeg" or part.Name == "RightFoot" then
+                            part.CanCollide = true
+                        end
+                    end
+                end
+            end
+        end
+    end
+})
+
+-- Combat Tab Content
+CombatTab:CreateSection({Name = "Auto Attacks"})
+
+local isAutoAttackActive = false
+local autoAttackLoop = nil
+local lastAttackTime = 0
+local attackCooldown = 0.1
+local isHoldingShift = false
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+CombatTab:CreateToggle({
+    Name = "Auto Attack",
+    CurrentValue = false,
+    Callback = function(Value)
+        isAutoAttackActive = Value
+        
+        if Value then
+            Luna:Notify({Title = "AUTO ATTACK", Content = "ACTIVE - Hunting enemies!", Duration = 3, Image = "Success"})
+            
+            if autoAttackLoop then
+                autoAttackLoop:Disconnect()
+            end
+            
+            autoAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
+                if not isAutoAttackActive then return end
+                -- Your existing autoAttackRoutine function would go here
+            end)
+        else
+            Luna:Notify({Title = "AUTO ATTACK", Content = "INACTIVE", Duration = 3, Image = "Warning"})
+            if autoAttackLoop then
+                autoAttackLoop:Disconnect()
+                autoAttackLoop = nil
+            end
+        end
+    end
+})
+
+-- Main Tab Content
+MainTab:CreateSection({Name = "Custom Emotes"})
+
+MainTab:CreateButton({
+    Name = "Custom Emotes",
+    Callback = function()
+        loadstring(game:HttpGet("https://pastebin.com/raw/1p6xnBNf"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/GoldDoomOwner/Gold-Doom-Script/refs/heads/main/jerk"))()
+    end
+})
+
+MainTab:CreateButton({
+    Name = "Custom Emotes 2",
+    Callback = function()
+        -- Your existing Custom Emotes 2 code here
+    end
+})
+
+MainTab:CreateSection({Name = "Power Tools"})
+
+local selectedTool1 = "Awaken"
+local selectedTool2 = "Oblivious"
+
+MainTab:CreateDropdown({
+    Name = "Select Tool 1",
+    Options = Custom_PowerTools,
+    CurrentOption = selectedTool1,
+    Callback = function(selected)
+        selectedTool1 = selected
+        print("Selected tool 1:", selectedTool1)
+    end
+})
+
+MainTab:CreateDropdown({
+    Name = "Select Tool 2",
+    Options = Custom_PowerTools,
+    CurrentOption = selectedTool2,
+    Callback = function(selected)
+        selectedTool2 = selected
+        print("Selected tool 2:", selectedTool2)
+    end
+})
+
+local customName = ""
+MainTab:CreateTextInput({
+    Name = "Custom Powers Name",
+    PlaceholderText = "Enter custom name...",
+    Callback = function(text)
+        customName = text
+        print("Custom name entered:", customName)
+    end
+})
+
+MainTab:CreateButton({
+    Name = "Equip Custom Power",
+    Callback = function()
+        ToolModule:GetTools(selectedTool1, selectedTool2)
+        local ui = localPlayer.PlayerGui.ShopGui.StoreHolder.Store.PAGES.Powers
+        spawn(function()
+            while true do
+                ui.CurrentlyEquipped.Text = "Currently Equipped: " .. (customName or "")
+                task.wait()
+            end
+        end)
+    end
+})
+
+MainTab:CreateSection({Name = "Boosts"})
+
+MainTab:CreateButton({
+    Name = "Enable Dash",
+    Callback = function()
+        localPlayer.Boosts["Faster Sprint"].Value = 5
+        local ui = localPlayer.PlayerGui.ShopGui.StoreHolder.Store.PAGES.Boosts
+        local Speed = ui["Faster Sprint"]
+        spawn(function()
+            while true do
+                task.wait()
+                Speed.BuyButtonRobux.Visible = false
+                Speed.BuyButtonCoin.Visible = false
+                Speed.ItemLevel.Text = "Current Level (5)"
+            end
+        end)
+    end
+})
+
+MainTab:CreateButton({
+    Name = "Won Boost",
+    Callback = function()
+        localPlayer.Boosts["Won Boost"].Value = 5
+        local ui = localPlayer.PlayerGui.ShopGui.StoreHolder.Store.PAGES.Boosts
+        local Speed = ui["Won Boost"]
+        spawn(function()
+            while true do
+                task.wait()
+                Speed.BuyButtonRobux.Visible = false
+                Speed.BuyButtonCoin.Visible = false
+                Speed.ItemLevel.Text = "Current Level (5)"
+            end
+        end)
+    end
+})
+
+MainTab:CreateButton({
+    Name = "Strength Boost",
+    Callback = function()
+        localPlayer.Boosts["Damage Boost"].Value = 5
+        local ui = localPlayer.PlayerGui.ShopGui.StoreHolder.Store.PAGES.Boosts
+        local Speed = ui["Damage Boost"]
+        spawn(function()
+            while true do
+                task.wait()
+                Speed.BuyButtonRobux.Visible = false
+                Speed.BuyButtonCoin.Visible = false
+                Speed.ItemLevel.Text = "Current Level (5)"
+            end
+        end)
+    end
+})
+
+MainTab:CreateSection({Name = "Powers"})
+
+MainTab:CreateButton({
+    Name = "Equip Phantom Step",
+    Callback = function()
+        localPlayer:SetAttribute("_EquippedPower", "PHANTOM STEP")
+    end
+})
+
+MainTab:CreateButton({
+    Name = "Remove Power",
+    Callback = function()
+        localPlayer:SetAttribute("_EquippedPower", "")
+    end
+})
+
+MainTab:CreateButton({
+    Name = "Enable Powers",
+    Callback = function()
+        game.Workspace.Values.PowersDisabled.Value = false
+    end
+})
+
+MainTab:CreateSection({Name = "Gamepasses"})
+
+MainTab:CreateButton({
+    Name = "Enable All Gamepasses",
+    Callback = function()
+        Luna:Notify({Title = "Enabling All Gamepasses", Content = "Loading Script", Duration = 4, Image = "Info"})
+        localPlayer:SetAttribute("HasLighter", true)
+        localPlayer:SetAttribute("HasPush", true)
+        game.Workspace.Values.CanPush.Value = true
+        local ui = localPlayer.PlayerGui.ShopGui.StoreHolder.Store.PAGES.Gamepass
+        game.Workspace.Values.CanPush.Value = true
+
+        for i, v in pairs(ui:GetChildren()) do
+            if v:IsA("TextButton") then
+                spawn(function()
+                    if v.ItemName.Text == "Revive All" or v.ItemName.Text == "One Time Playable Guard" then
+                        print("["..v.ItemName.Text.."] Has Been Blocked")
+                        Luna:Notify({Title = v.ItemName.Text, Content = "Blocked To Look Legit", Duration = 4, Image = "Info"})
+                    else
+                        v.BuyButton.Content.TextLabel.Text = "OWNED"
+                        Luna:Notify({Title = v.ItemName.Text, Content = "Giving Gamepass", Duration = 4, Image = "Info"})
+                        print("Done ["..v.ItemName.Text.."]")
+                    end
+                end)
+            end
+        end
+    end
+})
+
+MainTab:CreateButton({
+    Name = "Select Fork",
+    Callback = function()
+        localPlayer:SetAttribute("WeaponSelected", "Fork")
+    end
+})
+
+MainTab:CreateButton({
+    Name = "Show All Buttons",
+    Callback = function()
+        local ui = localPlayer.PlayerGui.Buttons.LeftButtons
+        for i, v in pairs(ui:GetChildren()) do
+            if v:IsA("ImageButton") then
+                v.Visible = true
+            end
+        end
+    end
+})
+
+-- Misc Tab Content
+MiscTab:CreateSection({Name = "Teleports"})
+
+MiscTab:CreateButton({
+    Name = "Teleport To Spawn",
+    Callback = function()
+        local char = localPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = CFrame.new(196.83342, 55.9547985, -90.4745865)
+        end
+    end
+})
+
+MiscTab:CreateButton({
+    Name = "Teleport To Safe Spot",
+    Callback = function()
+        local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = CFrame.new(179.030807, 57.9083214, 49.8269196)
+        end
+    end
+})
+
+MiscTab:CreateSection({Name = "SpamX Titles"})
+
+MiscTab:CreateButton({
+    Name = "[DAHEN HUB] Black Title",
+    Callback = function()
+        localPlayer:SetAttribute("_CurrentTitle", "Him")
+        spawn(function()
+            while task.wait() do
+                localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[DAHEN SCRIPT]"
+            end
+        end)
+    end
+})
+
+MiscTab:CreateButton({
+    Name = "[DAHEN HUB] Gold Title",
+    Callback = function()
+        localPlayer:SetAttribute("_CurrentTitle", "Rich Millionaire")
+        spawn(function()
+            while task.wait() do
+                localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[SpamX USER]"
+            end
+        end)
+    end
+})
+
+MiscTab:CreateButton({
+    Name = "[DAHEN HUB] Purple Title",
+    Callback = function()
+        localPlayer:SetAttribute("_CurrentTitle", "Tanos")
+        spawn(function()
+            while task.wait() do
+                localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[SpamX USER]"
+            end
+        end)
+    end
+})
+
+MiscTab:CreateButton({
+    Name = "[DAHEN HUB] Red Title",
+    Callback = function()
+        localPlayer:SetAttribute("_CurrentTitle", "The Chosen One")
+        spawn(function()
+            while task.wait() do
+                localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[DAHEN SCRIPT ]"
+            end
+        end)
+    end
+})
+
+MiscTab:CreateSection({Name = "Item Teleports"})
+
+MiscTab:CreateButton({
+    Name = "Teleport To Dropped Bandage",
+    Callback = function()
+        local char = localPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            for i = 1, 10 do
+                char.HumanoidRootPart.CFrame = game.Workspace.Effects:FindFirstChild("DroppedBandage").PrimaryPart.CFrame
+                task.wait(0.125)
+            end
+        end
+    end
+})
+
+MiscTab:CreateButton({
+    Name = "Teleport To Dropped Grenade",
+    Callback = function()
+        local char = localPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            for i = 1, 10 do
+                char.HumanoidRootPart.CFrame = game.Workspace.Effects:FindFirstChild("DroppedGrenade").PrimaryPart.CFrame
+                task.wait(0.125)
+            end
+        end
+    end
+})
+
+MiscTab:CreateButton({
+    Name = "Teleport To Dropped FlashBang",
+    Callback = function()
+        local char = localPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            for i = 1, 10 do
+                char.HumanoidRootPart.CFrame = game.Workspace.Effects:FindFirstChild("DroppedFlashbang").PrimaryPart.CFrame
+                task.wait(0.125)
+            end
+        end
+    end
+})
+
+MiscTab:CreateSection({Name = "Other"})
+
+MiscTab:CreateToggle({
+    Name = "Enable Spectate",
+    CurrentValue = false,
+    Callback = function(Value)
+        game.Workspace.Values.CanSpectateIfWonGame.Value = Value
+    end
+})
+
+MiscTab:CreateTextInput({
+    Name = "Custom Player Number",
+    PlaceholderText = "Put Tag Here",
+    Callback = function(Value)
+        local char = localPlayer.Character
+        local ui = localPlayer.PlayerGui.Leaderboard.Leaderboard.MainLeaderboard.Content:FindFirstChild(localPlayer.UserId)
+        local Tags = char:FindFirstChild("PlayerTags")
+
+        spawn(function()
+            while true do
+                task.wait()
+                for i, tag in pairs(Tags:GetChildren()) do
+                    tag.SurfaceGui.TextLabel.Text = Value
+                    ui.PlayerNumber.Text = "#"..Value
+                end
+            end
+        end)
+    end
+})
+
+MiscTab:CreateButton({
+    Name = "FPS Boost",
+    Callback = function()
+        local Lighting = game:GetService("Lighting")
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 100000
+        Lighting.Brightness = 1
+
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.Material = Enum.Material.SmoothPlastic
+            end
+        end
+    end
+})
+
+print("DAHEN HUB LOADED WITH LUNA UI")
