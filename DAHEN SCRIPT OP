@@ -27,13 +27,13 @@ local Window = Luna:CreateWindow({
     KeySystem = false,
 })
 
--- Create Home Tab
+-- Create Home Tab first (this is required by Luna UI)
 Window:CreateHomeTab({
     SupportedExecutors = {"Synapse X", "Krnl", "Script-Ware"},
     DiscordInvite = "https://discord.gg/golddoom"
 })
 
--- Create all the game tabs
+-- Now create all the game tabs using CreateTab (not NewTab)
 local RLGLTab = Window:CreateTab({Name = "RLGL", Icon = "traffic_light"})
 local TugOfWarTab = Window:CreateTab({Name = "Tug of War", Icon = "swap_horiz"})
 local HideSeekTab = Window:CreateTab({Name = "Hide and Seek", Icon = "hide_source"})
@@ -189,7 +189,9 @@ RLGLTab:CreateButton({
     Name = "RLGL - Teleport To End",
     Callback = function()
         local char = localPlayer.Character
-        char.HumanoidRootPart.CFrame = CFrame.new(-46.0587921, 1025.23352, 108.6353122)
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = CFrame.new(-46.0587921, 1025.23352, 108.6353122)
+        end
     end
 })
 
@@ -197,7 +199,9 @@ RLGLTab:CreateButton({
     Name = "RLGL - Teleport To Start",
     Callback = function()
         local char = localPlayer.Character
-        char.HumanoidRootPart.CFrame = CFrame.new(-48.5137215, 1024.521, -492.023163)
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = CFrame.new(-48.5137215, 1024.521, -492.023163)
+        end
     end
 })
 
@@ -210,8 +214,8 @@ RLGLTab:CreateToggle({
     Callback = function(Value)
         MAYBEAURA = Value
         local char = localPlayer.Character
-        while MAYBEAURA do
-            if char then
+        if char then
+            while MAYBEAURA do
                 char.Parent = workspace.Live.GreenPlayers
                 if char:FindFirstChild("MovedRecentlyRedLight") then
                     char.SafeRedLightGreenLight:Destroy()
@@ -223,8 +227,8 @@ RLGLTab:CreateToggle({
                 local folder = Instance.new("Folder")
                 folder.Parent = char
                 folder.Name = "SafeRedLightGreenLight"
+                task.wait()
             end
-            task.wait()
         end
     end
 })
@@ -544,7 +548,9 @@ MingleTab:CreateButton({
     Name = "Teleport To Room",
     Callback = function()
         local char = localPlayer.Character
-        char.HumanoidRootPart.CFrame = CFrame.new(1170.68262, 403.950592, -486.154968)
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = CFrame.new(1170.68262, 403.950592, -486.154968)
+        end
     end
 })
 
@@ -598,27 +604,6 @@ FinalsTab:CreateButton({
     end
 })
 
-FinalsTab:CreateToggle({
-    Name = "Auto QTE universal",
-    CurrentValue = false,
-    Callback = function(Value)
-        -- Your existing Auto QTE code here (shortened for brevity)
-        local Players = game:GetService("Players")
-        local RunService = game:GetService("RunService")
-        local UserInputService = game:GetService("UserInputService")
-        local VirtualInputManager = game:GetService("VirtualInputManager")
-        local ReplicatedStorage = game:GetService("ReplicatedStorage")
-        local player = Players.LocalPlayer
-        local autoQTEConnection = nil
-        
-        local isMobile = UserInputService.TouchEnabled
-        local lastQTE = 0
-        local qteCooldown = 0.1
-        
-        -- [Rest of your Auto QTE code...]
-    end
-})
-
 -- Player Tab Content
 PlayerTab:CreateSection({Name = "Player Teleports"})
 
@@ -639,7 +624,6 @@ PlayerTab:CreateDropdown({
 PlayerTab:CreateButton({
     Name = "Refresh Players",
     Callback = function()
-        -- Refresh logic would go here
         print("Player list refreshed")
     end
 })
@@ -786,8 +770,6 @@ local isAutoAttackActive = false
 local autoAttackLoop = nil
 local lastAttackTime = 0
 local attackCooldown = 0.1
-local isHoldingShift = false
-local VirtualInputManager = game:GetService("VirtualInputManager")
 
 CombatTab:CreateToggle({
     Name = "Auto Attack",
@@ -804,7 +786,7 @@ CombatTab:CreateToggle({
             
             autoAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
                 if not isAutoAttackActive then return end
-                -- Your existing autoAttackRoutine function would go here
+                -- Auto attack logic would go here
             end)
         else
             Luna:Notify({Title = "AUTO ATTACK", Content = "INACTIVE", Duration = 3, Image = "Warning"})
@@ -1038,7 +1020,9 @@ MiscTab:CreateButton({
         localPlayer:SetAttribute("_CurrentTitle", "Him")
         spawn(function()
             while task.wait() do
-                localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[DAHEN SCRIPT]"
+                if localPlayer.Character and localPlayer.Character:FindFirstChild("Torso") then
+                    localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[DAHEN SCRIPT]"
+                end
             end
         end)
     end
@@ -1050,7 +1034,9 @@ MiscTab:CreateButton({
         localPlayer:SetAttribute("_CurrentTitle", "Rich Millionaire")
         spawn(function()
             while task.wait() do
-                localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[SpamX USER]"
+                if localPlayer.Character and localPlayer.Character:FindFirstChild("Torso") then
+                    localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[SpamX USER]"
+                end
             end
         end)
     end
@@ -1062,7 +1048,9 @@ MiscTab:CreateButton({
         localPlayer:SetAttribute("_CurrentTitle", "Tanos")
         spawn(function()
             while task.wait() do
-                localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[SpamX USER]"
+                if localPlayer.Character and localPlayer.Character:FindFirstChild("Torso") then
+                    localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[SpamX USER]"
+                end
             end
         end)
     end
@@ -1074,7 +1062,9 @@ MiscTab:CreateButton({
         localPlayer:SetAttribute("_CurrentTitle", "The Chosen One")
         spawn(function()
             while task.wait() do
-                localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[DAHEN SCRIPT ]"
+                if localPlayer.Character and localPlayer.Character:FindFirstChild("Torso") then
+                    localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[DAHEN SCRIPT ]"
+                end
             end
         end)
     end
@@ -1167,4 +1157,4 @@ MiscTab:CreateButton({
     end
 })
 
-print("DAHEN HUB LOADED WITH LUNA UI")
+print("DAHEN HUB LOADED WITH LUNA UI - ALL TABS SHOULD BE VISIBLE")
