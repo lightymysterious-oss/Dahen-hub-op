@@ -35,16 +35,19 @@ local tabs = {
 
 -- create/add sections here
 local sections = {
+    -- Main Tab Sections
     main_tools = tabs.main:CreateSection("Tools & Powers"),
     main_boosts = tabs.main:CreateSection("Boosts"),
     main_gamepasses = tabs.main:CreateSection("Gamepasses"),
     main_emotes = tabs.main:CreateSection("Emotes"),
     
+    -- Player Tab Sections  
     player_teleport = tabs.player:CreateSection("Player Teleports"),
     player_movement = tabs.player:CreateSection("Movement"),
     player_combat = tabs.player:CreateSection("Combat"),
     player_bot = tabs.player:CreateSection("DahenBot"),
     
+    -- Game Tab Sections
     game_rlgl = tabs.game:CreateSection("Red Light Green Light"),
     game_dalgona = tabs.game:CreateSection("Dalgona"),
     game_hns = tabs.game:CreateSection("Hide & Seek"),
@@ -57,6 +60,7 @@ local sections = {
     game_auto = tabs.game:CreateSection("Auto Features"),
     game_entrances = tabs.game:CreateSection("Game Entrances"),
     
+    -- Misc Tab Sections
     misc_teleport = tabs.misc:CreateSection("Teleports"),
     misc_titles = tabs.misc:CreateSection("SpamX Titles"),
     misc_items = tabs.misc:CreateSection("Item Teleports"),
@@ -643,66 +647,6 @@ local hitboxRange = 30
 local attackCooldown = 0.2
 local lastAttackTime = 0
 
-sections.player_combat:CreateToggle("Hitbox Expander", "Extend attack range with invisible hitboxes", function(state)
-    isHitboxExpanderActive = state
-    
-    if state then
-        createExpandedHitboxes()
-    else
-        removeExpandedHitboxes()
-    end
-end)
-
-sections.player_combat:CreateTextBox(
-    "Set hitbox range (1-100)",
-    "Hitbox Range",
-    false,
-    function(value)
-        local newRange = tonumber(value)
-        if newRange and newRange >= 1 and newRange <= 100 then
-            hitboxRange = newRange
-            if isHitboxExpanderActive then
-                removeExpandedHitboxes()
-                createExpandedHitboxes()
-            end
-            window:Notify("HITBOX EXPANDER", "Range set to: " .. hitboxRange .. " studs", 3)
-        else
-            window:Notify("HITBOX EXPANDER", "Invalid range! Use 1-100", 3)
-        end
-    end
-)
-
--- Create expanded hitboxes around player
-local function createExpandedHitboxes()
-    removeExpandedHitboxes()
-    
-    local character = localPlayer.Character
-    if not character then return end
-    
-    -- Create hitboxes in all directions
-    local hitboxPositions = {
-        Vector3.new(0, 0, hitboxRange),
-        Vector3.new(hitboxRange, 0, 0),
-        Vector3.new(-hitboxRange, 0, 0),
-        Vector3.new(0, 0, -hitboxRange),
-        Vector3.new(0, hitboxRange, 0),
-    }
-    
-    for i, offset in ipairs(hitboxPositions) do
-        local hitbox = createSingleHitbox(character, offset, "Hitbox_" .. i)
-        table.insert(expandedHitboxes, hitbox)
-        
-        local visual = createVisualHitbox(character, offset, "Visual_" .. i)
-        table.insert(visualHitboxes, visual)
-    end
-    
-    local sphereHitbox = createSphereHitbox(character)
-    table.insert(expandedHitboxes, sphereHitbox)
-    
-    local sphereVisual = createSphereVisual(character)
-    table.insert(visualHitboxes, sphereVisual)
-end
-
 -- Create a single hitbox part
 local function createSingleHitbox(character, offset, name)
     local hitbox = Instance.new("Part")
@@ -829,6 +773,37 @@ local function createSphereVisual(character)
     return visual
 end
 
+-- Create expanded hitboxes around player
+local function createExpandedHitboxes()
+    removeExpandedHitboxes()
+    
+    local character = localPlayer.Character
+    if not character then return end
+    
+    -- Create hitboxes in all directions
+    local hitboxPositions = {
+        Vector3.new(0, 0, hitboxRange),
+        Vector3.new(hitboxRange, 0, 0),
+        Vector3.new(-hitboxRange, 0, 0),
+        Vector3.new(0, 0, -hitboxRange),
+        Vector3.new(0, hitboxRange, 0),
+    }
+    
+    for i, offset in ipairs(hitboxPositions) do
+        local hitbox = createSingleHitbox(character, offset, "Hitbox_" .. i)
+        table.insert(expandedHitboxes, hitbox)
+        
+        local visual = createVisualHitbox(character, offset, "Visual_" .. i)
+        table.insert(visualHitboxes, visual)
+    end
+    
+    local sphereHitbox = createSphereHitbox(character)
+    table.insert(expandedHitboxes, sphereHitbox)
+    
+    local sphereVisual = createSphereVisual(character)
+    table.insert(visualHitboxes, sphereVisual)
+end
+
 -- Handle when hitbox touches something
 local function onHitboxTouched(otherPart)
     if not isHitboxExpanderActive then return end
@@ -911,6 +886,39 @@ local function removeExpandedHitboxes()
     visualHitboxes = {}
 end
 
+sections.player_combat:CreateToggle("Hitbox Expander", "Extend attack range with invisible hitboxes", function(state)
+    isHitboxExpanderActive = state
+    
+    if state then
+        createExpandedHitboxes()
+    else
+        removeExpandedHitboxes()
+    end
+end)
+
+sections.player_combat:CreateTextBox(
+    "Set hitbox range (1-100)",
+    "Hitbox Range",
+    false,
+    function(value)
+        local newRange = tonumber(value)
+        if newRange and newRange >= 1 and newRange <= 100 then
+            hitboxRange = newRange
+            if isHitboxExpanderActive then
+                removeExpandedHitboxes()
+                createExpandedHitboxes()
+            end
+            window:Notify("HITBOX EXPANDER", "Range set to: " .. hitboxRange .. " studs", 3)
+        else
+            window:Notify("HITBOX EXPANDER", "Invalid range! Use 1-100", 3)
+        end
+    end
+)
+
+sections.player_combat:CreateButton("Hitbox Status", "Show current hitbox range", function()
+    window:Notify("HITBOX EXPANDER", "Current range: " .. hitboxRange .. " studs", 4)
+end)
+
 -- Handle character respawning
 localPlayer.CharacterAdded:Connect(function(character)
     if isHitboxExpanderActive then
@@ -924,40 +932,11 @@ localPlayer.CharacterRemoving:Connect(function()
     removeExpandedHitboxes()
 end)
 
-sections.player_combat:CreateButton("Hitbox Status", "Show current hitbox range", function()
-    window:Notify("HITBOX EXPANDER", "Current range: " .. hitboxRange .. " studs", 4)
-end)
-
 -- Ultra Cool Auto Dodge
 local isDodgeActive = false
 local dodgeLoop = nil
 local lastDodgeTime = 0
 local dodgeCooldown = 0.5
-
-sections.player_combat:CreateToggle("✨ Auto Dodge", "Epic dodge with cool visuals", function(state)
-    isDodgeActive = state
-    
-    if state then
-        window:Notify("✨ ULTRA DODGE", "ACTIVE - Epic visuals ready!", 3)
-        
-        if dodgeLoop then
-            dodgeLoop:Disconnect()
-        end
-        
-        dodgeLoop = game:GetService("RunService").Heartbeat:Connect(function()
-            if not isDodgeActive then return end
-            ultraDodgeDetection()
-        end)
-        
-    else
-        window:Notify("✨ ULTRA DODGE", "INACTIVE", 3)
-        
-        if dodgeLoop then
-            dodgeLoop:Disconnect()
-            dodgeLoop = nil
-        end
-    end
-end)
 
 function ultraDodgeDetection()
     local player = game.Players.LocalPlayer
@@ -1188,37 +1167,37 @@ function createDodgeEffects(startPos, endPos)
     end)
 end
 
+sections.player_combat:CreateToggle("✨ Auto Dodge", "Epic dodge with cool visuals", function(state)
+    isDodgeActive = state
+    
+    if state then
+        window:Notify("✨ ULTRA DODGE", "ACTIVE - Epic visuals ready!", 3)
+        
+        if dodgeLoop then
+            dodgeLoop:Disconnect()
+        end
+        
+        dodgeLoop = game:GetService("RunService").Heartbeat:Connect(function()
+            if not isDodgeActive then return end
+            ultraDodgeDetection()
+        end)
+        
+    else
+        window:Notify("✨ ULTRA DODGE", "INACTIVE", 3)
+        
+        if dodgeLoop then
+            dodgeLoop:Disconnect()
+            dodgeLoop = nil
+        end
+    end
+end)
+
 -- Auto Dash Script
 local isAutoDashActive = false
 local autoDashLoop = nil
 local lastDashTime = 0
 local dashCooldown = 2
 local isHoldingShift = false
-
-sections.player_combat:CreateToggle("🌐 Auto Dodge Legit", "Auto dash away from attacks", function(state)
-    isAutoDashActive = state
-    
-    if state then
-        window:Notify("🌐 AUTO DODGE LEGIT", "ACTIVE - Will dash from attacks!", 3)
-        
-        if autoDashLoop then
-            autoDashLoop:Disconnect()
-        end
-        
-        autoDashLoop = game:GetService("RunService").Heartbeat:Connect(function()
-            if not isAutoDashActive then return end
-            autoDashRoutine()
-        end)
-        
-    else
-        window:Notify("🌐 AUTO DODGE LEGIT", "INACTIVE", 3)
-        releaseShift()
-        if autoDashLoop then
-            autoDashLoop:Disconnect()
-            autoDashLoop = nil
-        end
-    end
-end)
 
 function holdShift()
     if not isHoldingShift then
@@ -1385,29 +1364,549 @@ function isPlayerAnimatingAttack(targetPlayer)
     return false
 end
 
+sections.player_combat:CreateToggle("🌐 Auto Dodge Legit", "Auto dash away from attacks", function(state)
+    isAutoDashActive = state
+    
+    if state then
+        window:Notify("🌐 AUTO DODGE LEGIT", "ACTIVE - Will dash from attacks!", 3)
+        
+        if autoDashLoop then
+            autoDashLoop:Disconnect()
+        end
+        
+        autoDashLoop = game:GetService("RunService").Heartbeat:Connect(function()
+            if not isAutoDashActive then return end
+            autoDashRoutine()
+        end)
+        
+    else
+        window:Notify("🌐 AUTO DODGE LEGIT", "INACTIVE", 3)
+        releaseShift()
+        if autoDashLoop then
+            autoDashLoop:Disconnect()
+            autoDashLoop = nil
+        end
+    end
+end)
+
 game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
     releaseShift()
 end)
 
 window:Notify("🌐 AUTO DASH", "Directional dodging enabled!", 4)
 
+-- Auto Attack Script
+local isAutoAttackActive = false
+local autoAttackLoop = nil
+local lastAttackTime = 0
+local attackCooldown = 0.1
+local isHoldingShift = false
+
+function autoAttackRoutine()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then 
+        releaseShift()
+        return 
+    end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart or humanoid.Health <= 0 then 
+        releaseShift()
+        return 
+    end
+    
+    local nearestPlayer, nearestDistance = findNearestPlayer()
+    
+    if nearestPlayer and nearestDistance then
+        if nearestDistance <= 8 then
+            releaseShift()
+            if tick() - lastAttackTime >= attackCooldown then
+                performAttack()
+                lastAttackTime = tick()
+            end
+        else
+            holdShift()
+            moveToPlayer(nearestPlayer, rootPart, humanoid)
+        end
+    else
+        releaseShift()
+        window:Notify("🎯 SEARCHING", "No targets found", 2)
+    end
+end
+
+function findNearestPlayer()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return nil, math.huge end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return nil, math.huge end
+    
+    local nearestPlayer = nil
+    local nearestDistance = math.huge
+    
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+            
+            if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
+                local distance = (rootPart.Position - otherRoot.Position).Magnitude
+                
+                if distance < nearestDistance then
+                    nearestDistance = distance
+                    nearestPlayer = otherPlayer
+                end
+            end
+        end
+    end
+    
+    return nearestPlayer, nearestDistance
+end
+
+function moveToPlayer(targetPlayer, rootPart, humanoid)
+    if not targetPlayer or not targetPlayer.Character then 
+        releaseShift()
+        return 
+    end
+    
+    local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not targetRoot then 
+        releaseShift()
+        return 
+    end
+    
+    local direction = (targetRoot.Position - rootPart.Position).Unit
+    
+    humanoid:MoveTo(targetRoot.Position)
+    
+    rootPart.CFrame = CFrame.new(rootPart.Position, Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z))
+    
+    spawn(function()
+        local moveEffect = Instance.new("Part")
+        moveEffect.Size = Vector3.new(1, 0.2, 1)
+        moveEffect.Position = rootPart.Position - Vector3.new(0, 2.5, 0)
+        moveEffect.BrickColor = BrickColor.new("Bright blue")
+        moveEffect.Material = Enum.Material.Neon
+        moveEffect.Anchored = true
+        moveEffect.CanCollide = false
+        moveEffect.Transparency = 0.7
+        moveEffect.Parent = workspace
+        
+        game:GetService("Debris"):AddItem(moveEffect, 0.3)
+    end)
+    
+    local distance = (rootPart.Position - targetRoot.Position).Magnitude
+    if distance <= 6 then
+        releaseShift()
+    end
+end
+
+function performAttack()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return end
+    
+    releaseShift()
+    
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+    wait(0.05)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    
+    local attackKeys = {Enum.KeyCode.E, Enum.KeyCode.F, Enum.KeyCode.Q, Enum.KeyCode.R, Enum.KeyCode.Space}
+    
+    for _, key in pairs(attackKeys) do
+        VirtualInputManager:SendKeyEvent(true, key, false, game)
+        wait(0.03)
+        VirtualInputManager:SendKeyEvent(false, key, false, game)
+        wait(0.02)
+    end
+    
+    createAttackEffects(character)
+    
+    window:Notify("🗡️ ATTACKING!", "Auto-attack executed!", 1)
+end
+
+function createAttackEffects(character)
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+    
+    local TweenService = game:GetService("TweenService")
+    
+    spawn(function()
+        for i = 1, 3 do
+            local swingPart = Instance.new("Part")
+            swingPart.Size = Vector3.new(2, 2, 0.5)
+            swingPart.Position = rootPart.Position + (rootPart.CFrame.LookVector * 3)
+            swingPart.BrickColor = BrickColor.new("Bright orange")
+            swingPart.Material = Enum.Material.Neon
+            swingPart.Anchored = true
+            swingPart.CanCollide = false
+            swingPart.Parent = workspace
+            
+            local angle = math.rad(i * 45)
+            local swingTween = TweenService:Create(swingPart, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+                Position = rootPart.Position + Vector3.new(
+                    math.cos(angle) * 5,
+                    0,
+                    math.sin(angle) * 5
+                ),
+                Transparency = 1
+            })
+            
+            swingTween:Play()
+            game:GetService("Debris"):AddItem(swingPart, 1)
+        end
+    end)
+    
+    spawn(function()
+        local wave = Instance.new("Part")
+        wave.Shape = Enum.PartType.Cylinder
+        wave.Size = Vector3.new(0.2, 2, 2)
+        wave.Position = rootPart.Position
+        wave.Orientation = Vector3.new(0, 0, 90)
+        wave.BrickColor = BrickColor.new("Bright red")
+        wave.Material = Enum.Material.Neon
+        wave.Anchored = true
+        wave.CanCollide = false
+        wave.Parent = workspace
+        
+        local waveTween = TweenService:Create(wave, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
+            Size = Vector3.new(0.2, 10, 10),
+            Transparency = 1
+        })
+        
+        waveTween:Play()
+        game:GetService("Debris"):AddItem(wave, 1)
+    end)
+end
+
+sections.player_combat:CreateToggle("⚔️ Auto Attack", "Auto move to nearest player and attack", function(state)
+    isAutoAttackActive = state
+    
+    if state then
+        window:Notify("⚔️ AUTO ATTACK", "ACTIVE - Hunting enemies!", 3)
+        
+        if autoAttackLoop then
+            autoAttackLoop:Disconnect()
+        end
+        
+        autoAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
+            if not isAutoAttackActive then return end
+            autoAttackRoutine()
+        end)
+        
+    else
+        window:Notify("⚔️ AUTO ATTACK", "INACTIVE", 3)
+        releaseShift()
+        if autoAttackLoop then
+            autoAttackLoop:Disconnect()
+            autoAttackLoop = nil
+        end
+    end
+end)
+
+-- Smart Auto Attack
+local isSmartAttackActive = false
+local smartAttackLoop = nil
+
+function smartAttackRoutine()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then 
+        releaseShift()
+        return 
+    end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart or humanoid.Health <= 0 then 
+        releaseShift()
+        return 
+    end
+    
+    local weapon = character:FindFirstChildOfClass("Tool")
+    local attackRange = weapon and 10 or 5
+    
+    local nearestPlayer, nearestDistance = findNearestPlayer()
+    
+    if nearestPlayer and nearestDistance then
+        if nearestDistance <= attackRange then
+            releaseShift()
+            if tick() - lastAttackTime >= attackCooldown then
+                if weapon then
+                    useWeaponAttack(weapon)
+                else
+                    performMeleeAttack()
+                end
+                lastAttackTime = tick()
+            end
+        else
+            holdShift()
+            moveToPlayer(nearestPlayer, rootPart, humanoid)
+            
+            window:Notify("🎯 TARGET", "Distance: " .. math.floor(nearestDistance) .. " studs", 1)
+        end
+    else
+        releaseShift()
+        window:Notify("🎯 SEARCHING", "No targets found", 2)
+    end
+end
+
+function useWeaponAttack(weapon)
+    releaseShift()
+    
+    if weapon:FindFirstChild("Handle") then
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+        wait(0.1)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+        
+        createWeaponEffects(weapon)
+        
+        window:Notify("🔫 WEAPON ATTACK", "Fired " .. weapon.Name, 1)
+    end
+end
+
+function performMeleeAttack()
+    releaseShift()
+    
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+    wait(0.05)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+    wait(0.05)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+    
+    window:Notify("🥊 MELEE ATTACK", "Punch/Kick combo!", 1)
+end
+
+function createWeaponEffects(weapon)
+    local character = game.Players.LocalPlayer.Character
+    if not character then return end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+    
+    local muzzle = Instance.new("Part")
+    muzzle.Size = Vector3.new(1, 1, 1)
+    muzzle.Position = rootPart.Position + (rootPart.CFrame.LookVector * 4)
+    muzzle.BrickColor = BrickColor.new("Bright yellow")
+    muzzle.Material = Enum.Material.Neon
+    muzzle.Anchored = true
+    muzzle.CanCollide = false
+    muzzle.Parent = workspace
+    
+    game:GetService("Debris"):AddItem(muzzle, 0.2)
+end
+
+sections.player_combat:CreateToggle("🎯 Smart Auto Attack", "Advanced targeting with weapon detection", function(state)
+    isSmartAttackActive = state
+    
+    if state then
+        window:Notify("🎯 SMART ATTACK", "ACTIVE - Weapon-based combat!", 3)
+        
+        if smartAttackLoop then
+            smartAttackLoop:Disconnect()
+        end
+        
+        smartAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
+            if not isSmartAttackActive then return end
+            smartAttackRoutine()
+        end)
+        
+    else
+        window:Notify("🎯 SMART ATTACK", "INACTIVE", 3)
+        releaseShift()
+        if smartAttackLoop then
+            smartAttackLoop:Disconnect()
+            smartAttackLoop = nil
+        end
+    end
+end)
+
+-- Auto TP Attack
+local isAutoTPAttackActive = false
+local autoTPAttackLoop = nil
+local currentTarget = nil
+
+function autoTPAttackRoutine()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart or humanoid.Health <= 0 then return end
+    
+    if currentTarget then
+        if not isTargetValid(currentTarget) then
+            currentTarget = nil
+            window:Notify("🎯 TARGET DOWN", "Finding new target...", 2)
+        end
+    end
+    
+    if not currentTarget then
+        currentTarget = findNearestPlayer()
+        if currentTarget then
+            window:Notify("🎯 NEW TARGET", "Targeting: " .. currentTarget.Name, 2)
+        else
+            return
+        end
+    end
+    
+    if currentTarget and currentTarget.Character then
+        local targetRoot = currentTarget.Character:FindFirstChild("HumanoidRootPart")
+        if targetRoot then
+            local behindOffset = -targetRoot.CFrame.LookVector * 3
+            local tpPosition = targetRoot.Position + behindOffset + Vector3.new(0, 3, 0)
+            
+            rootPart.CFrame = CFrame.new(tpPosition)
+            
+            rootPart.CFrame = CFrame.new(rootPart.Position, Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z))
+            
+            performSpamAttacks()
+        end
+    end
+end
+
+function isTargetValid(targetPlayer)
+    if not targetPlayer then return false end
+    if not targetPlayer.Character then return false end
+    
+    local humanoid = targetPlayer.Character:FindFirstChild("Humanoid")
+    if not humanoid then return false end
+    
+    return humanoid.Health > 0
+end
+
+function findNearestPlayer()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return nil end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return nil end
+    
+    local nearestPlayer = nil
+    local nearestDistance = math.huge
+    
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+            
+            if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
+                local distance = (rootPart.Position - otherRoot.Position).Magnitude
+                
+                if distance < nearestDistance then
+                    nearestDistance = distance
+                    nearestPlayer = otherPlayer
+                end
+            end
+        end
+    end
+    
+    return nearestPlayer
+end
+
+function performSpamAttacks()
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+    wait(0.01)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+    wait(0.01)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+end
+
+sections.player_combat:CreateToggle("🔁 KILLAURA RAGE", "Loop TP to nearest player with spam attacks", function(state)
+    isAutoTPAttackActive = state
+    
+    if state then
+        window:Notify("🔁 KILLAURA RAGE", "ACTIVE - Teleporting and attacking!", 3)
+        
+        if autoTPAttackLoop then
+            autoTPAttackLoop:Disconnect()
+        end
+        
+        autoTPAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
+            if not isAutoTPAttackActive then return end
+            autoTPAttackRoutine()
+        end)
+        
+    else
+        window:Notify("🔁 KILLAURA RAGE", "INACTIVE", 3)
+        currentTarget = nil
+        if autoTPAttackLoop then
+            autoTPAttackLoop:Disconnect()
+            autoTPAttackLoop = nil
+        end
+    end
+end)
+
+-- Magnitude Hitbox Expander
+local isHitboxExpanderActive = false
+local magnitudeMultiplier = 2.0
+local originalMagnitude = nil
+
+sections.player_combat:CreateToggle("KILLAURA", "Extend attack range", function(state)
+    isHitboxExpanderActive = state
+    
+    if state then
+        enableMagnitudeExpansion()
+    else
+        disableMagnitudeExpansion()
+    end
+end)
+
+sections.player_combat:CreateTextBox(
+    "Set multiplier (1-10)",
+    "KILLAURA RANGE",
+    false,
+    function(value)
+        local newMultiplier = tonumber(value)
+        if newMultiplier and newMultiplier >= 1 and newMultiplier <= 10 then
+            magnitudeMultiplier = newMultiplier
+        end
+    end
+)
+
+local function enableMagnitudeExpansion()
+    if originalMagnitude then return end
+    
+    originalMagnitude = Vector3.Magnitude
+    
+    Vector3.Magnitude = function(self)
+        local result = originalMagnitude(self)
+        if isHitboxExpanderActive then
+            return result / magnitudeMultiplier
+        end
+        return result
+    end
+end
+
+local function disableMagnitudeExpansion()
+    if originalMagnitude then
+        Vector3.Magnitude = originalMagnitude
+        originalMagnitude = nil
+    end
+end
+
+localPlayer.CharacterRemoving:Connect(function()
+    disableMagnitudeExpansion()
+end)
+
 -- DAHENBOT
 local isDahenBotActive = false
 local lastMessageTime = 0
 local messageCooldown = 2
 local chatMonitor = nil
-
-sections.player_bot:CreateToggle("DAHENBOT", "Enable chat commands", function(state)
-    isDahenBotActive = state
-    
-    if state then
-        window:Notify("DAHENBOT", "ACTIVE - Say: find [thing], hitbox, help", 5)
-        startMessageMonitor()
-    else
-        window:Notify("DAHENBOT", "INACTIVE", 3)
-        stopMessageMonitor()
-    end
-end)
 
 local function startMessageMonitor()
     if chatMonitor then return end
@@ -1597,6 +2096,18 @@ local function searchHitboxes()
     end
 end
 
+sections.player_bot:CreateToggle("DAHENBOT", "Enable chat commands", function(state)
+    isDahenBotActive = state
+    
+    if state then
+        window:Notify("DAHENBOT", "ACTIVE - Say: find [thing], hitbox, help", 5)
+        startMessageMonitor()
+    else
+        window:Notify("DAHENBOT", "INACTIVE", 3)
+        stopMessageMonitor()
+    end
+end)
+
 sections.player_bot:CreateTextBox(
     "Type commands manually",
     "DAHENBOT Command",
@@ -1623,560 +2134,6 @@ end)
 
 window:Notify("DAHENBOT", "Toggle ON and say 'dahenbot help' in chat", 5)
 
--- Auto Attack Script
-local isAutoAttackActive = false
-local autoAttackLoop = nil
-local lastAttackTime = 0
-local attackCooldown = 0.1
-local isHoldingShift = false
-
-sections.player_combat:CreateToggle("⚔️ Auto Attack", "Auto move to nearest player and attack", function(state)
-    isAutoAttackActive = state
-    
-    if state then
-        window:Notify("⚔️ AUTO ATTACK", "ACTIVE - Hunting enemies!", 3)
-        
-        if autoAttackLoop then
-            autoAttackLoop:Disconnect()
-        end
-        
-        autoAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
-            if not isAutoAttackActive then return end
-            autoAttackRoutine()
-        end)
-        
-    else
-        window:Notify("⚔️ AUTO ATTACK", "INACTIVE", 3)
-        releaseShift()
-        if autoAttackLoop then
-            autoAttackLoop:Disconnect()
-            autoAttackLoop = nil
-        end
-    end
-end)
-
-local isSmartAttackActive = false
-local smartAttackLoop = nil
-
-sections.player_combat:CreateToggle("🎯 Smart Auto Attack", "Advanced targeting with weapon detection", function(state)
-    isSmartAttackActive = state
-    
-    if state then
-        window:Notify("🎯 SMART ATTACK", "ACTIVE - Weapon-based combat!", 3)
-        
-        if smartAttackLoop then
-            smartAttackLoop:Disconnect()
-        end
-        
-        smartAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
-            if not isSmartAttackActive then return end
-            smartAttackRoutine()
-        end)
-        
-    else
-        window:Notify("🎯 SMART ATTACK", "INACTIVE", 3)
-        releaseShift()
-        if smartAttackLoop then
-            smartAttackLoop:Disconnect()
-            smartAttackLoop = nil
-        end
-    end
-end)
-
-function autoAttackRoutine()
-    local player = game.Players.LocalPlayer
-    local character = player.Character
-    if not character then 
-        releaseShift()
-        return 
-    end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not rootPart or humanoid.Health <= 0 then 
-        releaseShift()
-        return 
-    end
-    
-    local nearestPlayer, nearestDistance = findNearestPlayer()
-    
-    if nearestPlayer and nearestDistance then
-        if nearestDistance <= 8 then
-            releaseShift()
-            if tick() - lastAttackTime >= attackCooldown then
-                performAttack()
-                lastAttackTime = tick()
-            end
-        else
-            holdShift()
-            moveToPlayer(nearestPlayer, rootPart, humanoid)
-        end
-    else
-        releaseShift()
-        window:Notify("🎯 SEARCHING", "No targets found", 2)
-    end
-end
-
-function smartAttackRoutine()
-    local player = game.Players.LocalPlayer
-    local character = player.Character
-    if not character then 
-        releaseShift()
-        return 
-    end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not rootPart or humanoid.Health <= 0 then 
-        releaseShift()
-        return 
-    end
-    
-    local weapon = character:FindFirstChildOfClass("Tool")
-    local attackRange = weapon and 10 or 5
-    
-    local nearestPlayer, nearestDistance = findNearestPlayer()
-    
-    if nearestPlayer and nearestDistance then
-        if nearestDistance <= attackRange then
-            releaseShift()
-            if tick() - lastAttackTime >= attackCooldown then
-                if weapon then
-                    useWeaponAttack(weapon)
-                else
-                    performMeleeAttack()
-                end
-                lastAttackTime = tick()
-            end
-        else
-            holdShift()
-            moveToPlayer(nearestPlayer, rootPart, humanoid)
-            
-            window:Notify("🎯 TARGET", "Distance: " .. math.floor(nearestDistance) .. " studs", 1)
-        end
-    else
-        releaseShift()
-        window:Notify("🎯 SEARCHING", "No targets found", 2)
-    end
-end
-
-function findNearestPlayer()
-    local player = game.Players.LocalPlayer
-    local character = player.Character
-    if not character then return nil, math.huge end
-    
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return nil, math.huge end
-    
-    local nearestPlayer = nil
-    local nearestDistance = math.huge
-    
-    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-        if otherPlayer ~= player and otherPlayer.Character then
-            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-            local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
-            
-            if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
-                local distance = (rootPart.Position - otherRoot.Position).Magnitude
-                
-                if distance < nearestDistance then
-                    nearestDistance = distance
-                    nearestPlayer = otherPlayer
-                end
-            end
-        end
-    end
-    
-    return nearestPlayer, nearestDistance
-end
-
-function moveToPlayer(targetPlayer, rootPart, humanoid)
-    if not targetPlayer or not targetPlayer.Character then 
-        releaseShift()
-        return 
-    end
-    
-    local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not targetRoot then 
-        releaseShift()
-        return 
-    end
-    
-    local direction = (targetRoot.Position - rootPart.Position).Unit
-    
-    humanoid:MoveTo(targetRoot.Position)
-    
-    rootPart.CFrame = CFrame.new(rootPart.Position, Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z))
-    
-    spawn(function()
-        local moveEffect = Instance.new("Part")
-        moveEffect.Size = Vector3.new(1, 0.2, 1)
-        moveEffect.Position = rootPart.Position - Vector3.new(0, 2.5, 0)
-        moveEffect.BrickColor = BrickColor.new("Bright blue")
-        moveEffect.Material = Enum.Material.Neon
-        moveEffect.Anchored = true
-        moveEffect.CanCollide = false
-        moveEffect.Transparency = 0.7
-        moveEffect.Parent = workspace
-        
-        game:GetService("Debris"):AddItem(moveEffect, 0.3)
-    end)
-    
-    local distance = (rootPart.Position - targetRoot.Position).Magnitude
-    if distance <= 6 then
-        releaseShift()
-    end
-end
-
-function performAttack()
-    local player = game.Players.LocalPlayer
-    local character = player.Character
-    if not character then return end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    if not humanoid then return end
-    
-    releaseShift()
-    
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    wait(0.05)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-    
-    local attackKeys = {Enum.KeyCode.E, Enum.KeyCode.F, Enum.KeyCode.Q, Enum.KeyCode.R, Enum.KeyCode.Space}
-    
-    for _, key in pairs(attackKeys) do
-        VirtualInputManager:SendKeyEvent(true, key, false, game)
-        wait(0.03)
-        VirtualInputManager:SendKeyEvent(false, key, false, game)
-        wait(0.02)
-    end
-    
-    createAttackEffects(character)
-    
-    window:Notify("🗡️ ATTACKING!", "Auto-attack executed!", 1)
-end
-
-function useWeaponAttack(weapon)
-    releaseShift()
-    
-    if weapon:FindFirstChild("Handle") then
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-        wait(0.1)
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-        
-        createWeaponEffects(weapon)
-        
-        window:Notify("🔫 WEAPON ATTACK", "Fired " .. weapon.Name, 1)
-    end
-end
-
-function performMeleeAttack()
-    releaseShift()
-    
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    wait(0.05)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-    
-    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
-    wait(0.05)
-    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
-    
-    window:Notify("🥊 MELEE ATTACK", "Punch/Kick combo!", 1)
-end
-
-function createAttackEffects(character)
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return end
-    
-    local TweenService = game:GetService("TweenService")
-    
-    spawn(function()
-        for i = 1, 3 do
-            local swingPart = Instance.new("Part")
-            swingPart.Size = Vector3.new(2, 2, 0.5)
-            swingPart.Position = rootPart.Position + (rootPart.CFrame.LookVector * 3)
-            swingPart.BrickColor = BrickColor.new("Bright orange")
-            swingPart.Material = Enum.Material.Neon
-            swingPart.Anchored = true
-            swingPart.CanCollide = false
-            swingPart.Parent = workspace
-            
-            local angle = math.rad(i * 45)
-            local swingTween = TweenService:Create(swingPart, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-                Position = rootPart.Position + Vector3.new(
-                    math.cos(angle) * 5,
-                    0,
-                    math.sin(angle) * 5
-                ),
-                Transparency = 1
-            })
-            
-            swingTween:Play()
-            game:GetService("Debris"):AddItem(swingPart, 1)
-        end
-    end)
-    
-    spawn(function()
-        local wave = Instance.new("Part")
-        wave.Shape = Enum.PartType.Cylinder
-        wave.Size = Vector3.new(0.2, 2, 2)
-        wave.Position = rootPart.Position
-        wave.Orientation = Vector3.new(0, 0, 90)
-        wave.BrickColor = BrickColor.new("Bright red")
-        wave.Material = Enum.Material.Neon
-        wave.Anchored = true
-        wave.CanCollide = false
-        wave.Parent = workspace
-        
-        local waveTween = TweenService:Create(wave, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
-            Size = Vector3.new(0.2, 10, 10),
-            Transparency = 1
-        })
-        
-        waveTween:Play()
-        game:GetService("Debris"):AddItem(wave, 1)
-    end)
-end
-
-function createWeaponEffects(weapon)
-    local character = game.Players.LocalPlayer.Character
-    if not character then return end
-    
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return end
-    
-    local muzzle = Instance.new("Part")
-    muzzle.Size = Vector3.new(1, 1, 1)
-    muzzle.Position = rootPart.Position + (rootPart.CFrame.LookVector * 4)
-    muzzle.BrickColor = BrickColor.new("Bright yellow")
-    muzzle.Material = Enum.Material.Neon
-    muzzle.Anchored = true
-    muzzle.CanCollide = false
-    muzzle.Parent = workspace
-    
-    game:GetService("Debris"):AddItem(muzzle, 0.2)
-end
-
-game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
-    releaseShift()
-end)
-
-window:Notify("⚔️ AUTO ATTACK", "Now with Shift running enabled!", 4)
-
--- Auto TP Attack
-local isAutoTPAttackActive = false
-local autoTPAttackLoop = nil
-local currentTarget = nil
-
-sections.player_combat:CreateToggle("🔁 KILLAURA RAGE", "Loop TP to nearest player with spam attacks", function(state)
-    isAutoTPAttackActive = state
-    
-    if state then
-        window:Notify("🔁 KILLAURA RAGE", "ACTIVE - Teleporting and attacking!", 3)
-        
-        if autoTPAttackLoop then
-            autoTPAttackLoop:Disconnect()
-        end
-        
-        autoTPAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
-            if not isAutoTPAttackActive then return end
-            autoTPAttackRoutine()
-        end)
-        
-    else
-        window:Notify("🔁 KILLAURA RAGE", "INACTIVE", 3)
-        currentTarget = nil
-        if autoTPAttackLoop then
-            autoTPAttackLoop:Disconnect()
-            autoTPAttackLoop = nil
-        end
-    end
-end)
-
-function autoTPAttackRoutine()
-    local player = game.Players.LocalPlayer
-    local character = player.Character
-    if not character then return end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not rootPart or humanoid.Health <= 0 then return end
-    
-    if currentTarget then
-        if not isTargetValid(currentTarget) then
-            currentTarget = nil
-            window:Notify("🎯 TARGET DOWN", "Finding new target...", 2)
-        end
-    end
-    
-    if not currentTarget then
-        currentTarget = findNearestPlayer()
-        if currentTarget then
-            window:Notify("🎯 NEW TARGET", "Targeting: " .. currentTarget.Name, 2)
-        else
-            return
-        end
-    end
-    
-    if currentTarget and currentTarget.Character then
-        local targetRoot = currentTarget.Character:FindFirstChild("HumanoidRootPart")
-        if targetRoot then
-            local behindOffset = -targetRoot.CFrame.LookVector * 3
-            local tpPosition = targetRoot.Position + behindOffset + Vector3.new(0, 3, 0)
-            
-            rootPart.CFrame = CFrame.new(tpPosition)
-            
-            rootPart.CFrame = CFrame.new(rootPart.Position, Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z))
-            
-            performSpamAttacks()
-        end
-    end
-end
-
-function isTargetValid(targetPlayer)
-    if not targetPlayer then return false end
-    if not targetPlayer.Character then return false end
-    
-    local humanoid = targetPlayer.Character:FindFirstChild("Humanoid")
-    if not humanoid then return false end
-    
-    return humanoid.Health > 0
-end
-
-function findNearestPlayer()
-    local player = game.Players.LocalPlayer
-    local character = player.Character
-    if not character then return nil end
-    
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return nil end
-    
-    local nearestPlayer = nil
-    local nearestDistance = math.huge
-    
-    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-        if otherPlayer ~= player and otherPlayer.Character then
-            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-            local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
-            
-            if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
-                local distance = (rootPart.Position - otherRoot.Position).Magnitude
-                
-                if distance < nearestDistance then
-                    nearestDistance = distance
-                    nearestPlayer = otherPlayer
-                end
-            end
-        end
-    end
-    
-    return nearestPlayer
-end
-
-function performSpamAttacks()
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    wait(0.01)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-    
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-    wait(0.01)
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-end
-
-local targetMonitorLoop = nil
-
-game:GetService("Players").LocalPlayer.Chatted:Connect(function(message)
-    if message:lower() == "start target monitor" and isAutoTPAttackActive and not targetMonitorLoop then
-        startTargetMonitor()
-    end
-end)
-
-function startTargetMonitor()
-    if targetMonitorLoop then
-        targetMonitorLoop:Disconnect()
-    end
-    
-    targetMonitorLoop = game:GetService("RunService").Heartbeat:Connect(function()
-        if not isAutoTPAttackActive then
-            if targetMonitorLoop then
-                targetMonitorLoop:Disconnect()
-                targetMonitorLoop = nil
-            end
-            return
-        end
-        
-        if currentTarget and currentTarget.Character then
-            local humanoid = currentTarget.Character:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health <= 0 then
-                window:Notify("💀 TARGET ELIMINATED", "Moving to next target...", 2)
-                currentTarget = nil
-            end
-        end
-    end)
-end
-
-game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
-    currentTarget = nil
-    if targetMonitorLoop then
-        targetMonitorLoop:Disconnect()
-        targetMonitorLoop = nil
-    end
-end)
-
-window:Notify("🔁 AUTO TP ATTACK", "Will TP to nearest player and spam attacks!", 4)
-
--- Magnitude Hitbox Expander
-local isHitboxExpanderActive = false
-local magnitudeMultiplier = 2.0
-local originalMagnitude = nil
-
-sections.player_combat:CreateToggle("KILLAURA", "Extend attack range", function(state)
-    isHitboxExpanderActive = state
-    
-    if state then
-        enableMagnitudeExpansion()
-    else
-        disableMagnitudeExpansion()
-    end
-end)
-
-sections.player_combat:CreateTextBox(
-    "Set multiplier (1-10)",
-    "KILLAURA RANGE",
-    false,
-    function(value)
-        local newMultiplier = tonumber(value)
-        if newMultiplier and newMultiplier >= 1 and newMultiplier <= 10 then
-            magnitudeMultiplier = newMultiplier
-        end
-    end
-)
-
-local function enableMagnitudeExpansion()
-    if originalMagnitude then return end
-    
-    originalMagnitude = Vector3.Magnitude
-    
-    Vector3.Magnitude = function(self)
-        local result = originalMagnitude(self)
-        if isHitboxExpanderActive then
-            return result / magnitudeMultiplier
-        end
-        return result
-    end
-end
-
-local function disableMagnitudeExpansion()
-    if originalMagnitude then
-        Vector3.Magnitude = originalMagnitude
-        originalMagnitude = nil
-    end
-end
-
-localPlayer.CharacterRemoving:Connect(function()
-    disableMagnitudeExpansion()
-end)
-
 -- GAME TAB CONTENT
 
 sections.game_rlgl:CreateLabel("=== GAME TELEPORTS ===")
@@ -2191,32 +2148,6 @@ sections.game_rlgl:CreateButton("RLGL - Teleport To Start", function()
     local char = localPlayer.Character
     char.HumanoidRootPart.CFrame = CFrame.new(-48.5137215, 1024.521, -492.023163)
 end)
-
-local function getPlayerList()
-    local playerList = {}
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= localPlayer then
-            table.insert(playerList, player.Name)
-        end
-    end
-    return playerList
-end
-
-local function getPlayerByName(name)
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player.Name == name then
-            return player
-        end
-    end
-    return nil
-end
-
-local function autoHelp()
-    local playerList = getPlayerList()
-    local targetPlayer = nil
-    local targetPlayerName = nil
-    local to = Players:GetAttribute("InjuredPlayer")
-end
 
 local NEVERAURA = false
 local MAYBEAURA = false
@@ -2250,73 +2181,6 @@ sections.game_rlgl:CreateDivider()
 
 -- Dalgona
 sections.game_dalgona:CreateLabel("Dalgona")
-
-local NOTDELETEABLE = {"Lighting", "Won", "PickModelCacheFix"}
-
-local shapes = {"Star", "Circle", "Umbrella", "MonaLisa", "Triangle", "SackBoy"}
-local outlineParts = {}
-local connection = nil
-local clickConnections = {}
-
-local function createOutline(shape)
-    for _, part in pairs(outlineParts) do
-        part:Destroy()
-    end
-    outlineParts = {}
-
-    if not shape then return end
-
-    local cf, size = shape:GetBoundingBox()
-    local thickness = 0.3
-    local padding = 0.5
-    local outlineSize = size + Vector3.new(padding * 2, padding * 2, padding * 2)
-
-    local edges = {
-        {pos = Vector3.new(outlineSize.X/2, -outlineSize.Y/2, 0), size = Vector3.new(thickness, thickness, outlineSize.Z)},
-        {pos = Vector3.new(-outlineSize.X/2, -outlineSize.Y/2, 0), size = Vector3.new(thickness, thickness, outlineSize.Z)},
-        {pos = Vector3.new(0, -outlineSize.Y/2, outlineSize.Z/2), size = Vector3.new(outlineSize.X, thickness, thickness)},
-        {pos = Vector3.new(0, -outlineSize.Y/2, -outlineSize.Z/2), size = Vector3.new(outlineSize.X, thickness, thickness)},
-        {pos = Vector3.new(outlineSize.X/2, outlineSize.Y/2, 0), size = Vector3.new(thickness, thickness, outlineSize.Z)},
-        {pos = Vector3.new(-outlineSize.X/2, outlineSize.Y/2, 0), size = Vector3.new(thickness, thickness, outlineSize.Z)},
-        {pos = Vector3.new(0, outlineSize.Y/2, outlineSize.Z/2), size = Vector3.new(outlineSize.X, thickness, thickness)},
-        {pos = Vector3.new(0, outlineSize.Y/2, -outlineSize.Z/2), size = Vector3.new(outlineSize.X, thickness, thickness)},
-        {pos = Vector3.new(outlineSize.X/2, 0, outlineSize.Z/2), size = Vector3.new(thickness, outlineSize.Y, thickness)},
-        {pos = Vector3.new(-outlineSize.X/2, 0, outlineSize.Z/2), size = Vector3.new(thickness, outlineSize.Y, thickness)},
-        {pos = Vector3.new(outlineSize.X/2, 0, -outlineSize.Z/2), size = Vector3.new(thickness, outlineSize.Y, thickness)},
-        {pos = Vector3.new(-outlineSize.X/2, 0, -outlineSize.Z/2), size = Vector3.new(thickness, outlineSize.Y, thickness)},
-    }
-
-    for _, edge in pairs(edges) do
-        local part = Instance.new("Part")
-        part.Size = edge.size
-        part.Anchored = true
-        part.CanCollide = false
-        part.Material = Enum.Material.Neon
-        part.Color = Color3.fromRGB(0, 255, 0)
-        part.Transparency = 0
-        part.Parent = workspace
-        table.insert(outlineParts, part)
-    end
-
-    if connection then connection:Disconnect() end
-    connection = RunService.RenderStepped:Connect(function()
-        if not shape or not shape.Parent then
-            for _, part in pairs(outlineParts) do
-                part:Destroy()
-            end
-            outlineParts = {}
-            if connection then connection:Disconnect() end
-            return
-        end
-
-        local newCf = shape:GetBoundingBox()
-        for i, part in pairs(outlineParts) do
-            part.CFrame = newCf * CFrame.new(edges[i].pos)
-        end
-    end)
-
-    print("Outline created!")
-end
 
 sections.game_dalgona:CreateButton("Auto Cookie", function()
     local Module = game.ReplicatedStorage.Modules.Games.DalgonaClient
@@ -2656,34 +2520,6 @@ local function performLoopkill()
     end
 end
 
-sections.game_tug:CreateDivider()
-sections.game_tug:CreateLabel("Tug of War")
-
-local tugOfWarAutoEnabled = false
-local tugOfWarAutoThread = nil
-local Remote = ReplicatedStorage.Remotes:WaitForChild("TemporaryReachedBindable")
-local VALID_PULL_DATA = { { IHateYou = true } }
-
-sections.game_tug:CreateToggle("Tug of War Auto", false, function(Value)
-    tugOfWarAutoEnabled = Value
-    if Value then
-        if tugOfWarAutoThread then return end
-        tugOfWarAutoThread = task.spawn(function()
-            while tugOfWarAutoEnabled do
-                Remote:FireServer(unpack(VALID_PULL_DATA))
-                task.wait(0.025)
-            end
-            tugOfWarAutoThread = nil
-        end)
-    else
-        tugOfWarAutoEnabled = false
-        if tugOfWarAutoThread then
-            task.cancel(tugOfWarAutoThread)
-            tugOfWarAutoThread = nil
-        end
-    end
-end)
-
 local function startLoopkill()
     if loopkillConnection then
         loopkillConnection:Disconnect()
@@ -2763,6 +2599,34 @@ localPlayer.CharacterAdded:Connect(function()
     task.wait(1)
     if loopkillEnabled then
         print("Respawned - restarting loopkill")
+    end
+end)
+
+sections.game_tug:CreateDivider()
+sections.game_tug:CreateLabel("Tug of War")
+
+local tugOfWarAutoEnabled = false
+local tugOfWarAutoThread = nil
+local Remote = ReplicatedStorage.Remotes:WaitForChild("TemporaryReachedBindable")
+local VALID_PULL_DATA = { { IHateYou = true } }
+
+sections.game_tug:CreateToggle("Tug of War Auto", false, function(Value)
+    tugOfWarAutoEnabled = Value
+    if Value then
+        if tugOfWarAutoThread then return end
+        tugOfWarAutoThread = task.spawn(function()
+            while tugOfWarAutoEnabled do
+                Remote:FireServer(unpack(VALID_PULL_DATA))
+                task.wait(0.025)
+            end
+            tugOfWarAutoThread = nil
+        end)
+    else
+        tugOfWarAutoEnabled = false
+        if tugOfWarAutoThread then
+            task.cancel(tugOfWarAutoThread)
+            tugOfWarAutoThread = nil
+        end
     end
 end)
 
