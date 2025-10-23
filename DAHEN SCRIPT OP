@@ -1,0 +1,5037 @@
+-- Load Obsidian UI Library
+local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
+local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
+local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
+local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
+
+local Options = Library.Options
+local Toggles = Library.Toggles
+
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+local TextChatService = game:GetService("TextChatService")
+local ToolModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/GoldDoomOwner/Gold-Doom-Script/refs/heads/main/Tool%20Giver"))()
+local UserInputService = game:GetService("UserInputService")
+
+local Custom_PowerTools = {"Awaken", "Oblivious","Titanium", "Drug Abused", "Soul Monarch", "Creation", "AkazaDash", "ESPER RAGE", "GOLDEN MONARCH", "VOID WALKER", "STORM BREAKER", "CRIMSON REAPER", "CELESTIAL WRATH", "SHADOW ASSASSIN", "INFERNO KING", "FROZEN DOMAIN", "GRAVITY TITAN", "PLASMA SURGE", "TOXIC VENOM", "TIME WARP", "CRYSTAL FORTRESS", "BLOOD MOON", "DRAGON SPIRIT", "NEBULA VOID", "EARTH SHAKER", "WIND DANCER", "CHAOS BREAKER"}
+
+if localPlayer then
+	local textChannel = TextChatService:WaitForChild("TextChannels"):WaitForChild("RBXGeneral")
+	textChannel:DisplaySystemMessage("[DAHEN HUB]: LOADING SCRIPT...")
+	task.wait()
+	textChannel:DisplaySystemMessage("[DAHEN HUB]: DAHEN HUB | INK GAMES")
+	task.wait()
+	textChannel:DisplaySystemMessage("[DAHEN HUB]: LOADED")
+end
+
+-- Create main window using Obsidian UI
+local Window = Library:CreateWindow({
+    Title = "DAHEN HUB INK GAME",
+    Footer = "DAHEN HUB TESTING | INK GAMES\",
+    Center = true,
+    AutoShow = true,
+})
+
+-- Create tabs using Obsidian format
+local Tabs = {
+    Main = Window:AddTab("Main", "home"),
+    Player = Window:AddTab("Player", "user"),
+    RLGL = Window:AddTab("RLGL", "gamepad"),
+    Dalgona = Window:AddTab("Dalgona", "gamepad"),
+    TugOfWar = Window:AddTab("Tug of War", "gamepad"),
+    HideAndSeek = Window:AddTab("Hide & Seek", "gamepad"),
+    JumpRope = Window:AddTab("Jump Rope", "gamepad"),
+    GlassBridge = Window:AddTab("Glass Bridge", "gamepad"),
+    Mingle = Window:AddTab("Mingle", "gamepad"),
+    SkySquid = Window:AddTab("Sky Squid", "gamepad"),
+    Final = Window:AddTab("Final", "gamepad"),
+    Misc = Window:AddTab("Misc", "settings"),
+}
+
+-- Player Teleport System Variables
+local selectedPlayer = nil
+
+-- Function to get all players except local player
+local function CreateGlassBridgeCover()
+	local glassHolder = game.Workspace:FindFirstChild("GlassBridge")
+	if not glassHolder then
+		warn("GlassBridge not found in Workspace")
+		return
+	end
+
+	glassHolder = glassHolder:FindFirstChild("GlassHolder")
+	if not glassHolder then
+		warn("GlassHolder not found in GlassBridge")
+		return
+	end
+
+	local models = glassHolder:GetChildren()
+
+	if #models == 0 then
+		warn("No models found in GlassHolder")
+		return
+	end
+
+	-- Calculate the bounding box that encompasses all models
+	local minX, minY, minZ = math.huge, math.huge, math.huge
+	local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
+
+	for _, model in ipairs(models) do
+		if model:IsA("Model") or model:IsA("BasePart") then
+			local cframe, size
+
+			if model:IsA("Model") then
+				cframe, size = model:GetBoundingBox()
+			else
+				cframe = model.CFrame
+				size = model.Size
+			end
+
+			-- Calculate the corners of this model's bounding box
+			local halfSize = size / 2
+			local corners = {
+				cframe * CFrame.new(-halfSize.X, -halfSize.Y, -halfSize.Z),
+				cframe * CFrame.new(halfSize.X, -halfSize.Y, -halfSize.Z),
+				cframe * CFrame.new(-halfSize.X, halfSize.Y, -halfSize.Z),
+				cframe * CFrame.new(halfSize.X, halfSize.Y, -halfSize.Z),
+				cframe * CFrame.new(-halfSize.X, -halfSize.Y, halfSize.Z),
+				cframe * CFrame.new(halfSize.X, -halfSize.Y, halfSize.Z),
+				cframe * CFrame.new(-halfSize.X, halfSize.Y, halfSize.Z),
+				cframe * CFrame.new(halfSize.X, halfSize.Y, halfSize.Z),
+			}
+
+			-- Find min and max positions
+			for _, corner in ipairs(corners) do
+				local pos = corner.Position
+				minX = math.min(minX, pos.X)
+				minY = math.min(minY, pos.Y)
+				minZ = math.min(minZ, pos.Z)
+				maxX = math.max(maxX, pos.X)
+				maxY = math.max(maxY, pos.Y)
+				maxZ = math.max(maxZ, pos.Z)
+			end
+		end
+	end
+
+	-- Create the covering part
+	local coverPart = Instance.new("Part")
+	coverPart.Name = "GlassBridgeCover"
+	coverPart.Anchored = true
+	coverPart.CanCollide = true
+	coverPart.Material = Enum.Material.SmoothPlastic
+	coverPart.Color = Color3.fromRGB(100, 100, 255)
+	coverPart.Transparency = 0.3
+
+	-- Calculate size and position
+	local sizeX = maxX - minX + 2 -- Add 2 studs padding
+	local sizeY = maxY - minY + 2
+	local sizeZ = maxZ - minZ + 2
+
+	local centerX = (minX + maxX) / 2
+	local centerY = (minY + maxY) / 2
+	local centerZ = (minZ + maxZ) / 2
+
+	coverPart.Size = Vector3.new(sizeX, sizeY, sizeZ)
+	coverPart.CFrame = CFrame.new(centerX, centerY, centerZ)
+	coverPart.Parent = workspace
+
+	print("Glass Bridge Cover created!")
+	print("Size:", coverPart.Size)
+	print("Position:", coverPart.Position)
+
+	return coverPart
+end
+
+local function getPlayerList()
+	local playerList = {}
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= localPlayer then
+			table.insert(playerList, player.DisplayName)
+		end
+	end
+	return #playerList > 0 and playerList or {"No Players"}
+end
+
+-- Function to get player by display name
+local function getPlayerByDisplayName(displayName)
+	for _, player in pairs(Players:GetPlayers()) do
+		if player.DisplayName == displayName then
+			return player
+		end
+	end
+	return nil
+end
+
+-- Function to teleport to selected player
+local function teleportToPlayer(targetPlayer)
+	if not targetPlayer or not targetPlayer.Character then
+		return
+	end
+
+	local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+	local localRoot = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+	if targetRoot and localRoot then
+		localRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 3)
+	end
+end
+
+-- Function to teleport to random player
+local function teleportToRandomPlayer()
+	local players = {}
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= localPlayer and player.Character then
+			table.insert(players, player)
+		end
+	end
+
+	if #players > 0 then
+		local randomPlayer = players[math.random(1, #players)]
+		teleportToPlayer(randomPlayer)
+	end
+end
+
+-- Function to find nearest alive player
+local function findNearestAlivePlayer()
+    local character = localPlayer.Character
+    if not character then return nil end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return nil end
+    
+    local nearestPlayer = nil
+    local nearestDistance = math.huge
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character then
+            local targetRoot = player.Character:FindFirstChild("HumanoidRootPart")
+            local humanoid = player.Character:FindFirstChild("Humanoid")
+            
+            if targetRoot and humanoid and humanoid.Health > 0 then
+                local distance = (rootPart.Position - targetRoot.Position).Magnitude
+                if distance < nearestDistance then
+                    nearestDistance = distance
+                    nearestPlayer = player
+                end
+            end
+        end
+    end
+    
+    return nearestPlayer
+end
+
+-- MAIN TAB CONTENT
+local MainLeftGroupBox = Tabs.Main:AddLeftGroupbox("Custom Emotes")
+
+MainLeftGroupBox:AddButton("Custom Emotes", function()
+    loadstring(game:HttpGet("https://pastebin.com/raw/1p6xnBNf"))()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/GoldDoomOwner/Gold-Doom-Script/refs/heads/main/jerk"))()
+end)
+
+MainLeftGroupBox:AddButton("Custom Emotes 2", function()
+	-- Feel free to modify, contact pystyt on discord if u want to show me the modifications you did to the script, thanks alot
+	-- Detect R6 or R15
+	local player = game.Players.LocalPlayer
+	local character = player.Character or player.CharacterAdded:Wait()
+	local isR6 = character:FindFirstChild("Torso") ~= nil
+
+	-- Notification Function
+	local function showNotification(message)
+		local notificationGui = Instance.new("ScreenGui")
+		notificationGui.Name = "NotificationGui"
+		notificationGui.Parent = game.CoreGui
+
+		local notificationFrame = Instance.new("Frame")
+		notificationFrame.Size = UDim2.new(0, 300, 0, 50)
+		notificationFrame.Position = UDim2.new(0.5, -150, 1, -60)
+		notificationFrame.AnchorPoint = Vector2.new(0.5, 1)
+		notificationFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+		notificationFrame.BorderSizePixel = 0
+		notificationFrame.Parent = notificationGui
+
+		local uicorner = Instance.new("UICorner")
+		uicorner.CornerRadius = UDim.new(0, 10)
+		uicorner.Parent = notificationFrame
+
+		local textLabel = Instance.new("TextLabel")
+		textLabel.Size = UDim2.new(1, -20, 1, 0)
+		textLabel.Position = UDim2.new(0, 10, 0, 0)
+		textLabel.BackgroundTransparency = 1
+		textLabel.Text = message .. " | by nikos_YT7"
+		textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+		textLabel.Font = Enum.Font.SourceSansSemibold
+		textLabel.TextSize = 18
+		textLabel.TextXAlignment = Enum.TextXAlignment.Left
+		textLabel.Parent = notificationFrame
+
+		notificationFrame.BackgroundTransparency = 1
+		textLabel.TextTransparency = 1
+
+		game:GetService("TweenService"):Create(
+			notificationFrame,
+			TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+			{BackgroundTransparency = 0}
+		):Play()
+
+		game:GetService("TweenService"):Create(
+			textLabel,
+			TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+			{TextTransparency = 0}
+		):Play()
+
+		task.delay(5, function()
+			game:GetService("TweenService"):Create(
+				notificationFrame,
+				TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
+				{BackgroundTransparency = 1}
+			):Play()
+
+			game:GetService("TweenService"):Create(
+				textLabel,
+				TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
+				{TextTransparency = 1}
+			):Play()
+
+			task.delay(0.5, function()
+				notificationGui:Destroy()
+			end)
+		end)
+	end
+
+	-- Show notification based on rig type
+	if isR6 then
+		showNotification("R6 detected")
+	else
+		showNotification("R15 detected")
+	end
+
+	-- Create Screen GUI
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "BangGui"
+	gui.Parent = game.CoreGui
+
+	-- Main Frame
+	local mainFrame = Instance.new("Frame")
+	mainFrame.Size = UDim2.new(0, 300, 0, 300)
+	mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+	mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	mainFrame.BorderSizePixel = 0
+	mainFrame.Parent = gui
+
+	local uicorner = Instance.new("UICorner")
+	uicorner.CornerRadius = UDim.new(0, 20)
+	uicorner.Parent = mainFrame
+
+	-- Title
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, -60, 0, 30)
+	title.Position = UDim2.new(0, 10, 0, 0)
+	title.BackgroundTransparency = 1
+	title.Text = "Choose"
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.Font = Enum.Font.SourceSansSemibold
+	title.TextSize = 24
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.Parent = mainFrame
+
+	-- Dahen Hub Minimize/Restore System (Fixed)
+	local minimized = false
+
+	-- Main Dahen Hub restore button (appears when minimized)
+	local restoreBtn = Instance.new("TextButton")
+	restoreBtn.Size = UDim2.new(0, 120, 0, 36)
+	restoreBtn.Position = UDim2.new(0, 12, 0, 12)
+	restoreBtn.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+	restoreBtn.Text = "Dahen Hub"
+	restoreBtn.Font = Enum.Font.SourceSansBold
+	restoreBtn.TextSize = 18
+	restoreBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+	restoreBtn.Visible = false
+	restoreBtn.Parent = gui
+
+	Instance.new("UICorner", restoreBtn).CornerRadius = UDim.new(0, 8)
+
+	-- Existing minimize button setup
+	local miniBtn = Instance.new("TextButton")
+	miniBtn.Size = UDim2.new(0, 36, 0, 36)
+	miniBtn.Position = UDim2.new(1, -76, 0, 12)
+	miniBtn.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+	miniBtn.Text = "-"
+	miniBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+	miniBtn.TextScaled = true
+	miniBtn.Parent = mainFrame
+
+	Instance.new("UICorner", miniBtn).CornerRadius = UDim.new(0, 8)
+
+	-- Minimize behavior
+	miniBtn.MouseButton1Click:Connect(function()
+		if minimized then return end
+		minimized = true
+
+		-- Tween out smoothly
+		mainFrame:TweenSize(UDim2.new(0, 300, 0, 0), Enum.EasingDirection.In, Enum.EasingStyle.Quint, 0.3, true, function()
+			mainFrame.Visible = false
+			restoreBtn.Visible = true
+		end)
+	end)
+
+	-- Restore behavior
+	restoreBtn.MouseButton1Click:Connect(function()
+		if not minimized then return end
+		minimized = false
+
+		restoreBtn.Visible = false
+		mainFrame.Visible = true
+
+		-- Tween back to normal size
+		mainFrame:TweenSize(UDim2.new(0, 300, 0, 300), Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.3, true)
+	end)
+
+	-- Close Button
+	local closeButton = Instance.new("TextButton")
+	closeButton.Size = UDim2.new(0, 30, 0, 30)
+	closeButton.Position = UDim2.new(1, -40, 0, 0)
+	closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+	closeButton.Text = "X"
+	closeButton.Font = Enum.Font.SourceSansBold
+	closeButton.TextSize = 20
+	closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	closeButton.Parent = mainFrame
+
+	local closeCorner = Instance.new("UICorner")
+	closeCorner.CornerRadius = UDim.new(0, 10)
+	closeCorner.Parent = closeButton
+
+	closeButton.MouseButton1Click:Connect(function()
+		gui:Destroy()
+	end)
+
+	-- Dahen Hub Minimize/Restore System
+
+	-- MainFrame, minimizeButton, and closeButton should already exist
+	local player = game.Players.LocalPlayer
+	local gui = player:WaitForChild("PlayerGui")
+
+	-- Create the Dahen Hub restore button
+	local restoreButton = Instance.new("TextButton")
+	restoreButton.Name = "RestoreButton"
+	restoreButton.Text = "Dahen Hub"
+	restoreButton.Font = Enum.Font.SourceSansBold
+	restoreButton.TextSize = 20
+	restoreButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	restoreButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+	restoreButton.Size = UDim2.new(0, 150, 0, 40)
+	restoreButton.Position = UDim2.new(0.5, -75, 0, 10) -- top center
+	restoreButton.Visible = false
+	restoreButton.Parent = gui
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = restoreButton
+
+	local minimized = false
+
+	local minimizeButton = miniBtn -- Use existing miniBtn
+
+	minimizeButton.MouseButton1Click:Connect(function()
+		minimized = true
+		mainFrame.Visible = false
+		restoreButton.Visible = true
+	end)
+
+	restoreButton.MouseButton1Click:Connect(function()
+		minimized = false
+		mainFrame.Visible = true
+		restoreButton.Visible = false
+	end)
+
+	closeButton.MouseButton1Click:Connect(function()
+		mainFrame.Visible = false
+		restoreButton.Visible = false
+	end)
+
+	-- optional: close button behavior (keeps it visible and reliable)
+	closeButton.MouseButton1Click:Connect(function()
+		mainFrame.Visible = false
+	end)
+
+	-- Example Content
+	local content = Instance.new("Frame")
+	content.Size = UDim2.new(1, 0, 1, -30)
+	content.Position = UDim2.new(0, 0, 0, 30)
+	content.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+	content.Parent = mainFrame
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 0, 40)
+	label.Position = UDim2.new(0, 0, 0, 10)
+	label.BackgroundTransparency = 1
+	label.Text = "Welcome to Dahen Hub!"
+	label.Font = Enum.Font.SourceSansBold
+	label.TextSize = 22
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.Parent = content
+
+	-- Fixed Minimize Function (Shrink Only)
+	local minimized = false
+	local fullSize = UDim2.new(0, 300, 0, 300)
+	local minimizedSize = UDim2.new(0, 300, 0, 30)
+
+	minimizeButton.MouseButton1Click:Connect(function()
+		minimized = not minimized
+
+		if minimized then
+			content.Visible = false
+			mainFrame:TweenSize(minimizedSize, Enum.EasingDirection.In, Enum.EasingStyle.Quint, 0.4, true)
+		else
+			mainFrame:TweenSize(fullSize, Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.4, true)
+			task.wait(0.4)
+			content.Visible = true
+		end
+	end)
+
+	-- Dragging Functionality
+	local dragging, dragStart, startPos
+	mainFrame.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = mainFrame.Position
+		end
+	end)
+
+	mainFrame.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local delta = input.Position - dragStart
+			mainFrame.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+
+	mainFrame.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+
+	-- Scrolling Frame
+	local scrollingFrame = Instance.new("ScrollingFrame")
+	scrollingFrame.Size = UDim2.new(1, -20, 1, -50)
+	scrollingFrame.Position = UDim2.new(0, 10, 0, 40)
+	scrollingFrame.BackgroundTransparency = 1
+	scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 300)
+	scrollingFrame.ScrollBarThickness = 6
+	scrollingFrame.Parent = mainFrame
+
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 10)
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layout.Parent = scrollingFrame
+
+	-- Buttons Data
+	local buttons = {
+		{name = "Bang V2", r6 = "https://pastebin.com/raw/aPSHMV6K", r15 = "https://pastebin.com/raw/1ePMTt9n"},
+		{name = "Get Banged", r6 = "https://pastebin.com/raw/zHbw7ND1", r15 = "https://pastebin.com/raw/7hvcjDnW"},
+		{name = "Suck", r6 = "https://pastebin.com/raw/SymCfnAW", r15 = "https://pastebin.com/raw/p8yxRfr4"},
+		{name = "Get Suc", r6 = "https://pastebin.com/raw/FPu4e2Qh", r15 = "https://pastebin.com/raw/DyPP2tAF"},
+	}
+
+	for _, buttonData in pairs(buttons) do
+		local button = Instance.new("TextButton")
+		button.Size = UDim2.new(0.8, 0, 0, 40)
+		button.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
+		button.Text = buttonData.name
+		button.Font = Enum.Font.SourceSansBold
+		button.TextSize = 20
+		button.TextColor3 = Color3.fromRGB(255, 255, 255)
+		button.Parent = scrollingFrame
+
+		local uicorner = Instance.new("UICorner")
+		uicorner.CornerRadius = UDim.new(0, 10)
+		uicorner.Parent = button
+
+		button.MouseButton1Click:Connect(function()
+			if isR6 then
+				loadstring(game:HttpGet(buttonData.r6))()
+			else
+				loadstring(game:HttpGet(buttonData.r15))()
+			end
+		end)
+	end
+end)
+
+-- Lightning God Awakening Script
+local LightningGodEnabled = false
+local LightningGodLoop = nil
+local LightningGodRespawn = nil
+
+local function executeLightningGodEffect()
+    local character = Player.Character
+    if not character then return end
+    
+    local LightningGodModule = Script.Functions.SafeRequire(ReplicatedStorage.Modules.AbilityEffectsModules.LIGHTNINGGODAWAKENINGCLIENTEFFECTS)
+    if not LightningGodModule then
+        return
+    end
+    
+    local InterruptedFolder = Instance.new("Folder")
+    InterruptedFolder.Name = "LightningGodInterrupted"
+    InterruptedFolder.Parent = character
+    
+    local success, err = pcall(function()
+        LightningGodModule({
+            InterruptedFolder = InterruptedFolder,
+            Character = character,
+            ModuleName = "LIGHTNINGGODAWAKENING",
+            TimeLength = 5
+        })
+    end)
+    
+    if not success then
+        return
+    end
+    
+    task.delay(6, function()
+        if InterruptedFolder and InterruptedFolder.Parent then
+            InterruptedFolder:Destroy()
+        end
+    end)
+end
+
+local MainRightGroupBox1 = Tabs.Main:AddRightGroupbox("Power Tools")
+
+-- Create first dropdown for tool selection
+local selectedTool1 = "Awaken"
+MainRightGroupBox1:AddDropdown("SelectTool1", {
+    Values = Custom_PowerTools,
+    Default = 1,
+    Text = "Select Tool 1",
+    Callback = function(Value)
+        selectedTool1 = Value
+        print("Selected tool 1:", selectedTool1)
+    end,
+})
+
+-- Create second dropdown for tool selection
+local selectedTool2 = "Oblivious"
+MainRightGroupBox1:AddDropdown("SelectTool2", {
+    Values = Custom_PowerTools,
+    Default = 1,
+    Text = "Select Tool 2",
+    Callback = function(Value)
+        selectedTool2 = Value
+        print("Selected tool 2:", selectedTool2)
+    end,
+})
+
+-- Create text input for custom name
+local customNameInput = ""
+MainRightGroupBox1:AddInput("CustomPowersName", {
+    Default = "",
+    Placeholder = "Enter custom name...",
+    Text = "Custom Powers Name",
+    Callback = function(Value)
+        customNameInput = Value
+        print("Custom name entered:", Value)
+    end,
+})
+
+-- Create button to get tools and change shop UI text
+MainRightGroupBox1:AddButton("Equip Custom Power", function()
+    -- Get both tools using ToolModule
+    ToolModule:GetTools(selectedTool1, selectedTool2)
+
+    -- Change the shop UI text
+    local ui = localPlayer.PlayerGui.ShopGui.StoreHolder.Store.PAGES.Powers
+    spawn(function()
+        while true do
+            ui.CurrentlyEquipped.Text = "Currently Equipped: " .. (customNameInput or "")
+            task.wait()
+        end
+    end)
+end)
+
+-- Add Lightning God Awakening button
+MainRightGroupBox1:AddButton("Lightning God Awakening", function()
+    LightningGodEnabled = not LightningGodEnabled
+    
+    if LightningGodEnabled then
+        _G.LightningGodEnabled = true
+        
+        executeLightningGodEffect()
+        
+        _G.LightningGodLoop = task.spawn(function()
+            repeat
+                task.wait(10)
+                if _G.LightningGodEnabled then
+                    executeLightningGodEffect()
+                end
+            until not _G.LightningGodEnabled
+        end)
+        
+        _G.LightningGodRespawn = Player.CharacterAdded:Connect(function()
+            if _G.LightningGodEnabled then
+                task.wait(1)
+                executeLightningGodEffect()
+            end
+        end)
+    else
+        _G.LightningGodEnabled = false
+        
+        if _G.LightningGodLoop then
+            task.cancel(_G.LightningGodLoop)
+            _G.LightningGodLoop = nil
+        end
+        
+        if _G.LightningGodRespawn then
+            _G.LightningGodRespawn:Disconnect()
+            _G.LightningGodRespawn = nil
+        end
+    end
+end)
+
+local MainRightGroupBox2 = Tabs.Main:AddRightGroupbox("Boosts & Powers")
+
+MainRightGroupBox2:AddButton("Enable Dash", function()
+    localPlayer.Boosts["Faster Sprint"].Value = 5
+    local ui = localPlayer.PlayerGui.ShopGui.StoreHolder.Store.PAGES.Boosts
+    local Speed = ui["Faster Sprint"]
+
+    spawn(function()
+        while true do
+            task.wait()
+            Speed.BuyButtonRobux.Visible = false
+            Speed.BuyButtonCoin.Visible = false
+            Speed.ItemLevel.Text = "Current Level (5)"
+        end
+    end)
+end)
+
+MainRightGroupBox2:AddButton("Won Boost", function()
+    localPlayer.Boosts["Won Boost"].Value = 5
+    local ui = localPlayer.PlayerGui.ShopGui.StoreHolder.Store.PAGES.Boosts
+    local Speed = ui["Won Boost"]
+
+    spawn(function()
+        while true do
+            task.wait()
+            Speed.BuyButtonRobux.Visible = false
+            Speed.BuyButtonCoin.Visible = false
+            Speed.ItemLevel.Text = "Current Level (5)"
+        end
+    end)
+end)
+
+MainRightGroupBox2:AddButton("Strength Boost", function()
+    localPlayer.Boosts["Damage Boost"].Value = 5
+    local ui = localPlayer.PlayerGui.ShopGui.StoreHolder.Store.PAGES.Boosts
+    local Speed = ui["Damage Boost"]
+
+    spawn(function()
+        while true do
+            task.wait()
+            Speed.BuyButtonRobux.Visible = false
+            Speed.BuyButtonCoin.Visible = false
+            Speed.ItemLevel.Text = "Current Level (5)"
+        end
+    end)
+end)
+
+MainRightGroupBox2:AddButton("Equip Phantom Step", function()
+    localPlayer:SetAttribute("_EquippedPower", "PHANTOM STEP")
+end)
+
+MainRightGroupBox2:AddButton("Remove Power", function()
+    localPlayer:SetAttribute("_EquippedPower", "")
+end)
+
+MainRightGroupBox2:AddButton("Enable Powers", function()
+    game.Workspace.Values.PowersDisabled.Value = false
+end)
+
+local MainLeftGroupBox2 = Tabs.Main:AddLeftGroupbox("Gamepasses & Weapons")
+
+MainLeftGroupBox2:AddButton("Enable All Gamepasses", function()
+    localPlayer:SetAttribute("HasLighter", true)
+    localPlayer:SetAttribute("HasPush", true)
+    game.Workspace.Values.CanPush.Value = true
+    local ui = localPlayer.PlayerGui.ShopGui.StoreHolder.Store.PAGES.Gamepass
+    game.Workspace.Values.CanPush.Value = true
+
+    for i, v in pairs(ui:GetChildren()) do
+        if v:IsA("TextButton") then
+            spawn(function()
+                if v.ItemName.Text == "Revive All" or v.ItemName.Text == "One Time Playable Guard" then
+                    print("["..v.ItemName.Text.."] Has Been Blocked")
+                else
+                    v.BuyButton.Content.TextLabel.Text = "OWNED"
+                    print("Done ["..v.ItemName.Text.."]")
+                end
+            end)
+        end
+    end
+end)
+
+MainLeftGroupBox2:AddButton("Select Fork", function()
+    localPlayer:SetAttribute("WeaponSelected", "Fork")
+end)
+
+MainLeftGroupBox2:AddButton("Show All Buttons", function()
+    local ui = localPlayer.PlayerGui.Buttons.LeftButtons
+    for i, v in pairs(ui:GetChildren()) do
+        if v:IsA("ImageButton") then
+            v.Visible = true
+        end
+    end
+end)
+
+-- PLAYER TAB CONTENT - Converted to Obsidian format
+local PlayerLeftGroupBox = Tabs.Player:AddLeftGroupbox("PLAYER TELEPORTS")
+
+-- Create player dropdown
+local playerOptions = getPlayerList()
+local selectedPlayerName = playerOptions[1]
+PlayerLeftGroupBox:AddDropdown("PlayerSelector", {
+    Values = playerOptions,
+    Default = 1,
+    Text = "Player Selector",
+    Callback = function(Value)
+        selectedPlayerName = Value
+        selectedPlayer = getPlayerByDisplayName(Value)
+    end,
+})
+
+PlayerLeftGroupBox:AddButton("Refresh Players", function()
+    print("Player list refreshed")
+end)
+
+PlayerLeftGroupBox:AddButton("Teleport To Selected Player", function()
+    if selectedPlayer then
+        teleportToPlayer(selectedPlayer)
+    else
+        print("No player selected!")
+    end
+end)
+
+local goatersa = false
+PlayerLeftGroupBox:AddToggle("AttachToPlayer", {
+    Text = "Attach to player",
+    Default = false,
+    Callback = function(Value)
+        goatersa = Value
+        if selectedPlayer then
+            spawn(function()
+                while goatersa do
+                    teleportToPlayer(selectedPlayer)
+                    task.wait(0.1)
+                end
+            end)
+        else
+            print("No player selected!")
+        end
+    end,
+})
+
+PlayerLeftGroupBox:AddButton("Teleport To Random Player", function()
+    teleportToRandomPlayer()
+end)
+
+-- Quicksilver Toggle
+local QuicksilverEnabled = false
+local QuicksilverConnection = nil
+local OriginalWalkSpeed = 16
+local CurrentSpeed = 16
+local MaxSpeed = 100
+local SpeedIncrement = 5
+local LastWalkTime = 0
+local LastSpeedIncrease = 0
+
+PlayerLeftGroupBox:AddToggle("Quicksilver", {
+    Text = "Quicksilver",
+    Default = false,
+    Callback = function(Value)
+        QuicksilverEnabled = Value
+        
+        if Value then
+            local character = localPlayer.Character
+            if character and character:FindFirstChild("Humanoid") then
+                OriginalWalkSpeed = character.Humanoid.WalkSpeed
+                CurrentSpeed = OriginalWalkSpeed
+                LastWalkTime = tick()
+            end
+            
+            if QuicksilverConnection then
+                QuicksilverConnection:Disconnect()
+            end
+            
+            QuicksilverConnection = RunService.Heartbeat:Connect(function()
+                if not QuicksilverEnabled then return end
+                
+                local character = localPlayer.Character
+                if not character then return end
+                
+                local humanoid = character:FindFirstChild("Humanoid")
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                
+                if not humanoid or not rootPart then return end
+                
+                local currentTime = tick()
+                local velocity = rootPart.Velocity
+                local isMoving = velocity.Magnitude > 2
+                
+                if isMoving then
+                    LastWalkTime = currentTime
+                    
+                    if currentTime - LastSpeedIncrease >= 4 then
+                        if CurrentSpeed < MaxSpeed then
+                            CurrentSpeed = math.min(CurrentSpeed + SpeedIncrement, MaxSpeed)
+                            humanoid.WalkSpeed = CurrentSpeed
+                            LastSpeedIncrease = currentTime
+                        end
+                    end
+                else
+                    if currentTime - LastWalkTime >= 2 then
+                        CurrentSpeed = OriginalWalkSpeed
+                        humanoid.WalkSpeed = CurrentSpeed
+                    end
+                end
+            end)
+        else
+            if QuicksilverConnection then
+                QuicksilverConnection:Disconnect()
+                QuicksilverConnection = nil
+            end
+            
+            local character = localPlayer.Character
+            if character and character:FindFirstChild("Humanoid") then
+                character.Humanoid.WalkSpeed = OriginalWalkSpeed
+            end
+        end
+    end,
+})
+
+-- Invisibility Toggle
+local InvisibilityEnabled = false
+local OriginalPosition = nil
+local InvisibilityConnection = nil
+
+PlayerLeftGroupBox:AddToggle("Invisibility", {
+    Text = "Invisibility",
+    Default = false,
+    Callback = function(Value)
+        InvisibilityEnabled = Value
+        
+        if Value then
+            local character = localPlayer.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                OriginalPosition = character.HumanoidRootPart.Position
+                
+                character.HumanoidRootPart.CFrame = CFrame.new(
+                    OriginalPosition.X,
+                    OriginalPosition.Y - 50,
+                    OriginalPosition.Z
+                )
+                
+                if InvisibilityConnection then
+                    InvisibilityConnection:Disconnect()
+                end
+                
+                InvisibilityConnection = RunService.Heartbeat:Connect(function()
+                    if not InvisibilityEnabled then return end
+                    
+                    local character = localPlayer.Character
+                    if character and character:FindFirstChild("HumanoidRootPart") then
+                        local currentPos = character.HumanoidRootPart.Position
+                        if currentPos.Y > OriginalPosition.Y - 10 then
+                            character.HumanoidRootPart.CFrame = CFrame.new(
+                                currentPos.X,
+                                OriginalPosition.Y - 50,
+                                currentPos.Z
+                            )
+                        end
+                    end
+                end)
+            end
+        else
+            if InvisibilityConnection then
+                InvisibilityConnection:Disconnect()
+                InvisibilityConnection = nil
+            end
+            
+            local character = localPlayer.Character
+            if character and character:FindFirstChild("HumanoidRootPart") and OriginalPosition then
+                character.HumanoidRootPart.CFrame = CFrame.new(OriginalPosition)
+            end
+        end
+    end,
+})
+
+local PlayerRightGroupBox = Tabs.Player:AddRightGroupbox("Combat Features")
+
+PlayerRightGroupBox:AddButton("Hitbox multiplier", function()
+    if game.Workspace.Values.HitboxMultiplier.Value == 50 then
+        game.Workspace.Values.HitboxMultiplier.Value = 1
+    else
+        game.Workspace.Values.HitboxMultiplier.Value = 50
+    end
+end)
+
+-- HITBOX EXPANDER - Extended Attack Range with Visuals
+local isHitboxExpanderActive = false
+local expandedHitboxes = {}
+local visualHitboxes = {}
+local hitboxSize = 15
+local hitboxRange = 30
+local attackCooldown = 0.2
+local lastAttackTime = 0
+
+-- Add toggle to PlayerTab
+PlayerRightGroupBox:AddToggle("HitboxExpander", {
+    Text = "Hitbox Expander",
+    Default = false,
+    Callback = function(Value)
+        isHitboxExpanderActive = Value
+        
+        if Value then
+            createExpandedHitboxes()
+        else
+            removeExpandedHitboxes()
+        end
+    end,
+})
+
+-- Range input
+PlayerRightGroupBox:AddInput("HitboxRange", {
+    Default = tostring(hitboxRange),
+    Placeholder = "Set hitbox range (1-100)",
+    Text = "Hitbox Range",
+    Callback = function(Value)
+        local newRange = tonumber(Value)
+        if newRange and newRange >= 1 and newRange <= 100 then
+            hitboxRange = newRange
+            if isHitboxExpanderActive then
+                removeExpandedHitboxes()
+                createExpandedHitboxes()
+            end
+        end
+    end,
+})
+
+-- Create expanded hitboxes around player
+local function createExpandedHitboxes()
+    removeExpandedHitboxes()
+    
+    local character = localPlayer.Character
+    if not character then return end
+    
+    -- Create hitboxes in all directions
+    local hitboxPositions = {
+        Vector3.new(0, 0, hitboxRange),  -- Front
+        Vector3.new(hitboxRange, 0, 0),  -- Right
+        Vector3.new(-hitboxRange, 0, 0), -- Left
+        Vector3.new(0, 0, -hitboxRange), -- Back
+        Vector3.new(0, hitboxRange, 0),  -- Top
+    }
+    
+    for i, offset in ipairs(hitboxPositions) do
+        local hitbox = createSingleHitbox(character, offset, "Hitbox_" .. i)
+        table.insert(expandedHitboxes, hitbox)
+        
+        -- Create visual indicator
+        local visual = createVisualHitbox(character, offset, "Visual_" .. i)
+        table.insert(visualHitboxes, visual)
+    end
+    
+    -- Create rotating sphere for 360 coverage
+    local sphereHitbox = createSphereHitbox(character)
+    table.insert(expandedHitboxes, sphereHitbox)
+    
+    -- Create visual for rotating sphere
+    local sphereVisual = createSphereVisual(character)
+    table.insert(visualHitboxes, sphereVisual)
+end
+
+-- Create a single hitbox part
+local function createSingleHitbox(character, offset, name)
+    local hitbox = Instance.new("Part")
+    hitbox.Name = name
+    hitbox.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+    hitbox.Transparency = 1
+    hitbox.CanCollide = false
+    hitbox.Anchored = false
+    hitbox.Massless = true
+    
+    -- Create TouchTransmitter
+    local touchInterest = Instance.new("TouchTransmitter")
+    touchInterest.Parent = hitbox
+    
+    -- Weld to character
+    local weld = Instance.new("Weld")
+    weld.Part0 = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head") or character.PrimaryPart
+    weld.Part1 = hitbox
+    weld.C0 = CFrame.new(offset)
+    weld.Parent = hitbox
+    
+    hitbox.Parent = character
+    
+    -- Connect touched event
+    hitbox.Touched:Connect(function(otherPart)
+        onHitboxTouched(otherPart)
+    end)
+    
+    return hitbox
+end
+
+-- Create visual indicator for hitbox
+local function createVisualHitbox(character, offset, name)
+    local visual = Instance.new("Part")
+    visual.Name = name
+    visual.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+    visual.Material = Enum.Material.Neon
+    visual.BrickColor = BrickColor.new("Bright red")
+    visual.Transparency = 0.7
+    visual.CanCollide = false
+    visual.Anchored = false
+    visual.Massless = true
+    
+    -- Weld to character
+    local weld = Instance.new("Weld")
+    weld.Part0 = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head") or character.PrimaryPart
+    weld.Part1 = visual
+    weld.C0 = CFrame.new(offset)
+    weld.Parent = visual
+    
+    visual.Parent = character
+    
+    return visual
+end
+
+-- Create sphere hitbox that rotates around player
+local function createSphereHitbox(character)
+    local sphere = Instance.new("Part")
+    sphere.Name = "RotatingSphereHitbox"
+    sphere.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+    sphere.Transparency = 1
+    sphere.CanCollide = false
+    sphere.Anchored = false
+    sphere.Massless = true
+    
+    -- Create TouchTransmitter
+    local touchInterest = Instance.new("TouchTransmitter")
+    touchInterest.Parent = sphere
+    
+    -- Weld with rotation
+    local weld = Instance.new("Weld")
+    weld.Part0 = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head") or character.PrimaryPart
+    weld.Part1 = sphere
+    weld.Parent = sphere
+    
+    sphere.Parent = character
+    
+    -- Connect touched event
+    sphere.Touched:Connect(function(otherPart)
+        onHitboxTouched(otherPart)
+    end)
+    
+    -- Make it rotate
+    if isHitboxExpanderActive then
+        coroutine.wrap(function()
+            local angle = 0
+            while isHitboxExpanderActive and sphere and sphere.Parent do
+                angle = angle + 0.1
+                local x = math.cos(angle) * hitboxRange
+                local z = math.sin(angle) * hitboxRange
+                weld.C0 = CFrame.new(x, 0, z)
+                RunService.Heartbeat:Wait()
+            end
+        end)()
+    end
+    
+    return sphere
+end
+
+-- Create visual for rotating sphere
+local function createSphereVisual(character)
+    local visual = Instance.new("Part")
+    visual.Name = "RotatingSphereVisual"
+    visual.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+    visual.Material = Enum.Material.Neon
+    visual.BrickColor = BrickColor.new("Bright blue")
+    visual.Transparency = 0.7
+    visual.CanCollide = false
+    visual.Anchored = false
+    visual.Massless = true
+    
+    -- Weld with rotation
+    local weld = Instance.new("Weld")
+    weld.Part0 = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head") or character.PrimaryPart
+    weld.Part1 = visual
+    weld.Parent = visual
+    
+    visual.Parent = character
+    
+    -- Make it rotate
+    if isHitboxExpanderActive then
+        coroutine.wrap(function()
+            local angle = 0
+            while isHitboxExpanderActive and visual and visual.Parent do
+                angle = angle + 0.1
+                local x = math.cos(angle) * hitboxRange
+                local z = math.sin(angle) * hitboxRange
+                weld.C0 = CFrame.new(x, 0, z)
+                RunService.Heartbeat:Wait()
+            end
+        end)()
+    end
+    
+    return visual
+end
+
+-- Handle when hitbox touches something
+local function onHitboxTouched(otherPart)
+    if not isHitboxExpanderActive then return end
+    
+    local currentTime = tick()
+    if currentTime - lastAttackTime < attackCooldown then return end
+    
+    -- Check if touched part belongs to a player
+    local touchedPlayer = getPlayerFromPart(otherPart)
+    if touchedPlayer and touchedPlayer ~= localPlayer then
+        -- Check if player is alive
+        local character = touchedPlayer.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                -- Perform attack
+                performAttack()
+                lastAttackTime = currentTime
+                
+                -- Flash the hitbox that was touched
+                flashHitboxVisual(otherPart)
+            end
+        end
+    end
+end
+
+-- Flash hitbox visual when it hits something
+local function flashHitboxVisual(touchedPart)
+    for _, visual in pairs(visualHitboxes) do
+        if visual and visual.Parent then
+            local originalColor = visual.BrickColor
+            visual.BrickColor = BrickColor.new("Bright green")
+            
+            -- Reset color after short delay
+            delay(0.2, function()
+                if visual and visual.Parent then
+                    if visual.Name == "RotatingSphereVisual" then
+                        visual.BrickColor = BrickColor.new("Bright blue")
+                    else
+                        visual.BrickColor = BrickColor.new("Bright red")
+                    end
+                end
+            end)
+        end
+    end
+end
+
+-- Get player from touched part
+local function getPlayerFromPart(part)
+    local character = part:FindFirstAncestorOfClass("Model")
+    if character then
+        return Players:GetPlayerFromCharacter(character)
+    end
+    return nil
+end
+
+-- Perform attack (mobile-friendly)
+local function performAttack()
+    local currentTime = tick()
+    if currentTime - lastAttackTime >= attackCooldown then
+        -- Use screen tap for mobile compatibility
+        local screenCenter = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2)
+        
+        VirtualInputManager:SendTouchEvent(0, screenCenter, Enum.TouchState.Began, nil, 0, 0)
+        task.wait(0.05)
+        VirtualInputManager:SendTouchEvent(0, screenCenter, Enum.TouchState.Ended, nil, 0, 0)
+        
+        lastAttackTime = currentTime
+    end
+end
+
+-- Remove all expanded hitboxes
+local function removeExpandedHitboxes()
+    for _, hitbox in pairs(expandedHitboxes) do
+        if hitbox and hitbox.Parent then
+            hitbox:Destroy()
+        end
+    end
+    expandedHitboxes = {}
+    
+    for _, visual in pairs(visualHitboxes) do
+        if visual and visual.Parent then
+            visual:Destroy()
+        end
+    end
+    visualHitboxes = {}
+end
+
+-- Handle character respawning
+localPlayer.CharacterAdded:Connect(function(character)
+    if isHitboxExpanderActive then
+        task.wait(1)
+        createExpandedHitboxes()
+    end
+end)
+
+-- Clean up when character is removed
+localPlayer.CharacterRemoving:Connect(function()
+    removeExpandedHitboxes()
+end)
+
+-- Status button to show current range
+PlayerRightGroupBox:AddButton("Hitbox Status", function()
+    print("HITBOX EXPANDER - Current range: " .. hitboxRange .. " studs")
+end)
+
+-- Infinite Jump
+local infiniteJumpEnabled = false
+local jumpConnection = nil
+
+PlayerRightGroupBox:AddToggle("InfiniteJump", {
+    Text = "Infinite Jump",
+    Default = false,
+    Callback = function(Value)
+        infiniteJumpEnabled = Value
+
+        if infiniteJumpEnabled then
+            -- Connect to UserInputService to detect jump input
+            local UserInputService = game:GetService("UserInputService")
+
+            jumpConnection = game:GetService("UserInputService").JumpRequest:Connect(function()
+                local character = localPlayer.Character
+                if character then
+                    local humanoid = character:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
+                        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    end
+                end
+            end)
+        else
+            -- Disable infinite jump
+            if jumpConnection then
+                jumpConnection:Disconnect()
+                jumpConnection = nil
+            end
+        end
+    end,
+})
+
+-- Noclip Toggle
+local noclipEnabled = false
+local noclipConnection = nil
+
+PlayerRightGroupBox:AddToggle("Noclip", {
+    Text = "Noclip",
+    Default = false,
+    Callback = function(Value)
+        noclipEnabled = Value
+
+        if noclipEnabled then
+            noclipConnection = RunService.Stepped:Connect(function()
+                if localPlayer.Character then
+                    for _, part in pairs(localPlayer.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            -- Only disable collision on main body parts, not accessories
+                            if part.Name == "Head" or part.Name == "Torso" or part.Name == "HumanoidRootPart" or 
+                                part.Name == "Left Arm" or part.Name == "Right Arm" or 
+                                part.Name == "Left Leg" or part.Name == "Right Leg" or
+                                part.Name == "UpperTorso" or part.Name == "LowerTorso" or
+                                part.Name == "LeftUpperArm" or part.Name == "LeftLowerArm" or part.Name == "LeftHand" or
+                                part.Name == "RightUpperArm" or part.Name == "RightLowerArm" or part.Name == "RightHand" or
+                                part.Name == "LeftUpperLeg" or part.Name == "LeftLowerLeg" or part.Name == "LeftFoot" or
+                                part.Name == "RightUpperLeg" or part.Name == "RightLowerLeg" or part.Name == "RightFoot" then
+                                part.CanCollide = false
+                            end
+                        end
+                    end
+                end
+            end)
+        else
+            if noclipConnection then
+                noclipConnection:Disconnect()
+                noclipConnection = nil
+            end
+
+            -- Re-enable collision only on parts we disabled
+            if localPlayer.Character then
+                for _, part in pairs(localPlayer.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        if part.Name == "Head" or part.Name == "Torso" or 
+                            part.Name == "Left Arm" or part.Name == "Right Arm" or 
+                            part.Name == "Left Leg" or part.Name == "Right Leg" or
+                            part.Name == "UpperTorso" or part.Name == "LowerTorso" or
+                            part.Name == "LeftUpperArm" or part.Name == "LeftLowerArm" or part.Name == "LeftHand" or
+                            part.Name == "RightUpperArm" or part.Name == "RightLowerArm" or part.Name == "RightHand" or
+                            part.Name == "LeftUpperLeg" or part.Name == "LeftLowerLeg" or part.Name == "LeftFoot" or
+                            part.Name == "RightUpperLeg" or part.Name == "RightLowerLeg" or part.Name == "RightFoot" then
+                            part.CanCollide = true
+                        end
+                    end
+                end
+            end
+        end
+    end,
+})
+
+-- Ultra Cool Auto Dodge with Visual Effects
+local isDodgeActive = false
+local dodgeLoop = nil
+local lastDodgeTime = 0
+local dodgeCooldown = 0.5 -- Half second cooldown
+
+-- Add the toggle button to your existing tab
+PlayerRightGroupBox:AddToggle("AutoDodge", {
+    Text = "✨ Auto Dodge",
+    Default = false,
+    Callback = function(Value)
+        isDodgeActive = Value
+        
+        if Value then
+            -- ENABLE
+            
+            if dodgeLoop then
+                dodgeLoop:Disconnect()
+            end
+            
+            dodgeLoop = game:GetService("RunService").Heartbeat:Connect(function()
+                if not isDodgeActive then return end
+                ultraDodgeDetection()
+            end)
+            
+        else
+            -- DISABLE
+            
+            if dodgeLoop then
+                dodgeLoop:Disconnect()
+                dodgeLoop = nil
+            end
+        end
+    end,
+})
+
+function ultraDodgeDetection()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return end
+    
+    local myRoot = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not myRoot or not humanoid or humanoid.Health <= 0 then return end
+    
+    -- Cooldown check (HALF SECOND)
+    if tick() - lastDodgeTime < dodgeCooldown then return end
+    
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if otherRoot then
+                local distance = (myRoot.Position - otherRoot.Position).Magnitude
+                
+                if distance < 18 then
+                    local toMe = (myRoot.Position - otherRoot.Position).Unit
+                    local lookDir = otherRoot.CFrame.LookVector
+                    
+                    if toMe:Dot(lookDir) > 0.6 then
+                        local tool = otherPlayer.Character:FindFirstChildOfClass("Tool")
+                        if tool then
+                            epicDodge(otherRoot.Position)
+                            lastDodgeTime = tick() -- Update cooldown timer
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+function epicDodge(attackerPos)
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not rootPart or not humanoid then return end
+    
+    -- Calculate dodge direction
+    local threatDir = (rootPart.Position - attackerPos).Unit
+    local dodgeDistance = 25
+    
+    -- Try multiple safe directions
+    local directions = {
+        threatDir, -- Direct away
+        threatDir:Cross(Vector3.new(0, 1, 0)), -- Left
+        -threatDir:Cross(Vector3.new(0, 1, 0)), -- Right
+        (threatDir + Vector3.new(0, 0.5, 0)).Unit -- Up and away
+    }
+    
+    local foundSafeSpot = false
+    local safePosition = rootPart.Position
+    
+    for _, dir in ipairs(directions) do
+        local testPos = rootPart.Position + (dir * dodgeDistance)
+        local groundRay = Ray.new(testPos + Vector3.new(0, 5, 0), Vector3.new(0, -20, 0))
+        local groundHit, groundPos = workspace:FindPartOnRay(groundRay, character)
+        
+        if groundHit then
+            safePosition = groundPos + Vector3.new(0, 3, 0)
+            foundSafeSpot = true
+            break
+        end
+    end
+    
+    if foundSafeSpot then
+        -- Create EPIC DODGE EFFECTS
+        createDodgeEffects(rootPart.Position, safePosition)
+        
+        -- Teleport after a brief delay for dramatic effect
+        spawn(function()
+            wait(0.1) -- Small delay for animation
+            rootPart.CFrame = CFrame.new(safePosition)
+        end)
+    else
+    end
+end
+
+function createDodgeEffects(startPos, endPos)
+    local TweenService = game:GetService("TweenService")
+    
+    -- 1. DASH TRAIL EFFECT
+    spawn(function()
+        local trailPart = Instance.new("Part")
+        trailPart.Size = Vector3.new(2, 2, 2)
+        trailPart.Position = startPos
+        trailPart.BrickColor = BrickColor.new("Bright blue")
+        trailPart.Material = Enum.Material.Neon
+        trailPart.Anchored = true
+        trailPart.CanCollide = false
+        trailPart.Parent = workspace
+        
+        local trailTween = TweenService:Create(trailPart, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Position = endPos,
+            Transparency = 1
+        })
+        
+        trailTween:Play()
+        game:GetService("Debris"):AddItem(trailPart, 1)
+    end)
+    
+    -- 2. AFTERIMAGE EFFECT (Multiple ghost copies)
+    spawn(function()
+        for i = 1, 3 do
+            local afterImage = Instance.new("Part")
+            afterImage.Size = Vector3.new(4, 6, 2)
+            afterImage.Position = startPos + Vector3.new(0, 1, 0)
+            afterImage.BrickColor = BrickColor.new("Bright violet")
+            afterImage.Material = Enum.Material.Glass
+            afterImage.Transparency = 0.7
+            afterImage.Anchored = true
+            afterImage.CanCollide = false
+            afterImage.Parent = workspace
+            
+            local tweenInfo = TweenInfo.new(
+                0.4, 
+                Enum.EasingStyle.Quad, 
+                Enum.EasingDirection.Out,
+                0, -- RepeatCount
+                false, -- Reverses
+                i * 0.1 -- Delay
+            )
+            
+            local afterTween = TweenService:Create(afterImage, tweenInfo, {
+                Position = endPos + Vector3.new(0, 1, 0),
+                Transparency = 1,
+                Size = Vector3.new(2, 3, 1)
+            })
+            
+            afterTween:Play()
+            game:GetService("Debris"):AddItem(afterImage, 2)
+        end
+    end)
+    
+    -- 3. RING EXPLOSION EFFECT at start position
+    spawn(function()
+        for i = 1, 8 do
+            local ringPart = Instance.new("Part")
+            ringPart.Size = Vector3.new(0.5, 0.5, 0.5)
+            ringPart.Position = startPos
+            ringPart.BrickColor = BrickColor.new("Bright yellow")
+            ringPart.Material = Enum.Material.Neon
+            ringPart.Anchored = true
+            ringPart.CanCollide = false
+            ringPart.Parent = workspace
+            
+            local angle = (i / 8) * math.pi * 2
+            local ringTween = TweenService:Create(ringPart, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Position = startPos + Vector3.new(
+                    math.cos(angle) * 10,
+                    math.sin(angle) * 2,
+                    math.sin(angle) * 10
+                ),
+                Transparency = 1
+            })
+            
+            ringTween:Play()
+            game:GetService("Debris"):AddItem(ringPart, 2)
+        end
+    end)
+    
+    -- 4. SPEED LINES EFFECT
+    spawn(function()
+        local speedLines = Instance.new("Part")
+        speedLines.Size = Vector3.new(10, 10, 10)
+        speedLines.Position = startPos
+        speedLines.Transparency = 1
+        speedLines.Anchored = true
+        speedLines.CanCollide = false
+        speedLines.Parent = workspace
+        
+        local particleEmitter = Instance.new("ParticleEmitter")
+        particleEmitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+        particleEmitter.Lifetime = NumberRange.new(0.3, 0.8)
+        particleEmitter.Rate = 100
+        particleEmitter.SpreadAngle = Vector2.new(45, 45)
+        particleEmitter.Speed = NumberRange.new(10, 20)
+        particleEmitter.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 255))
+        })
+        particleEmitter.Parent = speedLines
+        
+        game:GetService("Debris"):AddItem(speedLines, 1)
+    end)
+    
+    -- 5. IMPACT EFFECT at destination
+    spawn(function()
+        wait(0.2) -- Delay for arrival
+        
+        local impactRing = Instance.new("Part")
+        impactRing.Size = Vector3.new(1, 0.2, 1)
+        impactRing.Position = endPos
+        impactRing.BrickColor = BrickColor.new("Lime green")
+        impactRing.Material = Enum.Material.Neon
+        impactRing.Anchored = true
+        impactRing.CanCollide = false
+        impactRing.Parent = workspace
+        
+        local impactTween = TweenService:Create(impactRing, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = Vector3.new(15, 0.2, 15),
+            Transparency = 1
+        })
+        
+        impactTween:Play()
+        game:GetService("Debris"):AddItem(impactRing, 2)
+    end)
+    
+    -- 6. FLASH EFFECT
+    spawn(function()
+        local flash = Instance.new("Part")
+        flash.Size = Vector3.new(20, 20, 20)
+        flash.Position = startPos
+        flash.BrickColor = BrickColor.new("Institutional white")
+        flash.Material = Enum.Material.Neon
+        flash.Transparency = 0.5
+        flash.Anchored = true
+        flash.CanCollide = false
+        flash.Parent = workspace
+        
+        local flashTween = TweenService:Create(flash, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Transparency = 1,
+            Size = Vector3.new(30, 30, 30)
+        })
+        
+        flashTween:Play()
+        game:GetService("Debris"):AddItem(flash, 1)
+    end)
+end
+
+-- Auto Dash Script - No Visuals
+local isAutoDashActive = false
+local autoDashLoop = nil
+local lastDashTime = 0
+local dashCooldown = 2
+local isHoldingShift = false
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+-- Add the toggle button
+PlayerRightGroupBox:AddToggle("AutoDashLegit", {
+    Text = "🌍 Auto Dodge Legit",
+    Default = false,
+    Callback = function(Value)
+        isAutoDashActive = Value
+        
+        if Value then
+            
+            if autoDashLoop then
+                autoDashLoop:Disconnect()
+            end
+            
+            autoDashLoop = game:GetService("RunService").Heartbeat:Connect(function()
+                if not isAutoDashActive then return end
+                autoDashRoutine()
+            end)
+            
+        else
+            releaseShift()
+            if autoDashLoop then
+                autoDashLoop:Disconnect()
+                autoDashLoop = nil
+            end
+        end
+    end,
+})
+
+-- Shift holding functions
+function holdShift()
+    if not isHoldingShift then
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
+        isHoldingShift = true
+    end
+end
+
+function releaseShift()
+    if isHoldingShift then
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
+        isHoldingShift = false
+    end
+end
+
+-- Main detection routine
+function autoDashRoutine()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then 
+        releaseShift()
+        return 
+    end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart or humanoid.Health <= 0 then 
+        releaseShift()
+        return 
+    end
+    
+    -- Check cooldown
+    if tick() - lastDashTime < dashCooldown then return end
+    
+    -- Detect if any player is attacking us
+    local attacker, attackDirection, attackSide = detectAttackDirection()
+    
+    if attacker and attackSide then
+        performDirectionalDash(attackSide, attackDirection)
+        lastDashTime = tick()
+    end
+end
+
+-- Detect which direction the attack is coming from
+function detectAttackDirection()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return nil, nil, nil end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return nil, nil, nil end
+    
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+            
+            if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
+                local distance = (rootPart.Position - otherRoot.Position).Magnitude
+                
+                if distance <= 20 then
+                    -- Calculate relative position
+                    local attackerPos = otherRoot.Position
+                    local myPos = rootPart.Position
+                    local relativePos = attackerPos - myPos
+                    
+                    -- Get local space direction
+                    local lookVector = rootPart.CFrame.LookVector
+                    local rightVector = rootPart.CFrame.RightVector
+                    
+                    -- Convert to local space
+                    local localX = relativePos:Dot(rightVector)
+                    local localZ = relativePos:Dot(lookVector)
+                    
+                    -- Determine attack direction
+                    local attackSide = getAttackDirection(localX, localZ)
+                    local attackDirection = (attackerPos - myPos).Unit
+                    
+                    -- Check if attacker is actually attacking
+                    local tool = otherPlayer.Character:FindFirstChildOfClass("Tool")
+                    local lookDirection = otherRoot.CFrame.LookVector
+                    local directionToMe = (myPos - attackerPos).Unit
+                    
+                    if tool and directionToMe:Dot(lookDirection) > 0.6 then
+                        return otherPlayer, attackDirection, attackSide
+                    end
+                    
+                    -- Also check animations
+                    if isPlayerAnimatingAttack(otherPlayer) then
+                        return otherPlayer, attackDirection, attackSide
+                    end
+                end
+            end
+        end
+    end
+    
+    return nil, nil, nil
+end
+
+-- Determine which side the attack is coming from
+function getAttackDirection(localX, localZ)
+    local angle = math.atan2(localX, localZ)
+    local degrees = math.deg(angle)
+    
+    if degrees < 0 then degrees = degrees + 360 end
+    
+    if degrees >= 315 or degrees < 45 then
+        return "FRONT"
+    elseif degrees >= 45 and degrees < 135 then
+        return "RIGHT"
+    elseif degrees >= 135 and degrees < 225 then
+        return "BACK"
+    else
+        return "LEFT"
+    end
+end
+
+-- Perform dash based on attack direction
+function performDirectionalDash(attackSide, attackDirection)
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart then return end
+    
+    -- HOLD SHIFT TO RUN
+    holdShift()
+    
+    local dashVector = Vector3.new(0, 0, 0)
+    
+    -- Calculate dash direction based on attack side
+    if attackSide == "FRONT" then
+        -- Attack from front - dash backward
+        dashVector = -rootPart.CFrame.LookVector
+        
+    elseif attackSide == "BACK" then
+        -- Attack from back - dash forward
+        dashVector = rootPart.CFrame.LookVector
+        
+    elseif attackSide == "LEFT" then
+        -- Attack from left - dash right
+        dashVector = rootPart.CFrame.RightVector
+        
+    elseif attackSide == "RIGHT" then
+        -- Attack from right - dash left
+        dashVector = -rootPart.CFrame.RightVector
+    end
+    
+    -- Execute the dash
+    if dashVector.Magnitude > 0 then
+        -- Press Q to dash
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
+        wait(0.1)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
+        
+        -- Move in dash direction while holding shift
+        local dashDistance = 25
+        local dashPosition = rootPart.Position + (dashVector * dashDistance)
+        
+        -- Move to dash position
+        humanoid:MoveTo(dashPosition)
+        
+        -- Release shift after dash
+        spawn(function()
+            wait(0.5)
+            releaseShift()
+        end)
+    end
+end
+
+-- Check if player is performing attack animations
+function isPlayerAnimatingAttack(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character then return false end
+    
+    local humanoid = targetPlayer.Character:FindFirstChild("Humanoid")
+    if not humanoid then return false end
+    
+    local animator = humanoid:FindFirstChildOfClass("Animator")
+    if not animator then return false end
+    
+    for _, track in pairs(animator:GetPlayingAnimationTracks()) do
+        local animName = track.Animation.Name:lower()
+        if animName:find("attack") or animName:find("swing") or animName:find("slash") or 
+           animName:find("punch") or animName:find("kick") or animName:find("shoot") then
+            return true
+        end
+    end
+    
+    return false
+end
+
+-- Clean up when script stops
+game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
+    releaseShift()
+end)
+
+-- DAHENBOT - Working Chat Command System
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TextChatService = game:GetService("TextChatService")
+local RunService = game:GetService("RunService")
+
+-- Bot state
+local isDahenBotActive = false
+local lastMessageTime = 0
+local messageCooldown = 2 -- seconds between bot messages
+
+-- Add toggle to PlayerTab
+PlayerRightGroupBox:AddToggle("DahenBot", {
+    Text = "DAHENBOT",
+    Default = false,
+    Callback = function(Value)
+        isDahenBotActive = Value
+        
+        if Value then
+            startMessageMonitor()
+        else
+            stopMessageMonitor()
+        end
+    end,
+})
+
+-- Monitor chat messages by reading the chat UI
+local chatMonitor = nil
+local function startMessageMonitor()
+    if chatMonitor then return end
+    
+    chatMonitor = RunService.Heartbeat:Connect(function()
+        if not isDahenBotActive then return end
+        
+        -- Try to find chat messages in the UI
+        local success, result = pcall(function()
+            -- Method 1: Check TextChatService
+            if TextChatService and TextChatService.TextChannels then
+                local channel = TextChatService.TextChannels.RBXGeneral
+                if channel then
+                    local messages = channel:GetMessageHistory()
+                    if messages and #messages > 0 then
+                        local latest = messages[#messages]
+                        if latest and latest.Text then
+                            local text = latest.Text
+                            local timestamp = latest.Timestamp
+                            
+                            -- Check if this is a new message for our bot
+                            if timestamp > lastMessageTime and (string.find(text:lower(), "dahenbot") or string.find(text:lower(), "bot")) then
+                                lastMessageTime = timestamp
+                                processChatCommand(text)
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+        
+        -- If TextChatService method fails, try alternative method
+        if not success then
+            checkChatAlternative()
+        end
+    end)
+end
+
+local function stopMessageMonitor()
+    if chatMonitor then
+        chatMonitor:Disconnect()
+        chatMonitor = nil
+    end
+end
+
+-- Alternative chat checking method
+local function checkChatAlternative()
+    -- This is a backup method - we'll use the old chat system
+    local chatUI = game:GetService("CoreGui"):FindFirstChild("Chat")
+    if chatUI then
+        local channel = chatUI:FindFirstChild("ChannelWindowFrame")
+        if channel then
+            local messages = channel:GetChildren()
+            for _, msgFrame in pairs(messages) do
+                if msgFrame:IsA("Frame") and msgFrame:FindFirstChild("MessageLabel") then
+                    local label = msgFrame.MessageLabel
+                    local text = label.Text
+                    if text and (string.find(text:lower(), "dahenbot") or string.find(text:lower(), "bot")) then
+                        processChatCommand(text)
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Process chat commands
+local function processChatCommand(message)
+    local lowerMsg = message:lower()
+    
+    -- Find command
+    if string.find(lowerMsg, "find") then
+        local searchTerm = extractSearchTerm(lowerMsg)
+        if searchTerm then
+            local results = quickSearch(searchTerm)
+            sendBotResponse("🔍 " .. results)
+        end
+    end
+    
+    -- Hitbox command
+    if string.find(lowerMsg, "hitbox") and not string.find(lowerMsg, "find") then
+        local results = searchHitboxes()
+        sendBotResponse("🎯 " .. results)
+    end
+    
+    -- Help command
+    if string.find(lowerMsg, "help") then
+        sendBotResponse("🤖 Commands: 'find [thing]', 'hitbox', 'help' - Say with 'dahenbot' or 'bot'")
+    end
+end
+
+-- Extract search term from message
+local function extractSearchTerm(message)
+    local patterns = {
+        "dahenbot find (.+)",
+        "bot find (.+)",
+        "find (.+) dahenbot",
+        "find (.+) bot"
+    }
+    
+    for _, pattern in ipairs(patterns) do
+        local match = string.match(message, pattern)
+        if match then
+            return match:gsub(" dahenbot", ""):gsub(" bot", ""):gsub("^%s*(.-)%s*$", "%1")
+        end
+    end
+    
+    return nil
+end
+
+-- Send bot response
+local function sendBotResponse(message)
+    -- Try to send in chat
+    local success = pcall(function()
+        if TextChatService and TextChatService.TextChannels then
+            local channel = TextChatService.TextChannels.RBXGeneral
+            if channel then
+                channel:SendAsync("🤖 DAHENBOT: " .. message)
+                return true
+            end
+        end
+        return false
+    end)
+    
+    -- If chat fails, use notification
+    if not success then
+    end
+end
+
+-- Quick search function
+local function quickSearch(searchTerm)
+    searchTerm = searchTerm:lower()
+    local results = {}
+    local count = 0
+    
+    -- Search in common locations
+    local locations = {
+        workspace,
+        ReplicatedStorage,
+        game:GetService("ServerScriptService"),
+        game:GetService("StarterPack"),
+        game:GetService("StarterPlayer")
+    }
+    
+    for _, location in pairs(locations) do
+        if count >= 8 then break end
+        
+        for _, obj in pairs(location:GetDescendants()) do
+            if count >= 8 then break end
+            
+            -- Check name match
+            if string.find(obj.Name:lower(), searchTerm) then
+                table.insert(results, obj.Name)
+                count = count + 1
+            end
+        end
+    end
+    
+    if #results > 0 then
+        return "Found " .. count .. " items: " .. table.concat(results, ", ")
+    else
+        return "No results for '" .. searchTerm .. "'"
+    end
+end
+
+-- Search for hitbox-related objects
+local function searchHitboxes()
+    local results = {}
+    local count = 0
+    
+    local hitboxTerms = {
+        "hitbox", "hit", "damage", "attack", "sword", "weapon", 
+        "tool", "handle", "part", "collision", "bounding", "melee"
+    }
+    
+    -- Search workspace
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if count >= 10 then break end
+        
+        local objName = obj.Name:lower()
+        
+        -- Check hitbox terms
+        for _, term in pairs(hitboxTerms) do
+            if string.find(objName, term) then
+                table.insert(results, obj.Name)
+                count = count + 1
+                break
+            end
+        end
+    end
+    
+    -- Search tools
+    if localPlayer:FindFirstChild("Backpack") then
+        for _, tool in pairs(localPlayer.Backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                table.insert(results, "Tool:" .. tool.Name)
+                count = count + 1
+                if count >= 10 then break end
+            end
+        end
+    end
+    
+    if #results > 0 then
+        return "Hitbox objects: " .. table.concat(results, ", ")
+    else
+        return "No hitbox objects found"
+    end
+end
+
+-- Manual command buttons (backup method)
+PlayerRightGroupBox:AddInput("DahenBotCommand", {
+    Default = "",
+    Placeholder = "Type commands manually",
+    Text = "DAHENBOT Command",
+    Callback = function(Value)
+        if Value and Value ~= "" then
+            processChatCommand("dahenbot " .. Value)
+        end
+    end,
+})
+
+PlayerRightGroupBox:AddButton("Find Hitboxes", function()
+    processChatCommand("dahenbot hitbox")
+end)
+
+PlayerRightGroupBox:AddButton("DAHENBOT Help", function()
+    sendBotResponse("Commands: Type in chat - 'dahenbot find [thing]' or 'dahenbot hitbox'")
+end)
+
+-- Test button
+PlayerRightGroupBox:AddButton("Test Search", function()
+    local results = quickSearch("tool")
+    sendBotResponse("TEST: " .. results)
+end)
+
+-- Auto Attack Script - Moves to nearest player and auto-attacks WITH RUNNING (Shift Hold)
+local isAutoAttackActive = false
+local autoAttackLoop = nil
+local lastAttackTime = 0
+local attackCooldown = 0.1
+local isHoldingShift = false
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+-- Add the first toggle button
+PlayerRightGroupBox:AddToggle("AutoAttack", {
+    Text = "⚔️ Auto Attack",
+    Default = false,
+    Callback = function(Value)
+        isAutoAttackActive = Value
+        
+        if Value then
+            
+            if autoAttackLoop then
+                autoAttackLoop:Disconnect()
+            end
+            
+            autoAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
+                if not isAutoAttackActive then return end
+                autoAttackRoutine()
+            end)
+            
+        else
+            releaseShift() -- Release shift when disabled
+            if autoAttackLoop then
+                autoAttackLoop:Disconnect()
+                autoAttackLoop = nil
+            end
+        end
+    end,
+})
+
+-- Add the second toggle button (Smart Attack)
+local isSmartAttackActive = false
+local smartAttackLoop = nil
+
+PlayerRightGroupBox:AddToggle("SmartAutoAttack", {
+    Text = "🎯 Smart Auto Attack",
+    Default = false,
+    Callback = function(Value)
+        isSmartAttackActive = Value
+        
+        if Value then
+            
+            if smartAttackLoop then
+                smartAttackLoop:Disconnect()
+            end
+            
+            smartAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
+                if not isSmartAttackActive then return end
+                smartAttackRoutine()
+            end)
+            
+        else
+            releaseShift() -- Release shift when disabled
+            if smartAttackLoop then
+                smartAttackLoop:Disconnect()
+                smartAttackLoop = nil
+            end
+        end
+    end,
+})
+
+-- Shared functions for both toggles
+function autoAttackRoutine()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then 
+        releaseShift()
+        return 
+    end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart or humanoid.Health <= 0 then 
+        releaseShift()
+        return 
+    end
+    
+    -- Find nearest player
+    local nearestPlayer, nearestDistance = findNearestPlayer()
+    
+    if nearestPlayer and nearestDistance then
+        if nearestDistance <= 8 then
+            -- Player is in attack range - ATTACK!
+            releaseShift() -- Release shift when attacking
+            if tick() - lastAttackTime >= attackCooldown then
+                performAttack()
+                lastAttackTime = tick()
+            end
+        else
+            -- Player is out of range - RUN TO PLAYER!
+            holdShift() -- Hold shift when chasing
+            moveToPlayer(nearestPlayer, rootPart, humanoid)
+        end
+    else
+        releaseShift()
+    end
+end
+
+function smartAttackRoutine()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then 
+        releaseShift()
+        return 
+    end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart or humanoid.Health <= 0 then 
+        releaseShift()
+        return 
+    end
+    
+    -- Check if player has a weapon
+    local weapon = character:FindFirstChildOfClass("Tool")
+    local attackRange = weapon and 10 or 5 -- Longer range if has weapon
+    
+    local nearestPlayer, nearestDistance = findNearestPlayer()
+    
+    if nearestPlayer and nearestDistance then
+        if nearestDistance <= attackRange then
+            -- In attack range
+            releaseShift() -- Release shift when attacking
+            if tick() - lastAttackTime >= attackCooldown then
+                if weapon then
+                    useWeaponAttack(weapon)
+                else
+                    performMeleeAttack()
+                end
+                lastAttackTime = tick()
+            end
+        else
+            -- Move to target - RUN FAST!
+            holdShift() -- Hold shift when chasing
+            moveToPlayer(nearestPlayer, rootPart, humanoid)
+        end
+    else
+        releaseShift()
+    end
+end
+
+function findNearestPlayer()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return nil, math.huge end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return nil, math.huge end
+    
+    local nearestPlayer = nil
+    local nearestDistance = math.huge
+    
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+            
+            if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
+                local distance = (rootPart.Position - otherRoot.Position).Magnitude
+                
+                if distance < nearestDistance then
+                    nearestDistance = distance
+                    nearestPlayer = otherPlayer
+                end
+            end
+        end
+    end
+    
+    return nearestPlayer, nearestDistance
+end
+
+function moveToPlayer(targetPlayer, rootPart, humanoid)
+    if not targetPlayer or not targetPlayer.Character then 
+        releaseShift()
+        return 
+    end
+    
+    local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not targetRoot then 
+        releaseShift()
+        return 
+    end
+    
+    -- Calculate direction to target
+    local direction = (targetRoot.Position - rootPart.Position).Unit
+    
+    -- Move towards target (character will run because Shift is held)
+    humanoid:MoveTo(targetRoot.Position)
+    
+    -- Face the target
+    rootPart.CFrame = CFrame.new(rootPart.Position, Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z))
+    
+    -- Visual effect for movement (different color when running)
+    spawn(function()
+        local moveEffect = Instance.new("Part")
+        moveEffect.Size = Vector3.new(1, 0.2, 1)
+        moveEffect.Position = rootPart.Position - Vector3.new(0, 2.5, 0)
+        moveEffect.BrickColor = BrickColor.new("Bright blue") -- Blue when running
+        moveEffect.Material = Enum.Material.Neon
+        moveEffect.Anchored = true
+        moveEffect.CanCollide = false
+        moveEffect.Transparency = 0.7
+        moveEffect.Parent = workspace
+        
+        game:GetService("Debris"):AddItem(moveEffect, 0.3)
+    end)
+    
+    -- Stop running if very close to target
+    local distance = (rootPart.Position - targetRoot.Position).Magnitude
+    if distance <= 6 then
+        releaseShift()
+    end
+end
+
+function performAttack()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return end
+    
+    -- Make sure shift is released
+    releaseShift()
+    
+    -- Method 1: Simulate mouse click (works for most combat systems)
+    -- Left click (primary attack)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+    wait(0.05)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    
+    -- Method 2: Press attack keys (E, F, Q, R, Space)
+    local attackKeys = {Enum.KeyCode.E, Enum.KeyCode.F, Enum.KeyCode.Q, Enum.KeyCode.R, Enum.KeyCode.Space}
+    
+    for _, key in pairs(attackKeys) do
+        VirtualInputManager:SendKeyEvent(true, key, false, game)
+        wait(0.03)
+        VirtualInputManager:SendKeyEvent(false, key, false, game)
+        wait(0.02)
+    end
+    
+    -- Visual effect for attack
+    createAttackEffects(character)
+end
+
+function useWeaponAttack(weapon)
+    -- Make sure shift is released
+    releaseShift()
+    
+    -- Activate the weapon
+    if weapon:FindFirstChild("Handle") then
+        -- Simulate clicking the weapon
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+        wait(0.1)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+        
+        -- Weapon-specific visual effect
+        createWeaponEffects(weapon)
+    end
+end
+
+function performMeleeAttack()
+    -- Make sure shift is released
+    releaseShift()
+    
+    -- Melee combo: Click + Space
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+    wait(0.05)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+    wait(0.05)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+end
+
+function createAttackEffects(character)
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+    
+    local TweenService = game:GetService("TweenService")
+    
+    -- SWING EFFECT
+    spawn(function()
+        for i = 1, 3 do
+            local swingPart = Instance.new("Part")
+            swingPart.Size = Vector3.new(2, 2, 0.5)
+            swingPart.Position = rootPart.Position + (rootPart.CFrame.LookVector * 3)
+            swingPart.BrickColor = BrickColor.new("Bright orange")
+            swingPart.Material = Enum.Material.Neon
+            swingPart.Anchored = true
+            swingPart.CanCollide = false
+            swingPart.Parent = workspace
+            
+            local angle = math.rad(i * 45)
+            local swingTween = TweenService:Create(swingPart, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+                Position = rootPart.Position + Vector3.new(
+                    math.cos(angle) * 5,
+                    0,
+                    math.sin(angle) * 5
+                ),
+                Transparency = 1
+            })
+            
+            swingTween:Play()
+            game:GetService("Debris"):AddItem(swingPart, 1)
+        end
+    end)
+    
+    -- IMPACT WAVE
+    spawn(function()
+        local wave = Instance.new("Part")
+        wave.Shape = Enum.PartType.Cylinder
+        wave.Size = Vector3.new(0.2, 2, 2)
+        wave.Position = rootPart.Position
+        wave.Orientation = Vector3.new(0, 0, 90)
+        wave.BrickColor = BrickColor.new("Bright red")
+        wave.Material = Enum.Material.Neon
+        wave.Anchored = true
+        wave.CanCollide = false
+        wave.Parent = workspace
+        
+        local waveTween = TweenService:Create(wave, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {
+            Size = Vector3.new(0.2, 10, 10),
+            Transparency = 1
+        })
+        
+        waveTween:Play()
+        game:GetService("Debris"):AddItem(wave, 1)
+    end)
+end
+
+function createWeaponEffects(weapon)
+    local character = game.Players.LocalPlayer.Character
+    if not character then return end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+    
+    -- Muzzle flash effect for weapons
+    local muzzle = Instance.new("Part")
+    muzzle.Size = Vector3.new(1, 1, 1)
+    muzzle.Position = rootPart.Position + (rootPart.CFrame.LookVector * 4)
+    muzzle.BrickColor = BrickColor.new("Bright yellow")
+    muzzle.Material = Enum.Material.Neon
+    muzzle.Anchored = true
+    muzzle.CanCollide = false
+    muzzle.Parent = workspace
+    
+    game:GetService("Debris"):AddItem(muzzle, 0.2)
+end
+
+-- Clean up when script stops
+game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
+    releaseShift()
+end)
+
+-- Auto TP Attack - Loop TP to nearest player with spam attacks
+local isAutoTPAttackActive = false
+local autoTPAttackLoop = nil
+local currentTarget = nil
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+-- Add the toggle button
+PlayerRightGroupBox:AddToggle("AutoTPAttack", {
+    Text = "🔁 KILLAURA RAGE",
+    Default = false,
+    Callback = function(Value)
+        isAutoTPAttackActive = Value
+        
+        if Value then
+            
+            if autoTPAttackLoop then
+                autoTPAttackLoop:Disconnect()
+            end
+            
+            autoTPAttackLoop = game:GetService("RunService").Heartbeat:Connect(function()
+                if not isAutoTPAttackActive then return end
+                autoTPAttackRoutine()
+            end)
+            
+        else
+            currentTarget = nil
+            if autoTPAttackLoop then
+                autoTPAttackLoop:Disconnect()
+                autoTPAttackLoop = nil
+            end
+        end
+    end,
+})
+
+-- Main TP attack routine
+function autoTPAttackRoutine()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart or humanoid.Health <= 0 then return end
+    
+    -- Check if current target is still valid
+    if currentTarget then
+        if not isTargetValid(currentTarget) then
+            -- Target died or became invalid, find new one
+            currentTarget = nil
+        end
+    end
+    
+    -- Find new target if needed
+    if not currentTarget then
+        currentTarget = findNearestPlayer()
+        if currentTarget then
+        else
+            return -- No targets found
+        end
+    end
+    
+    -- TP to target and attack
+    if currentTarget and currentTarget.Character then
+        local targetRoot = currentTarget.Character:FindFirstChild("HumanoidRootPart")
+        if targetRoot then
+            -- Teleport behind the target
+            local behindOffset = -targetRoot.CFrame.LookVector * 3
+            local tpPosition = targetRoot.Position + behindOffset + Vector3.new(0, 3, 0)
+            
+            -- Teleport to target
+            rootPart.CFrame = CFrame.new(tpPosition)
+            
+            -- Face the target
+            rootPart.CFrame = CFrame.new(rootPart.Position, Vector3.new(targetRoot.Position.X, rootPart.Position.Y, targetRoot.Position.Z))
+            
+            -- Spam attacks
+            performSpamAttacks()
+        end
+    end
+end
+
+-- Check if target is still valid (alive and in game)
+function isTargetValid(targetPlayer)
+    if not targetPlayer then return false end
+    if not targetPlayer.Character then return false end
+    
+    local humanoid = targetPlayer.Character:FindFirstChild("Humanoid")
+    if not humanoid then return false end
+    
+    return humanoid.Health > 0
+end
+
+-- Find nearest player (excluding current target if any)
+function findNearestPlayer()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return nil end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return nil end
+    
+    local nearestPlayer = nil
+    local nearestDistance = math.huge
+    
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+            
+            if otherRoot and otherHumanoid and otherHumanoid.Health > 0 then
+                local distance = (rootPart.Position - otherRoot.Position).Magnitude
+                
+                if distance < nearestDistance then
+                    nearestDistance = distance
+                    nearestPlayer = otherPlayer
+                end
+            end
+        end
+    end
+    
+    return nearestPlayer
+end
+
+-- Perform spam attacks
+function performSpamAttacks()
+    -- Rapid mouse clicks for spam
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+    wait(0.01)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    
+    -- Additional rapid clicks for more spam
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+    wait(0.01)
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+end
+
+-- Monitor target health to auto-switch
+local targetMonitorLoop = nil
+
+-- Start monitoring target health when toggle is enabled
+game:GetService("Players").LocalPlayer.Chatted:Connect(function(message)
+    if message:lower() == "start target monitor" and isAutoTPAttackActive and not targetMonitorLoop then
+        startTargetMonitor()
+    end
+end)
+
+function startTargetMonitor()
+    if targetMonitorLoop then
+        targetMonitorLoop:Disconnect()
+    end
+    
+    targetMonitorLoop = game:GetService("RunService").Heartbeat:Connect(function()
+        if not isAutoTPAttackActive then
+            if targetMonitorLoop then
+                targetMonitorLoop:Disconnect()
+                targetMonitorLoop = nil
+            end
+            return
+        end
+        
+        if currentTarget and currentTarget.Character then
+            local humanoid = currentTarget.Character:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health <= 0 then
+                currentTarget = nil
+            end
+        end
+    end)
+end
+
+-- Clean up when script stops
+game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
+    currentTarget = nil
+    if targetMonitorLoop then
+        targetMonitorLoop:Disconnect()
+        targetMonitorLoop = nil
+    end
+end)
+
+-- Tool Size Expander (Works with Fist Tools)
+local isToolSizeActive = false
+local toolSizeMultiplier = 2
+local originalSizes = {}
+
+-- Add to PlayerTab
+local PlayerLeftGroupBox2 = Tabs.Player:AddLeftGroupbox("Tool Size Expander")
+
+PlayerLeftGroupBox2:AddToggle("ToolSizeExpander", {
+    Text = "Tool Size Expander",
+    Default = false,
+    Callback = function(Value)
+        isToolSizeActive = Value
+        
+        if Value then
+            resizeEquippedTool()
+        else
+            restoreToolSizes()
+        end
+    end,
+})
+
+PlayerLeftGroupBox2:AddInput("SizeMultiplier", {
+    Default = tostring(toolSizeMultiplier),
+    Placeholder = "Set hitbox range (1-100)",
+    Text = "Size Multiplier",
+    Callback = function(Value)
+        local newMultiplier = tonumber(Value)
+        if newMultiplier and newMultiplier >= 1 and newMultiplier <= 5 then
+            toolSizeMultiplier = newMultiplier
+            if isToolSizeActive then
+                resizeEquippedTool()
+            end
+        end
+    end,
+})
+
+function resizeEquippedTool()
+    local character = localPlayer.Character
+    if not character then return end
+    
+    -- Clear previous sizes
+    originalSizes = {}
+    
+    -- Resize equipped tools (including fist tools)
+    for _, tool in pairs(character:GetChildren()) do
+        if tool:IsA("Tool") then
+            -- Try to find any BasePart in the tool (not just "Handle")
+            for _, part in pairs(tool:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    -- Store original size
+                    if not originalSizes[tool] then
+                        originalSizes[tool] = {}
+                    end
+                    originalSizes[tool][part] = part.Size
+                    
+                    -- Apply new size
+                    part.Size = part.Size * toolSizeMultiplier
+                end
+            end
+        end
+    end
+    
+    -- Also resize character's arms/hands for fist tools
+    if character:FindFirstChild("RightHand") or character:FindFirstChild("LeftHand") then
+        resizeCharacterHands(character)
+    end
+end
+
+function resizeCharacterHands(character)
+    -- Common hand/arm parts in R6 and R15
+    local handParts = {
+        "RightHand", "LeftHand", "RightArm", "LeftArm",
+        "RightLowerArm", "LeftLowerArm", "RightUpperArm", "LeftUpperArm"
+    }
+    
+    for _, partName in pairs(handParts) do
+        local part = character:FindFirstChild(partName)
+        if part and part:IsA("BasePart") then
+            -- Store original size
+            if not originalSizes[part] then
+                originalSizes[part] = part.Size
+            end
+            
+            -- Apply new size
+            part.Size = part.Size * toolSizeMultiplier
+        end
+    end
+end
+
+function restoreToolSizes()
+    for item, parts in pairs(originalSizes) do
+        if typeof(item) == "Instance" and item.Parent then
+            if item:IsA("Tool") then
+                -- Restore tool parts
+                for part, originalSize in pairs(parts) do
+                    if part and part.Parent then
+                        part.Size = originalSize
+                    end
+                end
+            elseif item:IsA("BasePart") then
+                -- Restore character parts
+                item.Size = parts
+            end
+        end
+    end
+    originalSizes = {}
+end
+
+-- Monitor tool changes
+localPlayer.CharacterAdded:Connect(function(character)
+    if isToolSizeActive then
+        task.wait(1)
+        resizeEquippedTool()
+    end
+end)
+
+-- Monitor when tools are equipped
+localPlayer.CharacterAdded:Connect(function(character)
+    character.ChildAdded:Connect(function(child)
+        if isToolSizeActive and child:IsA("Tool") then
+            task.wait(0.1)
+            resizeEquippedTool()
+        end
+    end)
+end)
+
+-- Clean up
+game.Players.LocalPlayer.CharacterRemoving:Connect(function()
+    restoreToolSizes()
+end)
+
+-- Character Aim Assist System (Body Rotation Only)
+local isAimAssistActive = false
+local aimAssistConnection = nil
+local currentTarget = nil
+local maxAimDistance = 50 -- Maximum distance to detect players (in studs)
+local rotationSpeed = 0.15 -- How smoothly the character rotates (0.1 = smooth, 1 = instant)
+
+PlayerLeftGroupBox2:AddToggle("AimAssist", {
+    Text = "🎯 Aim Assist",
+    Default = false,
+    Callback = function(Value)
+        isAimAssistActive = Value
+        
+        if Value then
+            
+            -- Start the aim assist system
+            if aimAssistConnection then
+                aimAssistConnection:Disconnect()
+            end
+            
+            aimAssistConnection = RunService.RenderStepped:Connect(function()
+                if not isAimAssistActive then return end
+                
+                -- Get our character and necessary components
+                local character = localPlayer.Character
+                if not character then return end
+                
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                local humanoid = character:FindFirstChild("Humanoid")
+                
+                -- Make sure character is alive and has required parts
+                if not rootPart or not humanoid or humanoid.Health <= 0 then
+                    currentTarget = nil
+                    return
+                end
+                
+                -- Find the nearest valid player target
+                local nearestPlayer = nil
+                local nearestDistance = maxAimDistance
+                
+                for _, otherPlayer in pairs(Players:GetPlayers()) do
+                    -- Skip ourselves
+                    if otherPlayer == localPlayer then continue end
+                    
+                    -- Make sure they have a character
+                    if not otherPlayer.Character then continue end
+                    
+                    local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+                    
+                    -- Make sure they're alive and have a root part
+                    if not otherRoot or not otherHumanoid then continue end
+                    if otherHumanoid.Health <= 0 then continue end
+                    
+                    -- Calculate distance between us and them
+                    local distance = (rootPart.Position - otherRoot.Position).Magnitude
+                    
+                    -- Check if they're closer than our current nearest target
+                    if distance < nearestDistance then
+                        nearestDistance = distance
+                        nearestPlayer = otherPlayer
+                    end
+                end
+                
+                -- Update current target
+                currentTarget = nearestPlayer
+                
+                -- If we found a target, rotate character to face them
+                if currentTarget and currentTarget.Character then
+                    local targetRoot = currentTarget.Character:FindFirstChild("HumanoidRootPart")
+                    
+                    if targetRoot then
+                        -- Calculate the direction vector from us to the target
+                        local directionToTarget = (targetRoot.Position - rootPart.Position)
+                        
+                        -- We only want to rotate on the horizontal plane (Y-axis rotation)
+                        -- So we zero out the vertical component
+                        directionToTarget = Vector3.new(directionToTarget.X, 0, directionToTarget.Z)
+                        
+                        -- Make sure we have a valid direction (not zero length)
+                        if directionToTarget.Magnitude > 0 then
+                            -- Normalize the direction vector
+                            directionToTarget = directionToTarget.Unit
+                            
+                            -- Calculate the target CFrame (where we want to look)
+                            local targetCFrame = CFrame.new(
+                                rootPart.Position,
+                                rootPart.Position + directionToTarget
+                            )
+                            
+                            -- Smoothly interpolate between current rotation and target rotation
+                            -- This creates a smooth turning animation instead of instant snapping
+                            rootPart.CFrame = rootPart.CFrame:Lerp(targetCFrame, rotationSpeed)
+                            
+                            -- Optional: Create a visual indicator showing who you're targeting
+                            createTargetIndicator(targetRoot)
+                        end
+                    end
+                else
+                    -- No target found - remove any visual indicators
+                    removeTargetIndicator()
+                end
+            end)
+            
+        else
+            
+            if aimAssistConnection then
+                aimAssistConnection:Disconnect()
+                aimAssistConnection = nil
+            end
+            
+            currentTarget = nil
+            removeTargetIndicator()
+        end
+    end,
+})
+
+-- Function to create a visual indicator on the current target
+local targetIndicatorPart = nil
+
+function createTargetIndicator(targetRoot)
+    -- Remove old indicator if it exists
+    if targetIndicatorPart and targetIndicatorPart.Parent then
+        targetIndicatorPart.CFrame = CFrame.new(targetRoot.Position)
+        return -- Indicator already exists, just update position
+    end
+    
+    -- Create new indicator
+    targetIndicatorPart = Instance.new("Part")
+    targetIndicatorPart.Name = "AimAssistIndicator"
+    targetIndicatorPart.Size = Vector3.new(6, 6, 6)
+    targetIndicatorPart.Shape = Enum.PartType.Ball
+    targetIndicatorPart.Material = Enum.Material.Neon
+    targetIndicatorPart.Color = Color3.fromRGB(255, 0, 0)
+    targetIndicatorPart.Transparency = 0.7
+    targetIndicatorPart.CanCollide = false
+    targetIndicatorPart.Anchored = true
+    targetIndicatorPart.CFrame = CFrame.new(targetRoot.Position)
+    targetIndicatorPart.Parent = workspace
+    
+    -- Add a spinning effect
+    spawn(function()
+        while targetIndicatorPart and targetIndicatorPart.Parent do
+            if not isAimAssistActive then break end
+            
+            local rotation = targetIndicatorPart.Orientation
+            targetIndicatorPart.Orientation = Vector3.new(
+                rotation.X,
+                rotation.Y + 5,
+                rotation.Z
+            )
+            
+            task.wait(0.03)
+        end
+    end)
+end
+
+-- Function to remove the target indicator
+function removeTargetIndicator()
+    if targetIndicatorPart then
+        targetIndicatorPart:Destroy()
+        targetIndicatorPart = nil
+    end
+end
+
+-- Adjustable detection range
+PlayerLeftGroupBox2:AddInput("AimRange", {
+    Default = tostring(maxAimDistance),
+    Placeholder = "Set detection range in studs (10-100)",
+    Text = "Aim Range",
+    Callback = function(Value)
+        local newRange = tonumber(Value)
+        if newRange and newRange >= 10 and newRange <= 100 then
+            maxAimDistance = newRange
+        else
+        end
+    end,
+})
+
+-- Adjustable rotation speed
+PlayerLeftGroupBox2:AddInput("RotationSpeed", {
+    Default = tostring(rotationSpeed),
+    Placeholder = "Set rotation speed (0.05-1.0)",
+    Text = "Rotation Speed",
+    Callback = function(Value)
+        local newSpeed = tonumber(Value)
+        if newSpeed and newSpeed >= 0.05 and newSpeed <= 1.0 then
+            rotationSpeed = newSpeed
+            
+            local speedDesc = ""
+            if newSpeed < 0.1 then
+                speedDesc = "Very Smooth"
+            elseif newSpeed < 0.2 then
+                speedDesc = "Smooth"
+            elseif newSpeed < 0.5 then
+                speedDesc = "Moderate"
+            else
+                speedDesc = "Fast"
+            end
+        else
+        end
+    end,
+})
+
+-- Anti-Fall System - FIXED VERSION
+local isAntiFallActive = false
+local antiFallConnection = nil
+local fallThreshold = -50 -- Y position threshold for detecting falls
+
+PlayerLeftGroupBox2:AddToggle("AntiFall", {
+    Text = "Anti Fall",
+    Default = false,
+    Callback = function(Value)
+        isAntiFallActive = Value
+        
+        if Value then
+            
+            antiFallConnection = RunService.Heartbeat:Connect(function()
+                if not isAntiFallActive then return end
+                
+                local character = localPlayer.Character
+                if not character then return end
+                
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                local humanoid = character:FindFirstChild("Humanoid")
+                
+                if not rootPart or not humanoid or humanoid.Health <= 0 then return end
+                
+                -- Check if player is below the fall threshold
+                if rootPart.Position.Y < fallThreshold then
+                    -- Find the nearest alive player
+                    local targetPlayer = findNearestAlivePlayer()
+                    if targetPlayer and targetPlayer.Character then
+                        local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if targetRoot then
+                            -- Teleport to the target player
+                            rootPart.CFrame = targetRoot.CFrame + Vector3.new(0, 3, 0) -- Slightly above to avoid stuck
+                            
+                            -- Visual feedback
+                            spawn(function()
+                                local flash = Instance.new("Part")
+                                flash.Size = Vector3.new(8, 0.2, 8)
+                                flash.Position = rootPart.Position - Vector3.new(0, 3, 0)
+                                flash.BrickColor = BrickColor.new("Lime green")
+                                flash.Material = Enum.Material.Neon
+                                flash.Anchored = true
+                                flash.CanCollide = false
+                                flash.Transparency = 0.5
+                                flash.Parent = workspace
+                                
+                                game:GetService("Debris"):AddItem(flash, 0.5)
+                            end)
+                        end
+                    else
+                        -- If no alive player found, teleport to spawn
+                        rootPart.CFrame = CFrame.new(196.83342, 55.9547985, -90.4745865)
+                    end
+                end
+            end)
+            
+        else
+            if antiFallConnection then
+                antiFallConnection:Disconnect()
+                antiFallConnection = nil
+            end
+        end
+    end,
+})
+
+-- RLGL TAB CONTENT
+local RLGLLeftGroupBox = Tabs.RLGL:AddLeftGroupbox("Red Light Green Light")
+
+RLGLLeftGroupBox:AddButton("RLGL - Teleport To End", function()
+    local char = localPlayer.Character
+    char.HumanoidRootPart.CFrame = CFrame.new(-46.0587921, 1025.23352, 108.6353122)
+end)
+
+RLGLLeftGroupBox:AddButton("RLGL - Teleport To Start", function()
+    local char = localPlayer.Character
+    char.HumanoidRootPart.CFrame = CFrame.new(-48.5137215, 1024.521, -492.023163)
+end)
+
+-- Red Light Green Light Bypass System for Premium Players
+local isRLGLBypassActive = false
+local bypassConnection = nil
+local safetyTags = {}
+
+RLGLLeftGroupBox:AddToggle("RLGLBypass", {
+    Text = "🟢 RLGL Bypass",
+    Default = false,
+    Callback = function(Value)
+        isRLGLBypassActive = Value
+        
+        if Value then
+            
+            -- Start the bypass system
+            if bypassConnection then
+                bypassConnection:Disconnect()
+            end
+            
+            bypassConnection = RunService.Heartbeat:Connect(function()
+                if not isRLGLBypassActive then return end
+                
+                local character = localPlayer.Character
+                if not character then return end
+                
+                -- Method 1: Remove movement detection tags
+                local movementTag = character:FindFirstChild("MovedRecentlyRedLight")
+                if movementTag then
+                    movementTag:Destroy()
+                end
+                
+                -- Method 2: Maintain safe status
+                local safeFolder = character:FindFirstChild("SafeRedLightGreenLight")
+                if not safeFolder then
+                    local newSafeFolder = Instance.new("Folder")
+                    newSafeFolder.Name = "SafeRedLightGreenLight"
+                    newSafeFolder.Parent = character
+                end
+                
+                -- Method 3: Force character into green players group
+                local liveFolder = workspace:FindFirstChild("Live")
+                if liveFolder then
+                    local greenPlayers = liveFolder:FindFirstChild("GreenPlayers")
+                    if greenPlayers and character.Parent ~= greenPlayers then
+                        character.Parent = greenPlayers
+                    end
+                end
+                
+                -- Method 4: Block shot detection remotes
+                local humanoid = character:FindFirstChild("Humanoid")
+                if humanoid then
+                    local currentHealth = humanoid.Health
+                    
+                    if currentHealth < humanoid.MaxHealth * 0.9 and currentHealth > 0 then
+                        humanoid.Health = humanoid.MaxHealth
+                    end
+                end
+            end)
+            
+            -- Hook into the game's detection system
+            setupDetectionBypass()
+            
+        else
+            
+            if bypassConnection then
+                bypassConnection:Disconnect()
+                bypassConnection = nil
+            end
+            
+            removeDetectionBypass()
+        end
+    end,
+})
+
+-- Function to set up detection bypass hooks
+function setupDetectionBypass()
+    local replicatedStorage = game:GetService("ReplicatedStorage")
+    
+    local function blockShotRemotes(container)
+        for _, remote in pairs(container:GetDescendants()) do
+            if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+                local remoteName = remote.Name:lower()
+                if remoteName:find("shot") or remoteName:find("damage") or 
+                   remoteName:find("kill") or remoteName:find("hit") or
+                   remoteName:find("redlight") then
+                    
+                    if not safetyTags[remote] then
+                        safetyTags[remote] = true
+                    end
+                end
+            end
+        end
+    end
+    
+    if replicatedStorage then
+        blockShotRemotes(replicatedStorage)
+    end
+    
+    blockShotRemotes(workspace)
+    
+    print("[RLGL Bypass] Detection hooks installed")
+end
+
+-- Function to remove detection bypass hooks
+function removeDetectionBypass()
+    for remote, _ in pairs(safetyTags) do
+        safetyTags[remote] = nil
+    end
+    
+    print("[RLGL Bypass] Detection hooks removed")
+end
+
+-- Red Light Green Light Auto-Stop
+local isRLAutoStopActive = false
+local rlAutoStopConnection = nil
+local originalWalkSpeed = 16
+
+RLGLLeftGroupBox:AddToggle("RLAutoStop", {
+    Text = "RLGL Auto-Stop",
+    Default = false,
+    Callback = function(Value)
+        isRLAutoStopActive = Value
+        
+        if Value then
+            if rlAutoStopConnection then
+                rlAutoStopConnection:Disconnect()
+            end
+            
+            rlAutoStopConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                if not isRLAutoStopActive then return end
+                checkRedLight()
+            end)
+            
+            -- Store original walk speed
+            local character = localPlayer.Character
+            if character and character:FindFirstChild("Humanoid") then
+                originalWalkSpeed = character.Humanoid.WalkSpeed
+            end
+            
+        else
+            if rlAutoStopConnection then
+                rlAutoStopConnection:Disconnect()
+                rlAutoStopConnection = nil
+            end
+            
+            -- Restore walk speed
+            local character = localPlayer.Character
+            if character and character:FindFirstChild("Humanoid") then
+                character.Humanoid.WalkSpeed = originalWalkSpeed
+            end
+        end
+    end,
+})
+
+function checkRedLight()
+    local character = localPlayer.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return end
+    
+    -- Method 1: Check for red light signal in workspace
+    local redLightActive = false
+    
+    -- Look for common red light indicators
+    if workspace:FindFirstChild("RedLight") then
+        redLightActive = true
+    end
+    
+    -- Check if doll is looking (common in Squid Game)
+    local doll = workspace:FindFirstChild("Doll") or workspace:FindFirstChild("Girl") or workspace:FindFirstChild("Robot")
+    if doll then
+        local head = doll:FindFirstChild("Head")
+        if head then
+            local lookVector = head.CFrame.LookVector
+            if lookVector.Z < -0.5 then
+                redLightActive = true
+            end
+        end
+    end
+    
+    -- Check for game values
+    local gameValues = workspace:FindFirstChild("Values")
+    if gameValues then
+        local redLightValue = gameValues:FindFirstChild("RedLight") or gameValues:FindFirstChild("IsRedLight")
+        if redLightValue and redLightValue.Value == true then
+            redLightActive = true
+        end
+    end
+    
+    -- Check player attributes
+    if localPlayer:GetAttribute("RedLight") == true then
+        redLightActive = true
+    end
+    
+    if character:GetAttribute("RedLight") == true then
+        redLightActive = true
+    end
+    
+    -- Check for "MovedRecentlyRedLight" (from your original script)
+    if character:FindFirstChild("MovedRecentlyRedLight") then
+        redLightActive = true
+    end
+    
+    -- Apply freeze during red light
+    if redLightActive then
+        humanoid.WalkSpeed = 0
+        
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        if rootPart then
+            rootPart.Velocity = Vector3.new(0, 0, 0)
+            rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        end
+        
+        stopMovementAnimations(character)
+        
+    else
+        humanoid.WalkSpeed = originalWalkSpeed
+    end
+end
+
+function stopMovementAnimations(character)
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return end
+    
+    local animator = humanoid:FindFirstChildOfClass("Animator")
+    if not animator then return end
+    
+    for _, track in pairs(animator:GetPlayingAnimationTracks()) do
+        local animName = track.Name:lower()
+        if animName:find("walk") or animName:find("run") or animName:find("move") then
+            track:Stop()
+        end
+    end
+end
+
+-- Anti-Shot Protection
+local isAntiShotActive = false
+local antiShotConnection = nil
+
+RLGLLeftGroupBox:AddToggle("AntiShot", {
+    Text = "RLGL Anti-Shot",
+    Default = false,
+    Callback = function(Value)
+        isAntiShotActive = Value
+        
+        if Value then
+            if antiShotConnection then
+                antiShotConnection:Disconnect()
+            end
+            
+            antiShotConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                if not isAntiShotActive then return end
+                applyAntiShotProtection()
+            end)
+            
+        else
+            if antiShotConnection then
+                antiShotConnection:Disconnect()
+                antiShotConnection = nil
+            end
+            
+            -- Remove protection
+            removeAntiShotProtection()
+        end
+    end,
+})
+
+function applyAntiShotProtection()
+    local character = localPlayer.Character
+    if not character then return end
+    
+    -- Method 1: Move to safe folder (if it exists)
+    local greenPlayers = workspace:FindFirstChild("Live") and workspace.Live:FindFirstChild("GreenPlayers")
+    if greenPlayers and character.Parent ~= greenPlayers then
+        character.Parent = greenPlayers
+    end
+    
+    -- Method 2: Create safe attribute/folder
+    if not character:FindFirstChild("SafeRedLightGreenLight") then
+        local folder = Instance.new("Folder")
+        folder.Name = "SafeRedLightGreenLight"
+        folder.Parent = character
+    end
+    
+    -- Method 3: Remove dangerous attributes
+    if character:FindFirstChild("MovedRecentlyRedLight") then
+        character.MovedRecentlyRedLight:Destroy()
+    end
+    
+    -- Method 4: Set safe attributes
+    character:SetAttribute("IsSafe", true)
+    localPlayer:SetAttribute("IsSafe", true)
+end
+
+function removeAntiShotProtection()
+    local character = localPlayer.Character
+    if not character then return end
+    
+    -- Remove safe folder
+    if character:FindFirstChild("SafeRedLightGreenLight") then
+        character.SafeRedLightGreenLight:Destroy()
+    end
+    
+    -- Move back to normal parent if in GreenPlayers
+    if character.Parent and character.Parent.Name == "GreenPlayers" then
+        character.Parent = workspace.Live
+    end
+    
+    -- Remove safe attributes
+    character:SetAttribute("IsSafe", nil)
+    localPlayer:SetAttribute("IsSafe", nil)
+end
+
+-- Handle character respawns
+localPlayer.CharacterAdded:Connect(function(character)
+    task.wait(1) -- Wait for character to load
+    
+    if isRLAutoStopActive then
+        -- Restore original walk speed
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then
+            originalWalkSpeed = humanoid.WalkSpeed
+        end
+    end
+    
+    if isAntiShotActive then
+        applyAntiShotProtection()
+    end
+end)
+
+-- Get all player usernames
+local function getPlayerList()
+    local playerList = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= localPlayer then
+            table.insert(playerList, player.Name)
+        end
+    end
+    return playerList
+end
+
+-- Find player by username
+local function getPlayerByName(name)
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player.Name == name then
+            return player
+        end
+    end
+    return nil
+end
+
+-- Auto help function
+local function autoHelp()
+    local playerList = getPlayerList()
+    local targetPlayer = nil
+    local targetPlayerName = nil
+    local to = Players:GetAttribute("InjuredPlayer")
+end
+
+local NEVERAURA = false
+local MAYBEAURA = false
+
+RLGLLeftGroupBox:AddToggle("AntiShot2", {
+    Text = "ANTI SHOT!!",
+    Default = false,
+    Callback = function(Value)
+        MAYBEAURA = Value
+        local char = localPlayer.Character
+        while true do
+            if MAYBEAURA == true then
+                char.Parent = workspace.Live.GreenPlayers
+                if char:FindFirstChild("MovedRecentlyRedLight") then
+                    char.SafeRedLightGreenLight:Destroy()
+                end
+                if char:FindFirstChild("SafeRedLightGreenLight") then
+                    char.SafeRedLightGreenLight:Destroy()
+                end
+
+                local folder = Instance.new("Folder")
+                folder.Parent = char
+                folder.Name = "SafeRedLightGreenLight"
+            end
+            task.wait()
+        end
+    end,
+})
+
+RLGLLeftGroupBox:AddToggle("AutoHelp", {
+    Text = "RLGL - Auto Help",
+    Default = false,
+    Callback = function(Value)
+        NEVERAURA = Value
+    end,
+})
+
+-- DALGONA TAB CONTENT
+local DalgonaLeftGroupBox = Tabs.Dalgona:AddLeftGroupbox("Dalgona")
+
+local NOTDELETEABLE = {"Lighting", "Won", "PickModelCacheFix"}
+
+local shapes = {"Star", "Circle", "Umbrella", "MonaLisa", "Triangle", "SackBoy"}
+local outlineParts = {}
+local connection = nil
+local clickConnections = {}
+
+local function createOutline(shape)
+    -- Clear existing outline
+    for _, part in pairs(outlineParts) do
+        part:Destroy()
+    end
+    outlineParts = {}
+
+    if not shape then return end
+
+    local cf, size = shape:GetBoundingBox()
+    local thickness = 0.3
+    local padding = 0.5
+    local outlineSize = size + Vector3.new(padding * 2, padding * 2, padding * 2)
+
+    local edges = {
+        {pos = Vector3.new(outlineSize.X/2, -outlineSize.Y/2, 0), size = Vector3.new(thickness, thickness, outlineSize.Z)},
+        {pos = Vector3.new(-outlineSize.X/2, -outlineSize.Y/2, 0), size = Vector3.new(thickness, thickness, outlineSize.Z)},
+        {pos = Vector3.new(0, -outlineSize.Y/2, outlineSize.Z/2), size = Vector3.new(outlineSize.X, thickness, thickness)},
+        {pos = Vector3.new(0, -outlineSize.Y/2, -outlineSize.Z/2), size = Vector3.new(outlineSize.X, thickness, thickness)},
+        {pos = Vector3.new(outlineSize.X/2, outlineSize.Y/2, 0), size = Vector3.new(thickness, thickness, outlineSize.Z)},
+        {pos = Vector3.new(-outlineSize.X/2, outlineSize.Y/2, 0), size = Vector3.new(thickness, thickness, outlineSize.Z)},
+        {pos = Vector3.new(0, outlineSize.Y/2, outlineSize.Z/2), size = Vector3.new(outlineSize.X, thickness, thickness)},
+        {pos = Vector3.new(0, outlineSize.Y/2, -outlineSize.Z/2), size = Vector3.new(outlineSize.X, thickness, thickness)},
+        {pos = Vector3.new(outlineSize.X/2, 0, outlineSize.Z/2), size = Vector3.new(thickness, outlineSize.Y, thickness)},
+        {pos = Vector3.new(-outlineSize.X/2, 0, outlineSize.Z/2), size = Vector3.new(thickness, outlineSize.Y, thickness)},
+        {pos = Vector3.new(outlineSize.X/2, 0, -outlineSize.Z/2), size = Vector3.new(thickness, outlineSize.Y, thickness)},
+        {pos = Vector3.new(-outlineSize.X/2, 0, -outlineSize.Z/2), size = Vector3.new(thickness, outlineSize.Y, thickness)},
+    }
+
+    for _, edge in pairs(edges) do
+        local part = Instance.new("Part")
+        part.Size = edge.size
+        part.Anchored = true
+        part.CanCollide = false
+        part.Material = Enum.Material.Neon
+        part.Color = Color3.fromRGB(0, 255, 0)
+        part.Transparency = 0
+        part.Parent = workspace
+        table.insert(outlineParts, part)
+    end
+
+    if connection then connection:Disconnect() end
+    connection = RunService.RenderStepped:Connect(function()
+        if not shape or not shape.Parent then
+            for _, part in pairs(outlineParts) do
+                part:Destroy()
+            end
+            outlineParts = {}
+            if connection then connection:Disconnect() end
+            return
+        end
+
+        local newCf = shape:GetBoundingBox()
+        for i, part in pairs(outlineParts) do
+            part.CFrame = newCf * CFrame.new(edges[i].pos)
+        end
+    end)
+
+    print("Outline created!")
+end
+
+DalgonaLeftGroupBox:AddButton("Auto Cookie", function()
+    local Module = game.ReplicatedStorage.Modules.Games.DalgonaClient
+    for _, f in ipairs(getreg()) do
+        if typeof(f) == "function" and islclosure(f) then
+            if getfenv(f).script == Module then
+                if getinfo(f).nups == 76 then
+                    setupvalue(f, 33, 9e9)
+                    setupvalue(f, 34, 9e9)
+                    break
+                end
+            end
+        end
+    end
+end)
+
+-- TUG OF WAR TAB CONTENT
+local TugOfWarLeftGroupBox = Tabs.TugOfWar:AddLeftGroupbox("Tug of War")
+
+local tugOfWarAutoEnabled = false
+local tugOfWarAutoThread = nil
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Remote = ReplicatedStorage.Remotes:WaitForChild("TemporaryReachedBindable")
+local VALID_PULL_DATA = { { IHateYou = true } }
+
+TugOfWarLeftGroupBox:AddToggle("TugOfWarAuto", {
+    Text = "Tug of War Auto",
+    Default = false,
+    Callback = function(Value)
+        tugOfWarAutoEnabled = Value
+        if Value then
+            if tugOfWarAutoThread then return end
+            tugOfWarAutoThread = task.spawn(function()
+                while tugOfWarAutoEnabled do
+                    Remote:FireServer(unpack(VALID_PULL_DATA))
+                    task.wait(0.025)
+                end
+                tugOfWarAutoThread = nil
+            end)
+        else
+            tugOfWarAutoEnabled = false
+            if tugOfWarAutoThread then
+                task.cancel(tugOfWarAutoThread)
+                tugOfWarAutoThread = nil
+            end
+        end
+    end,
+})
+
+-- HIDE AND SEEK TAB CONTENT
+local HideAndSeekLeftGroupBox = Tabs.HideAndSeek:AddLeftGroupbox("Hide and Seek")
+
+-- ESP Configuration
+local espSeekersEnabled = false
+local espHidersEnabled = false
+
+-- Function to check if player has a knife (is a seeker)
+local function isSeeker(player)
+    if not player then return false end
+
+    if player.Character and player.Character:FindFirstChild("Knife") then
+        return true
+    end
+
+    local backpack = player:FindFirstChild("Backpack")
+    if backpack and backpack:FindFirstChild("Knife") then
+        return true
+    end
+
+    return false
+end
+
+-- Create simple box ESP
+local function createBox(character, color)
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+
+    local existingBox = character:FindFirstChild("ESPBox")
+    if existingBox then
+        existingBox:Destroy()
+    end
+
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChild("Humanoid")
+
+    local targetPart = humanoidRootPart
+    if humanoid then
+        if humanoid.RigType == Enum.HumanoidRigType.R6 then
+            targetPart = character:FindFirstChild("Torso") or humanoidRootPart
+        else
+            targetPart = character:FindFirstChild("LowerTorso") or humanoidRootPart
+        end
+    end
+
+    local boxGui = Instance.new("BillboardGui")
+    boxGui.Name = "ESPBox"
+    boxGui.Parent = character
+    boxGui.Size = UDim2.new(4, 0, 6, 0)
+    boxGui.StudsOffset = Vector3.new(0, 0, 0)
+    boxGui.Adornee = targetPart
+    boxGui.AlwaysOnTop = true
+    boxGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+
+    local containerFrame = Instance.new("Frame")
+    containerFrame.Parent = boxGui
+    containerFrame.Size = UDim2.new(1, 0, 1, 0)
+    containerFrame.BackgroundTransparency = 1
+
+    local edges = {
+        {UDim2.new(1, 0, 0, 2), UDim2.new(0, 0, 0, 0)},
+        {UDim2.new(1, 0, 0, 2), UDim2.new(0, 0, 1, -2)},
+        {UDim2.new(0, 2, 1, 0), UDim2.new(0, 0, 0, 0)},
+        {UDim2.new(0, 2, 1, 0), UDim2.new(1, -2, 0, 0)}
+    }
+
+    for _, data in ipairs(edges) do
+        local edge = Instance.new("Frame")
+        edge.Parent = containerFrame
+        edge.Size = data[1]
+        edge.Position = data[2]
+        edge.BackgroundColor3 = color
+        edge.BorderSizePixel = 0
+    end
+end
+
+-- Remove box from character
+local function removeBox(character)
+    if not character then return end
+    local box = character:FindFirstChild("ESPBox")
+    if box then
+        box:Destroy()
+    end
+end
+
+-- Update ESP for a single player
+local function updatePlayerESP(player)
+    if not player or player == localPlayer then return end
+    if not player.Character then return end
+
+    local isSeekerRole = isSeeker(player)
+
+    if (isSeekerRole and espSeekersEnabled) then
+        createBox(player.Character, Color3.new(1, 0, 0))
+    elseif (not isSeekerRole and espHidersEnabled) then
+        createBox(player.Character, Color3.new(0, 0, 1))
+    else
+        removeBox(player.Character)
+    end
+end
+
+-- Update all players ESP
+local function updateAllESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= localPlayer then
+            updatePlayerESP(player)
+        end
+    end
+end
+
+-- Remove all ESP boxes
+local function removeAllESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player.Character then
+            removeBox(player.Character)
+        end
+    end
+end
+
+-- Setup player monitoring
+local function setupPlayer(player)
+    if player == localPlayer then return end
+
+    player.CharacterAdded:Connect(function(character)
+        task.wait(0.5)
+        updatePlayerESP(player)
+    end)
+
+    if player.Character then
+        player.Character.ChildAdded:Connect(function(child)
+            if child.Name == "Knife" then
+                task.wait(0.1)
+                updatePlayerESP(player)
+            end
+        end)
+
+        player.Character.ChildRemoved:Connect(function(child)
+            if child.Name == "Knife" then
+                task.wait(0.1)
+                updatePlayerESP(player)
+            end
+        end)
+    end
+
+    local backpack = player:FindFirstChild("Backpack")
+    if backpack then
+        backpack.ChildAdded:Connect(function(child)
+            if child.Name == "Knife" then
+                task.wait(0.1)
+                updatePlayerESP(player)
+            end
+        end)
+
+        backpack.ChildRemoved:Connect(function(child)
+            if child.Name == "Knife" then
+                task.wait(0.1)
+                updatePlayerESP(player)
+            end
+        end)
+    end
+end
+
+-- Initialize ESP system
+local function initializeESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        setupPlayer(player)
+    end
+
+    Players.PlayerAdded:Connect(setupPlayer)
+
+    Players.PlayerRemoving:Connect(function(player)
+        if player.Character then
+            removeBox(player.Character)
+        end
+    end)
+end
+
+initializeESP()
+
+HideAndSeekLeftGroupBox:AddToggle("ESPSeekers", {
+    Text = "ESP Seekers",
+    Default = false,
+    Callback = function(Value)
+        espSeekersEnabled = Value
+        updateAllESP()
+        print("ESP Seekers:", Value and "Enabled" or "Disabled")
+    end,
+})
+
+HideAndSeekLeftGroupBox:AddToggle("ESPHiders", {
+    Text = "ESP Hiders",
+    Default = false,
+    Callback = function(Value)
+        espHidersEnabled = Value
+        updateAllESP()
+        print("ESP Hiders:", Value and "Enabled" or "Disabled")
+    end,
+})
+
+HideAndSeekLeftGroupBox:AddButton("HNS - ESP Exit", function()
+    for i, floor1doors in pairs(game.Workspace.HideAndSeekMap.NEWFIXEDDOORS.Floor1.EXITDOORS:GetChildren()) do
+        Instance.new("Highlight", floor1doors)
+    end
+    for i, floor2doors in pairs(game.Workspace.HideAndSeekMap.NEWFIXEDDOORS.Floor2.EXITDOORS:GetChildren()) do
+        Instance.new("Highlight", floor2doors)
+    end
+    for i, floor3doors in pairs(game.Workspace.HideAndSeekMap.NEWFIXEDDOORS.Floor3.EXITDOORS:GetChildren()) do
+        Instance.new("Highlight", floor3doors)
+    end
+end)
+
+HideAndSeekLeftGroupBox:AddButton("HNS - Delete The Spikes", function()
+    game.Workspace.HideAndSeekMap.KillingParts:Destroy()
+end)
+
+-- DEFENSIVE TOGGLE: Protect yourself when attacked
+local defensiveKillingPartsEnabled = false
+local defensiveConnection = nil
+local killingPartsPosition = nil
+local killingPartsDestroyed = false
+
+HideAndSeekLeftGroupBox:AddToggle("DefensiveSpikeRemoval", {
+    Text = "🛡️ Defensive Spike Removal",
+    Default = false,
+    Callback = function(Value)
+        defensiveKillingPartsEnabled = Value
+        
+        if Value then
+            -- First, destroy the killing parts and save their position
+            local killingParts = game.Workspace.HideAndSeekMap:FindFirstChild("KillingParts")
+            
+            if killingParts then
+                -- Save the position before destroying
+                if killingParts.PrimaryPart then
+                    killingPartsPosition = killingParts.PrimaryPart.CFrame
+                elseif #killingParts:GetChildren() > 0 then
+                    -- If no primary part, use the first child's position
+                    local firstPart = killingParts:GetChildren()[1]
+                    if firstPart:IsA("BasePart") then
+                        killingPartsPosition = firstPart.CFrame
+                    end
+                end
+                
+                -- Destroy the killing parts
+                killingParts:Destroy()
+                killingPartsDestroyed = true
+            else
+                defensiveKillingPartsEnabled = false
+                return
+            end
+            
+            -- Start monitoring for when we get attacked
+            if defensiveConnection then
+                defensiveConnection:Disconnect()
+            end
+            
+            defensiveConnection = RunService.Heartbeat:Connect(function()
+                if not defensiveKillingPartsEnabled then return end
+                
+                local character = localPlayer.Character
+                if not character then return end
+                
+                local humanoid = character:FindFirstChild("Humanoid")
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                
+                if not humanoid or not rootPart then return end
+                
+                -- Monitor for health damage (indicates we're being attacked)
+                -- We'll check if health is decreasing
+                local currentHealth = humanoid.Health
+                
+                -- Store previous health in a variable outside this function
+                if not _G.DefensiveLastHealth then
+                    _G.DefensiveLastHealth = currentHealth
+                end
+                
+                -- If our health decreased, we're being attacked!
+                if currentHealth < _G.DefensiveLastHealth and currentHealth > 0 then
+                    -- We're under attack! Teleport to safe zone immediately
+                    if killingPartsPosition then
+                        rootPart.CFrame = killingPartsPosition + Vector3.new(0, 5, 0) -- TP slightly above
+                        
+                        -- Create escape visual effect
+                        spawn(function()
+                            local escapePulse = Instance.new("Part")
+                            escapePulse.Size = Vector3.new(1, 1, 1)
+                            escapePulse.Position = rootPart.Position
+                            escapePulse.Material = Enum.Material.Neon
+                            escapePulse.BrickColor = BrickColor.new("Bright blue")
+                            escapePulse.Anchored = true
+                            escapePulse.CanCollide = false
+                            escapePulse.Shape = Enum.PartType.Ball
+                            escapePulse.Transparency = 0.5
+                            escapePulse.Parent = workspace
+                            
+                            local TweenService = game:GetService("TweenService")
+                            local expandTween = TweenService:Create(
+                                escapePulse,
+                                TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                                {Size = Vector3.new(15, 15, 15), Transparency = 1}
+                            )
+                            expandTween:Play()
+                            
+                            game:GetService("Debris"):AddItem(escapePulse, 1)
+                        end)
+                    end
+                end
+                
+                -- Update stored health
+                _G.DefensiveLastHealth = currentHealth
+                
+                -- Alternative detection method: Check if any player is very close with a weapon
+                for _, otherPlayer in pairs(Players:GetPlayers()) do
+                    if otherPlayer == localPlayer then continue end
+                    if not otherPlayer.Character then continue end
+                    
+                    local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    local otherTool = otherPlayer.Character:FindFirstChildOfClass("Tool")
+                    
+                    if otherRoot and otherTool then
+                        -- Check if they're close enough to attack us
+                        local distance = (rootPart.Position - otherRoot.Position).Magnitude
+                        
+                        if distance < 8 then
+                            -- Enemy with weapon is very close! Prepare for evasion
+                            -- Check if they're facing us
+                            local directionToUs = (rootPart.Position - otherRoot.Position).Unit
+                            local theirLookDirection = otherRoot.CFrame.LookVector
+                            
+                            if directionToUs:Dot(theirLookDirection) > 0.7 then
+                                -- They're looking at us and close with a weapon!
+                                -- Teleport to safety preemptively
+                                if killingPartsPosition then
+                                    rootPart.CFrame = killingPartsPosition + Vector3.new(0, 5, 0)
+                                    
+                                    -- Small cooldown to prevent spam
+                                    task.wait(1)
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+            
+        else
+            
+            if defensiveConnection then
+                defensiveConnection:Disconnect()
+                defensiveConnection = nil
+            end
+            
+            _G.DefensiveLastHealth = nil
+            killingPartsDestroyed = false
+        end
+    end,
+})
+
+-- OFFENSIVE TOGGLE: Remove spikes and TP there after you attack someone
+local offensiveKillingPartsEnabled = false
+local offensiveConnection = nil
+local offensiveKillingPartsPosition = nil
+local offensiveKillingPartsDestroyed = false
+local lastOffensiveTPTime = 0
+local offensiveTPCooldown = 2 -- Cooldown between teleports (seconds)
+
+HideAndSeekLeftGroupBox:AddToggle("OffensiveSpikeRemoval", {
+    Text = "⚔️ Tp hiders to spikes",
+    Default = false,
+    Callback = function(Value)
+        offensiveKillingPartsEnabled = Value
+        
+        if Value then
+            -- First, destroy the killing parts and save their position
+            local killingParts = game.Workspace.HideAndSeekMap:FindFirstChild("KillingParts")
+            
+            if killingParts then
+                -- Save the position before destroying
+                if killingParts.PrimaryPart then
+                    offensiveKillingPartsPosition = killingParts.PrimaryPart.CFrame
+                elseif #killingParts:GetChildren() > 0 then
+                    local firstPart = killingParts:GetChildren()[1]
+                    if firstPart:IsA("BasePart") then
+                        offensiveKillingPartsPosition = firstPart.CFrame
+                    end
+                end
+                
+                -- Destroy the killing parts
+                killingParts:Destroy()
+                offensiveKillingPartsDestroyed = true
+            else
+                offensiveKillingPartsEnabled = false
+                return
+            end
+            
+            -- Start monitoring for when we attack someone
+            if offensiveConnection then
+                offensiveConnection:Disconnect()
+            end
+            
+            offensiveConnection = RunService.Heartbeat:Connect(function()
+                if not offensiveKillingPartsEnabled then return end
+                
+                local character = localPlayer.Character
+                if not character then return end
+                
+                local humanoid = character:FindFirstChild("Humanoid")
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                
+                if not humanoid or not rootPart or humanoid.Health <= 0 then return end
+                
+                -- Check if we have a weapon equipped
+                local equippedTool = character:FindFirstChildOfClass("Tool")
+                
+                if not equippedTool then return end
+                
+                -- Monitor nearby players to see if we're attacking them
+                for _, otherPlayer in pairs(Players:GetPlayers()) do
+                    if otherPlayer == localPlayer then continue end
+                    if not otherPlayer.Character then continue end
+                    
+                    local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    local otherHumanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+                    
+                    if not otherRoot or not otherHumanoid then continue end
+                    
+                    -- Store their previous health
+                    if not _G.OffensivePlayerHealths then
+                        _G.OffensivePlayerHealths = {}
+                    end
+                    
+                    if not _G.OffensivePlayerHealths[otherPlayer.UserId] then
+                        _G.OffensivePlayerHealths[otherPlayer.UserId] = otherHumanoid.Health
+                    end
+                    
+                    local previousHealth = _G.OffensivePlayerHealths[otherPlayer.UserId]
+                    local currentHealth = otherHumanoid.Health
+                    
+                    -- Calculate distance to this player
+                    local distance = (rootPart.Position - otherRoot.Position).Magnitude
+                    
+                    -- If they lost health AND we're close with a weapon, we probably hit them!
+                    if currentHealth < previousHealth and distance < 10 and equippedTool then
+                        -- Check cooldown
+                        local currentTime = tick()
+                        if currentTime - lastOffensiveTPTime >= offensiveTPCooldown then
+                            -- We attacked someone! Teleport to killing parts location
+                            if offensiveKillingPartsPosition then
+                                rootPart.CFrame = offensiveKillingPartsPosition + Vector3.new(0, 5, 0)
+                                
+                                -- Create attack success visual effect
+                                spawn(function()
+                                    local attackFlash = Instance.new("Part")
+                                    attackFlash.Size = Vector3.new(1, 1, 1)
+                                    attackFlash.Position = rootPart.Position
+                                    attackFlash.Material = Enum.Material.Neon
+                                    attackFlash.BrickColor = BrickColor.new("Bright red")
+                                    attackFlash.Anchored = true
+                                    attackFlash.CanCollide = false
+                                    attackFlash.Shape = Enum.PartType.Ball
+                                    attackFlash.Transparency = 0.3
+                                    attackFlash.Parent = workspace
+                                    
+                                    local TweenService = game:GetService("TweenService")
+                                    local expandTween = TweenService:Create(
+                                        attackFlash,
+                                        TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                                        {Size = Vector3.new(20, 20, 20), Transparency = 1}
+                                    )
+                                    expandTween:Play()
+                                    
+                                    game:GetService("Debris"):AddItem(attackFlash, 1)
+                                end)
+                                
+                                lastOffensiveTPTime = currentTime
+                            end
+                        end
+                    end
+                    
+                    -- Update stored health
+                    _G.OffensivePlayerHealths[otherPlayer.UserId] = currentHealth
+                end
+                
+                -- Alternative detection: Monitor tool activation
+                if equippedTool then
+                    -- Check if tool was recently activated (attack animation)
+                    local animator = humanoid:FindFirstChild("Animator")
+                    if animator then
+                        local tracks = animator:GetPlayingAnimationTracks()
+                        
+                        for _, track in pairs(tracks) do
+                            local animName = track.Animation.Name:lower()
+                            
+                            -- Check if this is an attack animation
+                            if animName:find("slash") or animName:find("swing") or 
+                               animName:find("attack") or animName:find("stab") then
+                                
+                                -- Attack animation is playing!
+                                -- Check if anyone is in range
+                                for _, otherPlayer in pairs(Players:GetPlayers()) do
+                                    if otherPlayer == localPlayer then continue end
+                                    if not otherPlayer.Character then continue end
+                                    
+                                    local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+                                    if otherRoot then
+                                        local distance = (rootPart.Position - otherRoot.Position).Magnitude
+                                        
+                                        if distance < 8 then
+                                            -- Someone is in attack range while we're swinging!
+                                            local currentTime = tick()
+                                            if currentTime - lastOffensiveTPTime >= offensiveTPCooldown then
+                                                if offensiveKillingPartsPosition then
+                                                    task.wait(0.2) -- Small delay for attack to register
+                                                    rootPart.CFrame = offensiveKillingPartsPosition + Vector3.new(0, 5, 0)
+                                                    
+                                                    lastOffensiveTPTime = currentTime
+                                                end
+                                            end
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+            
+        else
+            
+            if offensiveConnection then
+                offensiveConnection:Disconnect()
+                offensiveConnection = nil
+            end
+            
+            _G.OffensivePlayerHealths = nil
+            offensiveKillingPartsDestroyed = false
+        end
+    end,
+})
+
+-- Auto Dodge for Hide and Seek
+local isAutoDodgeActive = false
+local autoDodgeConnection = nil
+local lastDodgeTime = 0
+local dodgeCooldown = 1.5
+local dodgeRange = 15
+
+HideAndSeekLeftGroupBox:AddToggle("AutoDodgeHNS", {
+    Text = "Auto Dodge",
+    Default = false,
+    Callback = function(Value)
+        isAutoDodgeActive = Value
+        
+        if Value then
+            if autoDodgeConnection then
+                autoDodgeConnection:Disconnect()
+            end
+            
+            autoDodgeConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                if not isAutoDodgeActive then return end
+                checkForAttackers()
+            end)
+            
+        else
+            if autoDodgeConnection then
+                autoDodgeConnection:Disconnect()
+                autoDodgeConnection = nil
+            end
+        end
+    end,
+})
+
+function checkForAttackers()
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart or humanoid.Health <= 0 then return end
+    
+    local currentTime = tick()
+    if currentTime - lastDodgeTime < dodgeCooldown then return end
+    
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local attackerChar = otherPlayer.Character
+            local attackerRoot = attackerChar:FindFirstChild("HumanoidRootPart")
+            local attackerHumanoid = attackerChar:FindFirstChild("Humanoid")
+            
+            if attackerRoot and attackerHumanoid and attackerHumanoid.Health > 0 then
+                local distance = (rootPart.Position - attackerRoot.Position).Magnitude
+                
+                if distance <= dodgeRange then
+                    local tool = attackerChar:FindFirstChildOfClass("Tool")
+                    if tool then
+                        local lookVector = attackerRoot.CFrame.LookVector
+                        local toTarget = (rootPart.Position - attackerRoot.Position).Unit
+                        local dotProduct = lookVector:Dot(toTarget)
+                        
+                        if dotProduct > 0.8 then
+                            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.One, false, game)
+                            task.wait(0.1)
+                            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.One, false, game)
+                            lastDodgeTime = currentTime
+                            return
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- JUMP ROPE TAB CONTENT
+local JumpRopeLeftGroupBox = Tabs.JumpRope:AddLeftGroupbox("Jump Rope")
+
+JumpRopeLeftGroupBox:AddButton("Jump Rope - Teleport To End", function()
+    local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = CFrame.new(720.896057, 198.628311, 921.170654)
+    end
+end)
+
+JumpRopeLeftGroupBox:AddButton("Jump Rope - Delete The Rope", function()
+    game.Workspace.Effects.rope:Destroy()
+end)
+
+-- Auto Jump Rope - FIXED VERSION
+local isAutoJumpRopeActive = false
+local jumpRopeConnection = nil
+
+JumpRopeLeftGroupBox:AddToggle("AutoJumpRope", {
+    Text = "Auto Jump Rope",
+    Default = false,
+    Callback = function(Value)
+        isAutoJumpRopeActive = Value
+        
+        if Value then
+            
+            if jumpRopeConnection then
+                jumpRopeConnection:Disconnect()
+            end
+            
+            jumpRopeConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                if not isAutoJumpRopeActive then return end
+                autoJumpRope()
+            end)
+            
+        else
+            if jumpRopeConnection then
+                jumpRopeConnection:Disconnect()
+                jumpRopeConnection = nil
+            end
+        end
+    end,
+})
+
+function autoJumpRope()
+    local character = localPlayer.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart then return end
+    
+    -- Move forward continuously
+    humanoid:Move(Vector3.new(0, 0, -1))
+    
+    -- Check if rope exists and is near
+    local rope = workspace.Effects:FindFirstChild("rope")
+    if rope then
+        -- Get rope position (use primary part or first part)
+        local ropePart = rope.PrimaryPart or rope:FindFirstChildWhichIsA("BasePart")
+        if ropePart then
+            -- Calculate horizontal distance only (ignore Y axis)
+            local ropePos = Vector3.new(ropePart.Position.X, rootPart.Position.Y, ropePart.Position.Z)
+            local distance = (rootPart.Position - ropePos).Magnitude
+            
+            -- Jump when rope is close horizontally
+            if distance < 6 then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                
+                -- Visual feedback
+                spawn(function()
+                    local jumpEffect = Instance.new("Part")
+                    jumpEffect.Size = Vector3.new(3, 0.2, 3)
+                    jumpEffect.Position = rootPart.Position - Vector3.new(0, 3, 0)
+                    jumpEffect.BrickColor = BrickColor.new("Bright green")
+                    jumpEffect.Material = Enum.Material.Neon
+                    jumpEffect.Anchored = true
+                    jumpEffect.CanCollide = false
+                    jumpEffect.Transparency = 0.5
+                    jumpEffect.Parent = workspace
+                    
+                    game:GetService("Debris"):AddItem(jumpEffect, 0.3)
+                end)
+            end
+        end
+    end
+    
+    -- Check if player reached the end platform
+    local endPlatform = workspace:FindFirstChild("EndPlatform") or workspace:FindFirstChild("Finish")
+    if endPlatform then
+        local platformPart = endPlatform.PrimaryPart or endPlatform:FindFirstChildWhichIsA("BasePart")
+        if platformPart then
+            local distance = (rootPart.Position - platformPart.Position).Magnitude
+            if distance < 10 then
+                -- Stop moving when reached end
+                humanoid:Move(Vector3.new(0, 0, 0))
+            end
+        end
+    end
+end
+
+-- Anti-Fall System for Jump Rope
+local isJumpRopeAntiFallActive = false
+local jumpRopeAntiFallConnection = nil
+
+JumpRopeLeftGroupBox:AddToggle("JumpRopeAntiFall", {
+    Text = "Anti Fall - Jump Rope",
+    Default = false,
+    Callback = function(Value)
+        isJumpRopeAntiFallActive = Value
+        
+        if Value then
+            
+            jumpRopeAntiFallConnection = RunService.Heartbeat:Connect(function()
+                if not isJumpRopeAntiFallActive then return end
+                
+                local character = localPlayer.Character
+                if not character then return end
+                
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                local humanoid = character:FindFirstChild("Humanoid")
+                
+                if not rootPart or not humanoid or humanoid.Health <= 0 then return end
+                
+                -- Check if player is below the fall threshold (lower for jump rope)
+                if rootPart.Position.Y < 190 then -- Jump rope happens around Y=198
+                    -- Find the nearest alive player
+                    local targetPlayer = findNearestAlivePlayer()
+                    if targetPlayer and targetPlayer.Character then
+                        local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if targetRoot then
+                            -- Teleport to the target player
+                            rootPart.CFrame = targetRoot.CFrame + Vector3.new(0, 3, 0)
+                            
+                            -- Visual feedback
+                            spawn(function()
+                                local flash = Instance.new("Part")
+                                flash.Size = Vector3.new(8, 0.2, 8)
+                                flash.Position = rootPart.Position - Vector3.new(0, 3, 0)
+                                flash.BrickColor = BrickColor.new("Bright yellow")
+                                flash.Material = Enum.Material.Neon
+                                flash.Anchored = true
+                                flash.CanCollide = false
+                                flash.Transparency = 0.5
+                                flash.Parent = workspace
+                                
+                                game:GetService("Debris"):AddItem(flash, 0.5)
+                            end)
+                        end
+                    else
+                        -- If no alive player found, teleport to jump rope start
+                        rootPart.CFrame = CFrame.new(720.896057, 198.628311, 921.170654)
+                    end
+                end
+            end)
+            
+        else
+            if jumpRopeAntiFallConnection then
+                jumpRopeAntiFallConnection:Disconnect()
+                jumpRopeAntiFallConnection = nil
+            end
+        end
+    end,
+})
+
+-- GLASS BRIDGE TAB CONTENT
+local GlassBridgeLeftGroupBox = Tabs.GlassBridge:AddLeftGroupbox("Glass Bridge")
+
+GlassBridgeLeftGroupBox:AddButton("Glass Bridge - Teleport To End", function()
+    local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = CFrame.new(-196.372467, 522.192139, -1534.20984)
+    end
+end)
+
+GlassBridgeLeftGroupBox:AddButton("Glass Bridge Fake Glass", function()
+    CreateGlassBridgeCover()
+end)
+
+GlassBridgeLeftGroupBox:AddButton("Glass Esp", function()
+    local GlassHolder = workspace:WaitForChild("GlassBridge"):WaitForChild("GlassHolder")
+
+    for i, v in pairs(GlassHolder:GetChildren()) do
+        for g, j in pairs(v:GetChildren()) do
+            if j:IsA("Model") and j.PrimaryPart then
+                local Color = j.PrimaryPart:GetAttribute("exploitingisevil") 
+                    and Color3.fromRGB(248, 87, 87) 
+                    or Color3.fromRGB(28, 235, 87)
+                j.PrimaryPart.Color = Color
+                j.PrimaryPart.Transparency = 0
+                j.PrimaryPart.Material = Enum.Material.Neon
+            end
+        end
+    end
+end)
+
+-- MINGLE TAB CONTENT
+local MingleLeftGroupBox = Tabs.Mingle:AddLeftGroupbox("Mingle")
+
+MingleLeftGroupBox:AddButton("Teleport To Room", function()
+    local char = localPlayer.Character
+    char.HumanoidRootPart.CFrame = CFrame.new(1170.68262, 403.950592, -486.154968)
+end)
+
+-- Auto QTE System for Mingle
+local isAutoQTEActive = false
+local QTEConnection = nil
+
+MingleLeftGroupBox:AddToggle("AutoQTE", {
+    Text = "Auto QTE",
+    Default = false,
+    Callback = function(Value)
+        isAutoQTEActive = Value
+        
+        if Value then
+            if QTEConnection then
+                QTEConnection:Disconnect()
+            end
+            
+            QTEConnection = RunService.Heartbeat:Connect(function()
+                if not isAutoQTEActive then return end
+                autoQTERoutine()
+            end)
+        else
+            if QTEConnection then
+                QTEConnection:Disconnect()
+                QTEConnection = nil
+            end
+        end
+    end,
+})
+
+function autoQTERoutine()
+    -- Look for QTE buttons on screen
+    local gui = localPlayer.PlayerGui
+    if not gui then return end
+    
+    -- Check for various QTE button types
+    local screenGui = gui:FindFirstChild("ScreenGui")
+    if screenGui then
+        for _, element in pairs(screenGui:GetDescendants()) do
+            if element:IsA("TextButton") or element:IsA("ImageButton") then
+                local buttonText = element.Text or element.Name
+                if buttonText:match("[FEQR]") then
+                    -- Found a QTE button, check if it's in the red bar area
+                    local absolutePosition = element.AbsolutePosition
+                    local absoluteSize = element.AbsoluteSize
+                    
+                    -- Check if button is in the active/hit area (you may need to adjust these coordinates)
+                    if absolutePosition.Y > 300 and absolutePosition.Y < 400 then
+                        -- Simulate button press
+                        local virtualInput = game:GetService("VirtualInputManager")
+                        
+                        -- Press the corresponding key based on button text
+                        local keyToPress = nil
+                        if buttonText:find("F") then
+                            keyToPress = Enum.KeyCode.F
+                        elseif buttonText:find("E") then
+                            keyToPress = Enum.KeyCode.E
+                        elseif buttonText:find("Q") then
+                            keyToPress = Enum.KeyCode.Q
+                        elseif buttonText:find("R") then
+                            keyToPress = Enum.KeyCode.R
+                        end
+                        
+                        if keyToPress then
+                            virtualInput:SendKeyEvent(true, keyToPress, false, game)
+                            task.wait(0.05)
+                            virtualInput:SendKeyEvent(false, keyToPress, false, game)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- SKY SQUID TAB CONTENT
+local SkySquidLeftGroupBox = Tabs.SkySquid:AddLeftGroupbox("Sky Squid")
+
+-- Anti-Fall System for Sky Squid
+local isSkySquidAntiFallActive = false
+local skySquidAntiFallConnection = nil
+
+SkySquidLeftGroupBox:AddToggle("SkySquidAntiFall", {
+    Text = "Anti Fall - Sky Squid",
+    Default = false,
+    Callback = function(Value)
+        isSkySquidAntiFallActive = Value
+        
+        if Value then
+            
+            skySquidAntiFallConnection = RunService.Heartbeat:Connect(function()
+                if not isSkySquidAntiFallActive then return end
+                
+                local character = localPlayer.Character
+                if not character then return end
+                
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                local humanoid = character:FindFirstChild("Humanoid")
+                
+                if not rootPart or not humanoid or humanoid.Health <= 0 then return end
+                
+                -- Check if player is falling below a certain threshold
+                if rootPart.Position.Y < 50 then -- Adjust threshold as needed
+                    -- Find the nearest alive player
+                    local targetPlayer = findNearestAlivePlayer()
+                    if targetPlayer and targetPlayer.Character then
+                        local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if targetRoot then
+                            -- Teleport to the target player
+                            rootPart.CFrame = targetRoot.CFrame + Vector3.new(0, 3, 0)
+                            
+                            -- Visual feedback
+                            spawn(function()
+                                local flash = Instance.new("Part")
+                                flash.Size = Vector3.new(8, 0.2, 8)
+                                flash.Position = rootPart.Position - Vector3.new(0, 3, 0)
+                                flash.BrickColor = BrickColor.new("Bright blue")
+                                flash.Material = Enum.Material.Neon
+                                flash.Anchored = true
+                                flash.CanCollide = false
+                                flash.Transparency = 0.5
+                                flash.Parent = workspace
+                                
+                                game:GetService("Debris"):AddItem(flash, 0.5)
+                            end)
+                        end
+                    end
+                end
+            end)
+            
+        else
+            if skySquidAntiFallConnection then
+                skySquidAntiFallConnection:Disconnect()
+                skySquidAntiFallConnection = nil
+            end
+        end
+    end,
+})
+
+-- Auto QTE for Sky Squid
+local isSkySquidQTEActive = false
+local skySquidQTEConnection = nil
+
+SkySquidLeftGroupBox:AddToggle("SkySquidAutoQTE", {
+    Text = "Auto QTE - Sky Squid",
+    Default = false,
+    Callback = function(Value)
+        isSkySquidQTEActive = Value
+        
+        if Value then
+            if skySquidQTEConnection then
+                skySquidQTEConnection:Disconnect()
+            end
+            
+            skySquidQTEConnection = RunService.Heartbeat:Connect(function()
+                if not isSkySquidQTEActive then return end
+                autoSkySquidQTERoutine()
+            end)
+        else
+            if skySquidQTEConnection then
+                skySquidQTEConnection:Disconnect()
+                skySquidQTEConnection = nil
+            end
+        end
+    end,
+})
+
+function autoSkySquidQTERoutine()
+    -- Look for QTE buttons specific to Sky Squid
+    local gui = localPlayer.PlayerGui
+    if not gui then return end
+    
+    -- Check for Sky Squid QTE elements
+    local screenGui = gui:FindFirstChild("ScreenGui") or gui:FindFirstChild("QTE")
+    if screenGui then
+        for _, element in pairs(screenGui:GetDescendants()) do
+            if element:IsA("TextButton") or element:IsA("ImageButton") then
+                local buttonText = element.Text or element.Name
+                if buttonText:match("[FEQR]") or element:FindFirstChild("QTE") then
+                    -- Check if this is an active QTE button (in the hit zone)
+                    local absolutePosition = element.AbsolutePosition
+                    local absoluteSize = element.AbsoluteSize
+                    
+                    -- Check if button is in the active area (adjust coordinates as needed)
+                    local centerY = absolutePosition.Y + (absoluteSize.Y / 2)
+                    if centerY > 350 and centerY < 450 then
+                        -- Press the corresponding key
+                        local virtualInput = game:GetService("VirtualInputManager")
+                        local keyToPress = nil
+                        
+                        if buttonText:find("F") then
+                            keyToPress = Enum.KeyCode.F
+                        elseif buttonText:find("E") then
+                            keyToPress = Enum.KeyCode.E
+                        elseif buttonText:find("Q") then
+                            keyToPress = Enum.KeyCode.Q
+                        elseif buttonText:find("R") then
+                            keyToPress = Enum.KeyCode.R
+                        else
+                            -- Default to F if no specific key found
+                            keyToPress = Enum.KeyCode.F
+                        end
+                        
+                        if keyToPress then
+                            virtualInput:SendKeyEvent(true, keyToPress, false, game)
+                            task.wait(0.05)
+                            virtualInput:SendKeyEvent(false, keyToPress, false, game)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- FINAL TAB CONTENT
+local FinalLeftGroupBox = Tabs.Final:AddLeftGroupbox("Final Game")
+
+FinalLeftGroupBox:AddButton("Teleport To Final Game", function()
+    local char = localPlayer.Character
+    char.HumanoidRootPart.CFrame = CFrame.new(2730.44263,1043.33435,800.130554)
+end)
+
+-- Anti-Fall System for Final Game
+local isFinalAntiFallActive = false
+local finalAntiFallConnection = nil
+
+FinalLeftGroupBox:AddToggle("FinalAntiFall", {
+    Text = "Anti Fall - Final Game",
+    Default = false,
+    Callback = function(Value)
+        isFinalAntiFallActive = Value
+        
+        if Value then
+            
+            finalAntiFallConnection = RunService.Heartbeat:Connect(function()
+                if not isFinalAntiFallActive then return end
+                
+                local character = localPlayer.Character
+                if not character then return end
+                
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                local humanoid = character:FindFirstChild("Humanoid")
+                
+                if not rootPart or not humanoid or humanoid.Health <= 0 then return end
+                
+                -- Check if player is below the fall threshold for final game
+                if rootPart.Position.Y < 1000 then -- Final game happens at higher Y levels
+                    -- Find the nearest alive player
+                    local targetPlayer = findNearestAlivePlayer()
+                    if targetPlayer and targetPlayer.Character then
+                        local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if targetRoot then
+                            -- Teleport to the target player
+                            rootPart.CFrame = targetRoot.CFrame + Vector3.new(0, 3, 0)
+                            
+                            -- Visual feedback
+                            spawn(function()
+                                local flash = Instance.new("Part")
+                                flash.Size = Vector3.new(8, 0.2, 8)
+                                flash.Position = rootPart.Position - Vector3.new(0, 3, 0)
+                                flash.BrickColor = BrickColor.new("Bright red")
+                                flash.Material = Enum.Material.Neon
+                                flash.Anchored = true
+                                flash.CanCollide = false
+                                flash.Transparency = 0.5
+                                flash.Parent = workspace
+                                
+                                game:GetService("Debris"):AddItem(flash, 0.5)
+                            end)
+                        end
+                    else
+                        -- If no alive player found, teleport to final game safe spot
+                        rootPart.CFrame = CFrame.new(2730.44263,1043.33435,800.130554)
+                    end
+                end
+            end)
+            
+        else
+            if finalAntiFallConnection then
+                finalAntiFallConnection:Disconnect()
+                finalAntiFallConnection = nil
+            end
+        end
+    end,
+})
+
+-- MISC TAB CONTENT
+local MiscLeftGroupBox = Tabs.Misc:AddLeftGroupbox("TELEPORTS")
+
+MiscLeftGroupBox:AddButton("Teleport To Spawn", function()
+    local char = localPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = CFrame.new(196.83342, 55.9547985, -90.4745865)
+    end
+end)
+
+MiscLeftGroupBox:AddButton("Teleport To Safe Spot", function()
+    local char = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = CFrame.new(179.030807, 57.9083214, 49.8269196)
+    end
+end)
+
+local MiscRightGroupBox1 = Tabs.Misc:AddRightGroupbox("SpamX TITLES")
+
+MiscRightGroupBox1:AddButton("[DAHEN HUB] Black Title", function()
+    localPlayer:SetAttribute("_CurrentTitle", "Him")
+    spawn(function()
+        while task.wait() do
+            localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[DAHEN SCRIPT]"
+        end
+    end)
+end)
+
+MiscRightGroupBox1:AddButton("[DAHEN HUB] Gold Title", function()
+    localPlayer:SetAttribute("_CurrentTitle", "Rich Millionaire")
+    spawn(function()
+        while task.wait() do
+            localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[SpamX USER]"
+        end
+    end)
+end)
+
+MiscRightGroupBox1:AddButton("[DAHEN HUB] Purple Title", function()
+    localPlayer:SetAttribute("_CurrentTitle", "Tanos")
+    spawn(function()
+        while task.wait() do
+            localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[SpamX USER]"
+        end
+    end)
+end)
+
+MiscRightGroupBox1:AddButton("[DAHEN HUB] Red Title", function()
+    localPlayer:SetAttribute("_CurrentTitle", "The Chosen One")
+    spawn(function()
+        while task.wait() do
+            localPlayer.Character.Torso.Player_Nametag.TitleText.Text = "[DAHEN SCRIPT ]"
+        end
+    end)
+end)
+
+local MiscRightGroupBox2 = Tabs.Misc:AddRightGroupbox("ITEM TELEPORTS")
+
+MiscRightGroupBox2:AddButton("Teleport To Dropped Bandage", function()
+    local char = localPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        for i = 1, 10 do
+            char.HumanoidRootPart.CFrame = game.Workspace.Effects:FindFirstChild("DroppedBandage").PrimaryPart.CFrame
+            task.wait(0.125)
+        end
+    end
+end)
+
+MiscRightGroupBox2:AddButton("Teleport To Dropped Grenade", function()
+    local char = localPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        for i = 1, 10 do
+            char.HumanoidRootPart.CFrame = game.Workspace.Effects:FindFirstChild("DroppedGrenade").PrimaryPart.CFrame
+            task.wait(0.125)
+        end
+    end
+end)
+
+MiscRightGroupBox2:AddButton("Teleport To Dropped FlashBang", function()
+    local char = localPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        for i = 1, 10 do
+            char.HumanoidRootPart.CFrame = game.Workspace.Effects:FindFirstChild("DroppedFlashbang").PrimaryPart.CFrame
+            task.wait(0.125)
+        end
+    end
+end)
+
+local teleportEnabled = false
+local teleportConnection = nil
+
+-- Teleport to Dropped Bandage Toggle
+MiscRightGroupBox2:AddToggle("AutoGrabBandage", {
+    Text = "Auto Grab Dropped Bandage",
+    Default = false,
+    Callback = function(Value)
+        teleportEnabled = Value
+
+        if teleportEnabled then
+            -- Start the teleport loop
+            teleportConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                if not teleportEnabled then return end
+
+                local char = localPlayer.Character
+                if char and char:FindFirstChild("HumanoidRootPart") then
+                    local droppedBandage = game.Workspace.Effects:FindFirstChild("DroppedBandage")
+                    if droppedBandage and droppedBandage.PrimaryPart then
+                        char.HumanoidRootPart.CFrame = droppedBandage.PrimaryPart.CFrame
+                    end
+                end
+            end)
+        else
+            -- Stop the teleport loop
+            if teleportConnection then
+                teleportConnection:Disconnect()
+                teleportConnection = nil
+            end
+        end
+    end,
+})
+
+-- Teleport to Dropped Grenade Toggle
+local grenadeEnabled = false
+local grenadeConnection = nil
+
+MiscRightGroupBox2:AddToggle("AutoGrabGrenade", {
+    Text = "Auto Grab Dropped Grenade",
+    Default = false,
+    Callback = function(Value)
+        grenadeEnabled = Value
+
+        if grenadeEnabled then
+            -- Start the teleport loop
+            grenadeConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                if not grenadeEnabled then return end
+
+                local char = localPlayer.Character
+                if char and char:FindFirstChild("HumanoidRootPart") then
+                    local droppedGrenade = game.Workspace.Effects:FindFirstChild("DroppedGrenade")
+                    if droppedGrenade and droppedGrenade.PrimaryPart then
+                        char.HumanoidRootPart.CFrame = droppedGrenade.PrimaryPart.CFrame
+                    end
+                end
+            end)
+        else
+            -- Stop the teleport loop
+            if grenadeConnection then
+                grenadeConnection:Disconnect()
+                grenadeConnection = nil
+            end
+        end
+    end,
+})
+
+-- Teleport to Dropped FlashBang Toggle
+local flashbangEnabled = false
+local flashbangConnection = nil
+
+MiscRightGroupBox2:AddToggle("AutoGrabFlashbang", {
+    Text = "Auto Grab Dropped FlashBang",
+    Default = false,
+    Callback = function(Value)
+        flashbangEnabled = Value
+
+        if flashbangEnabled then
+            -- Start the teleport loop
+            flashbangConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                if not flashbangEnabled then return end
+
+                local char = localPlayer.Character
+                if char and char:FindFirstChild("HumanoidRootPart") then
+                    local droppedFlashbang = game.Workspace.Effects:FindFirstChild("DroppedFlashbang")
+                    if droppedFlashbang and droppedFlashbang.PrimaryPart then
+                        char.HumanoidRootPart.CFrame = droppedFlashbang.PrimaryPart.CFrame
+                    end
+                end
+            end)
+        else
+            -- Stop the teleport loop
+            if flashbangConnection then
+                flashbangConnection:Disconnect()
+                flashbangConnection = nil
+            end
+        end
+    end,
+})
+
+MiscRightGroupBox2:AddToggle("EnableSpectate", {
+    Text = "Enable Spectate",
+    Default = false,
+    Callback = function(Value)
+        game.Workspace.Values.CanSpectateIfWonGame.Value = Value
+    end,
+})
+
+MiscRightGroupBox2:AddInput("CustomPlayerNumber", {
+    Default = "",
+    Placeholder = "Put Tag Here",
+    Text = "Custom Player Number",
+    Callback = function(Value)
+        local char = localPlayer.Character
+        local ui = localPlayer.PlayerGui.Leaderboard.Leaderboard.MainLeaderboard.Content:FindFirstChild(localPlayer.UserId)
+        local Tags = char:FindFirstChild("PlayerTags")
+
+        spawn(function()
+            while true do
+                task.wait()
+                for i, tag in pairs(Tags:GetChildren()) do
+                    tag.SurfaceGui.TextLabel.Text = Value
+                    ui.PlayerNumber.Text = "#"..Value
+                end
+            end
+        end)
+    end,
+})
+
+MiscRightGroupBox2:AddButton("FPS Boost", function()
+    -- Example FPS Booster Script
+    local Lighting = game:GetService("Lighting")
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 100000
+    Lighting.Brightness = 1
+
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") then
+            v.Material = Enum.Material.SmoothPlastic
+        end
+    end
+end)
+
+-- Auto-refresh player list when players join/leave
+Players.PlayerAdded:Connect(function()
+    task.wait(1)
+    -- Would need to refresh dropdown here
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    if selectedPlayer == player then
+        selectedPlayer = nil
+    end
+    -- Would need to refresh dropdown here
+end)
+
+-- Clean up speed boost and noclip on character respawn
+localPlayer.CharacterAdded:Connect(function()
+    speedBoostEnabled = false
+    if speedConnection then
+        speedConnection:Disconnect()
+        speedConnection = nil
+    end
+
+    noclipEnabled = false
+    if noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
+    end
+end)
+
+-- UI Settings
+local MenuGroup = Tabs.Misc:AddLeftGroupbox("Menu")
+
+MenuGroup:AddButton("Unload", function()
+    Library:Unload()
+end)
+
+MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", { 
+    Default = "RightShift", 
+    NoUI = true, 
+    Text = "Menu keybind" 
+})
+
+Library.ToggleKeybind = Options.MenuKeybind
+
+-- Addons:
+-- SaveManager (Allows you to have a configuration system)
+-- ThemeManager (Allows you to have a menu theme system)
+
+-- Hand the library over to our managers
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+
+-- Ignore keys that are used by ThemeManager.
+-- (we dont want configs to save themes, do we?)
+SaveManager:IgnoreThemeSettings()
+
+-- Adds our MenuKeybind to the ignore list
+-- (do you want each config to have a different menu key? probably not.)
+SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
+
+-- use case for doing it this way:
+-- a script hub could have themes in a global folder
+-- and game configs in a separate folder per game
+ThemeManager:SetFolder("MyScriptHub")
+SaveManager:SetFolder("MyScriptHub/specific-game")
+
+-- Builds our config menu on the right side of our tab
+SaveManager:BuildConfigSection(Tabs.Misc)
+
+-- Builds our theme menu (with plenty of built in themes) on the left side
+-- NOTE: you can also call ThemeManager:ApplyToGroupbox to add it to a specific groupbox
+ThemeManager:ApplyToTab(Tabs.Misc)
+
+-- You can use the SaveManager:LoadAutoloadConfig() to load a config
+-- which has been marked to be one that auto loads!
+SaveManager:LoadAutoloadConfig()
+
+print("DAHEN HUB LOADED")
